@@ -108,7 +108,7 @@ async function sendMessage(chatId, text) {
 async function getData() {
   const debut = new Date();
   debut.setDate(1);
-  debut.setHours(0, 0, 0, 0);
+  debut.setUTCHours(0, 0, 0, 0);
   const iso = debut.toISOString();
 
   const [d1, d2, d3, d4, d5, d6] = await Promise.all([
