@@ -11,43 +11,24 @@ const TOKEN = process.env.TELEGRAM_TOKEN;
 const CHAT_ID = process.env.CHAT_ID;
 
 // ============================================================
-// REVENUS
+// CONSTANTES
 // ============================================================
 const SALAIRE_LGM_DEFAULT = 2500;
 const BEAU_FRERE = 320;
 const OBJECTIF_COMPLETUDE = 1500;
+const EPARGNE_DEPART = 9000;
 
-// ============================================================
-// CHARGES FIXES
-// ============================================================
 const CHARGES_FIXES = {
-  'Loyer':                832.46,
-  'Tontine 1':            500.00,
-  'Tontine 2':            500.00,
-  'Virement mère':        150.00,
-  'Place parking':         50.00,
-  'Malakoff mutuelle':     57.03,
-  'ENI énergie':           39.40,
-  'Bouygues mobile':       17.99,
-  'Bouygues box':          24.00,
-  'Basic Fit':             22.99,
-  'Assurance habitation':   8.46,
-  'Assurance auto':        64.24,
-  'Salle sport femme':     44.00,
-  'Canal+ frère':          13.00,
-  'Cours arabe':           31.00,
-  'Claude.ai':             21.60,
-  'Helloasso':             12.55,
-  'Stripe asso':           10.00,
-  'Disney+':                6.99,
-  'Crunchyroll':            8.99,
-  'Cotisation bancaire':   18.30,
+  'Loyer': 832.46, 'Tontine 1': 500, 'Tontine 2': 500,
+  'Virement mère': 150, 'Place parking': 50, 'Malakoff mutuelle': 57.03,
+  'ENI énergie': 39.40, 'Bouygues mobile': 17.99, 'Bouygues box': 24,
+  'Basic Fit': 22.99, 'Assurance habitation': 8.46, 'Assurance auto': 64.24,
+  'Salle sport femme': 44, 'Canal+ frère': 13, 'Cours arabe': 31,
+  'Claude.ai': 21.60, 'Helloasso': 12.55, 'Stripe asso': 10,
+  'Disney+': 6.99, 'Crunchyroll': 8.99, 'Cotisation bancaire': 18.30,
 };
 const TOTAL_CHARGES_FIXES = Object.values(CHARGES_FIXES).reduce((a, b) => a + b, 0);
 
-// ============================================================
-// BUDGETS VARIABLES
-// ============================================================
 const BUDGETS = {
   essence:  { label: '⛽ Essence',  max: 300 },
   courses:  { label: '🛒 Courses',  max: 650 },
@@ -61,10 +42,6 @@ const BUDGETS = {
 };
 const TOTAL_BUDGETS_MAX = Object.values(BUDGETS).reduce((a, b) => a + b.max, 0);
 
-// ============================================================
-// OBJECTIFS ÉPARGNE
-// ============================================================
-const EPARGNE_DEPART = 9000;
 const OBJECTIFS = [
   { label: 'Fin juin 2026', montant: 12500 },
   { label: 'Fin août 2026', montant: 15000 },
@@ -72,42 +49,24 @@ const OBJECTIFS = [
 ];
 
 // ============================================================
-// PROFILS ÉLÈVES
+// ÉLÈVES
 // ============================================================
-const ELEVES_PROFILS = {
-  'Amel':        { niveau: '5e',  tda: false, ficheHebdo: false, question2h: true  },
-  'Benjamin':    { niveau: '5e',  tda: false, ficheHebdo: false, question2h: true  },
-  'Guillaume':   { niveau: '5e',  tda: true,  ficheHebdo: false, question2h: true  },
-  'Margaux':     { niveau: '3e',  tda: false, ficheHebdo: false, question2h: true  },
-  'Nélia':       { niveau: '3e',  tda: false, ficheHebdo: false, question2h: true  },
-  'Hélène':      { niveau: '5e',  tda: false, ficheHebdo: false, question2h: true  },
-  'Noélie':      { niveau: 'CE2', tda: false, ficheHebdo: false, question2h: false, fiche: false },
-  'Mathéo':      { niveau: '3e',  tda: false, ficheHebdo: true,  question2h: true  },
-  'Anne-Gaëlle': { niveau: '3e',  tda: false, ficheHebdo: false, question2h: true  },
-  'Saïda':       { niveau: '5e',  tda: false, ficheHebdo: false, question2h: true  },
-  'Serena':      { niveau: '5e',  tda: false, ficheHebdo: false, question2h: true  },
+const ELEVES = {
+  'Amel':        { niveau: '5e',  taux: 21.04, duree: 1.5, tda: false, ficheHebdo: false, question2h: true,  fiche: true,  jour: 1, heure: 17, minute: 0  },
+  'Benjamin':    { niveau: '5e',  taux: 24.30, duree: 1.5, tda: false, ficheHebdo: false, question2h: true,  fiche: true,  jour: 2, heure: 18, minute: 0  },
+  'Guillaume':   { niveau: '5e',  taux: 23.88, duree: 1.5, tda: true,  ficheHebdo: false, question2h: true,  fiche: true,  jour: 3, heure: 17, minute: 30 },
+  'Margaux':     { niveau: '3e',  taux: 26.60, duree: 1.5, tda: false, ficheHebdo: false, question2h: true,  fiche: true,  jour: 4, heure: 16, minute: 0  },
+  'Nélia':       { niveau: '3e',  taux: 26.60, duree: 1.5, tda: false, ficheHebdo: false, question2h: true,  fiche: true,  jour: 4, heure: 17, minute: 30 },
+  'Hélène':      { niveau: '5e',  taux: 24.30, duree: 1.5, tda: false, ficheHebdo: false, question2h: true,  fiche: true,  jour: 6, heure: 8,  minute: 0  },
+  'Noélie':      { niveau: 'CE2', taux: 25.78, duree: 1.0, tda: false, ficheHebdo: false, question2h: false, fiche: false, jour: 6, heure: 10, minute: 0  },
+  'Mathéo':      { niveau: '3e',  taux: 23.66, duree: 1.5, tda: false, ficheHebdo: true,  question2h: true,  fiche: true,  jour: 6, heure: 11, minute: 30 },
+  'Anne-Gaëlle': { niveau: '3e',  taux: 24.08, duree: 1.5, tda: false, ficheHebdo: false, question2h: true,  fiche: true,  jour: 6, heure: 13, minute: 0  },
+  'Saïda':       { niveau: '5e',  taux: 25.56, duree: 1.5, tda: false, ficheHebdo: false, question2h: true,  fiche: true,  jour: 6, heure: 15, minute: 0  },
+  'Serena':      { niveau: '5e',  taux: 23.04, duree: 1.5, tda: false, ficheHebdo: false, question2h: true,  fiche: true,  jour: 0, heure: 13, minute: 0, uneSemaineSurDeux: true },
 };
 
-// ============================================================
-// PLANNING COMPLÉTUDE
-// ============================================================
-const PLANNING = [
-  { nom: 'Amel',        jour: 1, heure: 17, minute: 0,  duree: 1.5, taux: 21.04 },
-  { nom: 'Benjamin',    jour: 2, heure: 18, minute: 0,  duree: 1.5, taux: 24.30 },
-  { nom: 'Guillaume',   jour: 3, heure: 17, minute: 30, duree: 1.5, taux: 23.88 },
-  { nom: 'Margaux',     jour: 4, heure: 16, minute: 0,  duree: 1.5, taux: 26.60 },
-  { nom: 'Nélia',       jour: 4, heure: 17, minute: 30, duree: 1.5, taux: 26.60 },
-  { nom: 'Hélène',      jour: 6, heure: 8,  minute: 0,  duree: 1.5, taux: 24.30 },
-  { nom: 'Noélie',      jour: 6, heure: 10, minute: 0,  duree: 1.0, taux: 25.78 },
-  { nom: 'Mathéo',      jour: 6, heure: 11, minute: 30, duree: 1.5, taux: 23.66 },
-  { nom: 'Anne-Gaëlle', jour: 6, heure: 13, minute: 0,  duree: 1.5, taux: 24.08 },
-  { nom: 'Saïda',       jour: 6, heure: 15, minute: 0,  duree: 1.5, taux: 25.56 },
-  { nom: 'Serena',      jour: 0, heure: 13, minute: 0,  duree: 1.5, taux: 23.04, uneSemaineSurDeux: true },
-];
-
-// État conversations en cours
+// État conversation
 let etatConversation = null;
-// { etape: 'confirmation'|'question2h'|'chapitre', cours: {...} }
 
 // ============================================================
 // HELPERS
@@ -127,8 +86,7 @@ function heureParis() {
 
 function estSemaineSerena() {
   const debut = new Date('2026-05-10');
-  const diff = Math.floor((new Date() - debut) / (7 * 24 * 60 * 60 * 1000));
-  return diff % 2 === 0;
+  return Math.floor((new Date() - debut) / (7 * 24 * 60 * 60 * 1000)) % 2 === 0;
 }
 
 function nomMois(date) {
@@ -137,12 +95,12 @@ function nomMois(date) {
 
 function detectCategorie(texte) {
   const t = texte.toLowerCase();
-  if (t.includes('essence') || t.includes('esso') || t.includes('total') || t.includes('station') || t.includes('dlg') || t.includes('arcycom') || t.includes('certas') || t.includes('relais') || t.includes('carburant')) return 'essence';
-  if (t.includes('leclerc') || t.includes('courses') || t.includes('carrefour') || t.includes('lidl') || t.includes('aldi') || t.includes('cora') || t.includes('supermarché')) return 'courses';
-  if (t.includes('resto') || t.includes('restaurant') || t.includes('mcdonald') || t.includes('burger') || t.includes('pizza') || t.includes('panda') || t.includes('quick') || t.includes('kebab')) return 'restos';
+  if (t.includes('essence') || t.includes('esso') || t.includes('station') || t.includes('carburant') || t.includes('dlg') || t.includes('arcycom') || t.includes('certas') || t.includes('relais')) return 'essence';
+  if (t.includes('leclerc') || t.includes('courses') || t.includes('carrefour') || t.includes('lidl') || t.includes('cora') || t.includes('supermarché')) return 'courses';
+  if (t.includes('resto') || t.includes('restaurant') || t.includes('mcdonald') || t.includes('burger') || t.includes('pizza') || t.includes('panda') || t.includes('quick')) return 'restos';
   if (t.includes('médecin') || t.includes('pharmacie') || t.includes('doctolib') || t.includes('santé') || t.includes('docteur')) return 'sante';
   if (t.includes('ikea') || t.includes('maison') || t.includes('bricolage') || t.includes('castorama')) return 'maison';
-  if (t.includes('garage') || t.includes('voiture') || t.includes('réparation') || t.includes('contrôle technique')) return 'voiture';
+  if (t.includes('garage') || t.includes('voiture') || t.includes('réparation') || t.includes('contrôle')) return 'voiture';
   if (t.includes('vêtement') || t.includes('zara') || t.includes('shopping') || t.includes('coiffeur')) return 'shopping';
   if (t.includes('cinéma') || t.includes('loisir') || t.includes('sport') || t.includes('concert')) return 'loisirs';
   return 'divers';
@@ -154,6 +112,11 @@ function parseDepense(texte) {
   const montant = parseFloat(match[1].replace(',', '.'));
   if (montant <= 0 || montant >= 5000) return null;
   return { montant, cat: detectCategorie(texte) };
+}
+
+function trouverEleve(texte) {
+  const t = texte.toLowerCase();
+  return Object.keys(ELEVES).find(nom => t.includes(nom.toLowerCase()));
 }
 
 // ============================================================
@@ -168,6 +131,12 @@ async function getDepensesMois() {
 async function getCoursMois() {
   const debut = new Date(); debut.setDate(1); debut.setHours(0, 0, 0, 0);
   const { data } = await supabase.from('cours').select('*').gte('created_at', debut.toISOString());
+  return data || [];
+}
+
+async function getCoursManquesMois() {
+  const debut = new Date(); debut.setDate(1); debut.setHours(0, 0, 0, 0);
+  const { data } = await supabase.from('cours_manques').select('*').gte('created_at', debut.toISOString());
   return data || [];
 }
 
@@ -196,72 +165,85 @@ async function getTotauxParCat(depenses) {
 }
 
 async function getContextFinancier() {
-  const [depenses, cours, revenus, salaire, epargneBase] = await Promise.all([
-    getDepensesMois(), getCoursMois(), getRevenusSupplementaires(), getSalaireMois(), getEpargne()
+  const [depenses, cours, coursManques, revenus, salaire, epargneBase] = await Promise.all([
+    getDepensesMois(), getCoursMois(), getCoursManquesMois(),
+    getRevenusSupplementaires(), getSalaireMois(), getEpargne()
   ]);
   const totaux = await getTotauxParCat(depenses);
   const totalDep = Object.values(totaux).reduce((a, b) => a + b, 0);
   const completude = cours.reduce((s, c) => s + c.gain, 0);
+  const totalManque = coursManques.reduce((s, c) => s + c.gain_manque, 0);
   const revenusSupp = revenus.reduce((s, r) => s + r.montant, 0);
   const totalRevenus = salaire + BEAU_FRERE + completude + revenusSupp;
   const solde = totalRevenus - TOTAL_CHARGES_FIXES - totalDep;
   const epargneEstimee = epargneBase + solde;
-  return { depenses, cours, revenus, totaux, totalDep, completude, revenusSupp, totalRevenus, solde, epargneEstimee, salaire, epargneBase };
+  return { depenses, cours, coursManques, revenus, totaux, totalDep, completude, totalManque, revenusSupp, totalRevenus, solde, epargneEstimee, salaire, epargneBase };
 }
 
 // ============================================================
-// GÉNÉRATION FICHE D'EXERCICES
+// ENREGISTRER COURS FAIT
 // ============================================================
-async function genererFiche(eleve, chapitre) {
-  const profil = ELEVES_PROFILS[eleve];
-  const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+async function enregistrerCoursFait(chatId, nomEleve, gain, rattrapages = false) {
+  await supabase.from('cours').insert({
+    eleve: nomEleve,
+    duree: ELEVES[nomEleve].duree,
+    taux: ELEVES[nomEleve].taux,
+    gain,
+    chat_id: chatId,
+    rattrapage: rattrapages
+  });
+  const cours = await getCoursMois();
+  const totalCompletude = cours.reduce((s, c) => s + c.gain, 0);
+  const manque = Math.max(0, OBJECTIF_COMPLETUDE - totalCompletude);
+  const emoji = totalCompletude >= OBJECTIF_COMPLETUDE ? '🟢' : totalCompletude >= 1000 ? '🟡' : '🔴';
+  const tag = rattrapages ? ' _(rattrapage)_' : '';
+  await sendMessage(chatId,
+    `✅ Cours avec *${nomEleve}* enregistré${tag} !\n` +
+    `💰 Gain : *+${gain.toFixed(2)} €*\n\n` +
+    `${emoji} Complétude ce mois : *${totalCompletude.toFixed(0)} €* / ${OBJECTIF_COMPLETUDE} €\n` +
+    `${manque > 0 ? `⚠️ Il manque : *${manque.toFixed(0)} €*` : '🎉 Objectif atteint !'}`
+  );
+}
 
+// ============================================================
+// ENREGISTRER COURS MANQUÉ
+// ============================================================
+async function enregistrerCoursManque(chatId, nomEleve, gainManque) {
+  await supabase.from('cours_manques').insert({
+    eleve: nomEleve,
+    gain_manque: gainManque,
+    chat_id: chatId
+  });
+  await sendMessage(chatId,
+    `❌ Cours avec *${nomEleve}* non effectué\n` +
+    `💸 Argent manqué : *-${gainManque.toFixed(2)} €*\n\n` +
+    `_Tapez /manques pour voir le bilan des cours ratés_`
+  );
+}
+
+// ============================================================
+// GÉNÉRATION FICHE
+// ============================================================
+async function genererFiche(nomEleve, chapitre) {
+  const profil = ELEVES[nomEleve];
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
   let prompt = '';
 
   if (profil.ficheHebdo) {
-    // Format spécial Mathéo : fiche hebdo lundi-vendredi
-    prompt = `Tu es un professeur de maths expert. Génère une fiche d'exercices hebdomadaire pour ${eleve}, élève de ${profil.niveau}.
-Chapitre vu en cours : ${chapitre}
-
-FORMAT OBLIGATOIRE :
-- 5 jours : Lundi, Mardi, Mercredi, Jeudi, Vendredi
-- 2 exercices par jour
-- Progression de difficulté croissante dans la semaine
-- Exercices variés (calcul, problème, géométrie selon le chapitre)
-- AUCUN indice ni aide dans les exercices
-- Corrigé complet à la fin pour chaque exercice
-
-Commence par : "📚 FICHE HEBDOMADAIRE — ${eleve} — ${chapitre}"`;
-
+    prompt = `Tu es un professeur de maths expert. Génère une fiche d'exercices hebdomadaire pour ${nomEleve}, élève de ${profil.niveau}.
+Chapitre : ${chapitre}
+FORMAT : 5 jours (Lundi→Vendredi), 2 exercices/jour, difficulté croissante, corrigé complet à la fin.
+Commence par : "📚 FICHE HEBDOMADAIRE — ${nomEleve} — ${chapitre}"`;
   } else if (profil.tda) {
-    // Format spécial Guillaume : TDA
-    prompt = `Tu es un professeur de maths expert spécialisé dans l'accompagnement des élèves TDA. Génère une fiche d'exercices pour ${eleve}, élève de ${profil.niveau}.
-Chapitre vu en cours : ${chapitre}
-
-CONSIGNES IMPORTANTES (élève TDA) :
-- Exercices COURTS et bien espacés
-- Consignes très simples et claires (1-2 phrases max)
-- Maximum 4 exercices
-- Énoncés épurés sans texte superflu
-- Police grande (utilise des sauts de ligne)
-- Corrigé complet à la fin
-- AUCUN indice dans les exercices
-
-Commence par : "📚 FICHE D'EXERCICES — ${eleve} — ${chapitre}"`;
-
+    prompt = `Tu es un professeur de maths expert spécialisé TDA. Génère une fiche pour ${nomEleve}, élève de ${profil.niveau}.
+Chapitre : ${chapitre}
+CONSIGNES TDA : exercices courts, consignes simples (1-2 phrases max), max 4 exercices, bien espacés, corrigé à la fin.
+Commence par : "📚 FICHE D'EXERCICES — ${nomEleve} — ${chapitre}"`;
   } else {
-    // Format standard
-    prompt = `Tu es un professeur de maths expert. Génère une fiche d'exercices pour ${eleve}, élève de ${profil.niveau}.
-Chapitre vu en cours : ${chapitre}
-
-FORMAT :
-- 4 à 5 exercices progressifs
-- Exercices variés adaptés au niveau ${profil.niveau}
-- AUCUN indice ni scaffolding dans les exercices
-- Corrigé complet à la fin
-- Présentation claire et aérée
-
-Commence par : "📚 FICHE D'EXERCICES — ${eleve} — ${chapitre}"`;
+    prompt = `Tu es un professeur de maths expert. Génère une fiche d'exercices pour ${nomEleve}, élève de ${profil.niveau}.
+Chapitre : ${chapitre}
+FORMAT : 4-5 exercices progressifs, adaptés au niveau ${profil.niveau}, corrigé complet à la fin.
+Commence par : "📚 FICHE D'EXERCICES — ${nomEleve} — ${chapitre}"`;
   }
 
   const result = await model.generateContent(prompt);
@@ -269,34 +251,35 @@ Commence par : "📚 FICHE D'EXERCICES — ${eleve} — ${chapitre}"`;
 }
 
 // ============================================================
-// MESSAGES RÉCURRENTS
+// MESSAGES AUTOMATIQUES
 // ============================================================
 async function envoyerRappelBiHebdo() {
   const ctx = await getContextFinancier();
   let msg = `📋 *Rappel bi-hebdo — ${nomMois(new Date())}*\n\n`;
-  msg += `💰 *Revenus enregistrés :*\n`;
-  msg += `• Salaire LGM : ${ctx.salaire} €${ctx.salaire === SALAIRE_LGM_DEFAULT ? ' _(par défaut)_' : ''}\n`;
+  msg += `💰 *Revenus :*\n`;
+  msg += `• LGM : ${ctx.salaire} €${ctx.salaire === SALAIRE_LGM_DEFAULT ? ' _(par défaut)_' : ''}\n`;
   msg += `• Beau-frère : ${BEAU_FRERE} €\n`;
   msg += `• Complétude : ${ctx.completude.toFixed(0)} € / ${OBJECTIF_COMPLETUDE} €\n`;
   if (ctx.revenusSupp > 0) msg += `• Autres : ${ctx.revenusSupp.toFixed(0)} €\n`;
-  msg += `\n💸 *Dépenses variables :*\n`;
+  msg += `\n💸 *Dépenses :*\n`;
   Object.entries(ctx.totaux).forEach(([k, v]) => {
     if (v > 0) {
       const emoji = v > BUDGETS[k].max ? '🔴' : v > BUDGETS[k].max * 0.8 ? '🟡' : '🟢';
       msg += `${emoji} ${BUDGETS[k].label} : ${v.toFixed(0)}€ / ${BUDGETS[k].max}€\n`;
     }
   });
-  msg += `\n📊 *Solde estimé : ${ctx.solde >= 0 ? '+' : ''}${ctx.solde.toFixed(0)} €*\n\n`;
-  msg += `_As-tu des dépenses ou rentrées à enregistrer ?_`;
+  msg += `\n📊 *Solde estimé : ${ctx.solde >= 0 ? '+' : ''}${ctx.solde.toFixed(0)} €*\n`;
+  if (ctx.totalManque > 0) msg += `💸 Cours manqués ce mois : *-${ctx.totalManque.toFixed(0)} €*\n`;
+  msg += `\n_Des dépenses ou rentrées à enregistrer ?_`;
   await sendMessage(CHAT_ID, msg);
 }
 
 async function envoyerSyntheseMensuelle() {
   const ctx = await getContextFinancier();
-  const economiesPossibles = TOTAL_BUDGETS_MAX - ctx.totalDep;
+  const potentielMax = ctx.completude + ctx.totalManque;
   let msg = `🗓️ *SYNTHÈSE ${nomMois(new Date()).toUpperCase()}*\n\n`;
-  msg += `✅ *REVENUS TOTAUX : ${ctx.totalRevenus.toFixed(0)} €*\n`;
-  msg += `• Salaire LGM : ${ctx.salaire} €\n`;
+  msg += `✅ *REVENUS : ${ctx.totalRevenus.toFixed(0)} €*\n`;
+  msg += `• LGM : ${ctx.salaire} €\n`;
   msg += `• Beau-frère : ${BEAU_FRERE} €\n`;
   msg += `• Complétude : ${ctx.completude.toFixed(0)} € (${ctx.cours.length} cours)\n`;
   if (ctx.revenusSupp > 0) msg += `• Autres : ${ctx.revenusSupp.toFixed(0)} €\n`;
@@ -306,13 +289,16 @@ async function envoyerSyntheseMensuelle() {
     const emoji = v > BUDGETS[k].max ? '🔴' : v > BUDGETS[k].max * 0.8 ? '🟡' : '🟢';
     msg += `${emoji} ${BUDGETS[k].label} : ${v.toFixed(0)}€ / ${BUDGETS[k].max}€\n`;
   });
+  msg += `\n📉 *COURS MANQUÉS : ${ctx.coursManques.length} cours — -${ctx.totalManque.toFixed(0)} €*\n`;
+  if (ctx.coursManques.length > 0) {
+    ctx.coursManques.forEach(c => { msg += `• ${c.eleve} : -${c.gain_manque.toFixed(2)} €\n`; });
+    msg += `_Potentiel max : ${potentielMax.toFixed(0)} € | Réalisé : ${ctx.completude.toFixed(0)} €_\n`;
+  }
   msg += `\n💰 *SOLDE NET : ${ctx.solde >= 0 ? '+' : ''}${ctx.solde.toFixed(0)} €*\n`;
-  if (economiesPossibles > 0) msg += `\n💡 Tu aurais pu économiser *${economiesPossibles.toFixed(0)} €* de plus.\n`;
   msg += `\n🎯 *OBJECTIFS ÉPARGNE :*\n`;
   OBJECTIFS.forEach(o => {
     const delta = ctx.epargneEstimee - o.montant;
-    const emoji = delta >= 0 ? '✅' : '⚠️';
-    msg += `${emoji} ${o.label} : ${o.montant.toLocaleString()} € (${delta >= 0 ? '+' : ''}${delta.toFixed(0)} €)\n`;
+    msg += `${delta >= 0 ? '✅' : '⚠️'} ${o.label} : ${o.montant.toLocaleString()} € (${delta >= 0 ? '+' : ''}${delta.toFixed(0)} €)\n`;
   });
   await sendMessage(CHAT_ID, msg);
 }
@@ -321,29 +307,39 @@ async function envoyerSyntheseMensuelle() {
 // SCHEDULER
 // ============================================================
 function demarrerScheduler() {
+  // Ping pour garder le serveur éveillé
+  setInterval(() => {
+    fetch(`https://budget-bot-production-eaaf.up.railway.app/`).catch(() => {});
+  }, 4 * 60 * 1000);
+
   setInterval(async () => {
     const now = heureParis();
     const jour = now.getDay();
     const heure = now.getHours();
     const minute = now.getMinutes();
 
+    // Rappels bi-hebdo
     if ((jour === 3 || jour === 0) && heure === 20 && minute === 0) {
       await envoyerRappelBiHebdo();
     }
 
+    // Synthèse fin de mois
     if (now.getDate() === 30 && heure === 20 && minute === 0) {
       await envoyerSyntheseMensuelle();
     }
 
-    for (const cours of PLANNING) {
-      if (cours.jour !== jour) continue;
-      if (cours.uneSemaineSurDeux && !estSemaineSerena()) continue;
-      const totalMin = cours.minute + Math.floor(cours.duree * 60);
-      const heureFin = cours.heure + Math.floor(totalMin / 60);
+    // Notifications fin de cours
+    for (const [nomEleve, profil] of Object.entries(ELEVES)) {
+      if (profil.jour !== jour) continue;
+      if (profil.uneSemaineSurDeux && !estSemaineSerena()) continue;
+      const totalMin = profil.minute + Math.floor(profil.duree * 60);
+      const heureFin = profil.heure + Math.floor(totalMin / 60);
       const minuteFin = totalMin % 60;
       if (heure === heureFin && minute === minuteFin) {
-        etatConversation = { etape: 'confirmation', cours };
-        await sendMessage(CHAT_ID, `📚 *Fin de cours !*\n\nAs-tu fait cours avec *${cours.nom}* ?\n\nRéponds *oui* ou *non*`);
+        etatConversation = { etape: 'confirmation', nomEleve, source: 'auto' };
+        await sendMessage(CHAT_ID,
+          `📚 *Fin de cours !*\n\nAs-tu fait cours avec *${nomEleve}* ?\n\nRéponds *oui* ou *non*`
+        );
       }
     }
   }, 60000);
@@ -362,43 +358,46 @@ app.post('/webhook', async (req, res) => {
 
   try {
 
-    // ── Gestion états conversation cours ────────────────────
+    // ── GESTION ÉTATS CONVERSATION ──────────────────────────
     if (etatConversation) {
-      const { etape, cours } = etatConversation;
-      const profil = ELEVES_PROFILS[cours.nom];
+      const { etape, nomEleve, source, data } = etatConversation;
+      const profil = nomEleve ? ELEVES[nomEleve] : null;
 
-      // ÉTAPE 1 : Confirmation cours
+      // CONFIRMATION COURS (auto ou manuel)
       if (etape === 'confirmation') {
         if (texteLower === 'oui') {
           if (profil.question2h) {
-            etatConversation = { etape: 'question2h', cours };
+            etatConversation = { etape: 'question2h', nomEleve, source };
             await sendMessage(chatId, `✅ Super !\n\n*C'est la séance à 2h ?*\n\nRéponds *oui* ou *non*`);
           } else {
-            // Noélie : pas de question 2h, pas de fiche
-            const gain = cours.taux * cours.duree;
-            await enregistrerCours(chatId, cours, gain);
+            // Noélie : 1h fixe, pas de fiche
+            const gain = profil.taux * profil.duree;
+            await enregistrerCoursFait(chatId, nomEleve, gain, source === 'manuel');
             etatConversation = null;
           }
           return;
         }
         if (texteLower === 'non') {
+          // Cours manqué — on calcule le gain manqué avec 1h par défaut
+          const gainManque = profil.taux * 1;
+          await enregistrerCoursManque(chatId, nomEleve, gainManque);
           etatConversation = null;
-          await sendMessage(chatId, `❌ Cours avec *${cours.nom}* non effectué — rien enregistré.`);
           return;
         }
       }
 
-      // ÉTAPE 2 : Question 2h
+      // QUESTION 2H
       if (etape === 'question2h') {
         if (texteLower === 'oui' || texteLower === 'non') {
           const heuresPay = texteLower === 'oui' ? 2 : 1;
-          const gain = cours.taux * heuresPay;
-          await enregistrerCours(chatId, cours, gain);
+          const gain = profil.taux * heuresPay;
+          await enregistrerCoursFait(chatId, nomEleve, gain, source === 'manuel');
 
-          // Demander le chapitre pour la fiche
-          if (profil.fiche !== false) {
-            etatConversation = { etape: 'chapitre', cours, gain };
-            await sendMessage(chatId, `📝 *Qu'avez-vous vu aujourd'hui avec ${cours.nom} ?*\n\n_Ex: Fractions, Théorème de Pythagore, Équations..._`);
+          if (profil.fiche) {
+            etatConversation = { etape: 'chapitre', nomEleve, gain, source };
+            await sendMessage(chatId,
+              `📝 *Qu'avez-vous vu aujourd'hui avec ${nomEleve} ?*\n\n_Ex: Fractions, Théorème de Pythagore..._`
+            );
           } else {
             etatConversation = null;
           }
@@ -406,34 +405,78 @@ app.post('/webhook', async (req, res) => {
         }
       }
 
-      // ÉTAPE 3 : Chapitre pour fiche
+      // CHAPITRE POUR FICHE
       if (etape === 'chapitre') {
-        await sendMessage(chatId, `🤔 *Génération de la fiche en cours...*`);
-        const fiche = await genererFiche(cours.nom, texte);
+        await sendMessage(chatId, `🤔 *Génération de la fiche...*`);
+        const fiche = await genererFiche(nomEleve, texte);
         await sendMessage(chatId, fiche);
         etatConversation = null;
         return;
       }
+
+      // COURS MANUEL — NOM ÉLÈVE
+      if (etape === 'cours_manuel_nom') {
+        const eleve = trouverEleve(texte);
+        if (eleve) {
+          etatConversation = { etape: 'cours_manuel_type', nomEleve: eleve, source: 'manuel' };
+          await sendMessage(chatId,
+            `📚 Cours avec *${eleve}*\n\nC'est un *rattrapage* ou un cours *normal* supplémentaire ?\n\nRéponds *rattrapage* ou *normal*`
+          );
+        } else {
+          await sendMessage(chatId, `❓ Je n'ai pas reconnu le prénom. Élèves : ${Object.keys(ELEVES).join(', ')}`);
+        }
+        return;
+      }
+
+      // COURS MANUEL — TYPE (rattrapage ou normal)
+      if (etape === 'cours_manuel_type') {
+        const estRattrapage = texteLower.includes('rattrapage');
+        const profil = ELEVES[nomEleve];
+        if (profil.question2h) {
+          etatConversation = { etape: 'question2h', nomEleve, source: estRattrapage ? 'rattrapage' : 'manuel' };
+          await sendMessage(chatId, `*C'est la séance à 2h ?*\n\nRéponds *oui* ou *non*`);
+        } else {
+          const gain = profil.taux * profil.duree;
+          await enregistrerCoursFait(chatId, nomEleve, gain, true);
+          if (profil.fiche) {
+            etatConversation = { etape: 'chapitre', nomEleve, gain, source: 'manuel' };
+            await sendMessage(chatId, `📝 *Qu'avez-vous vu ?*`);
+          } else {
+            etatConversation = null;
+          }
+        }
+        return;
+      }
     }
 
-    // ── Commandes ───────────────────────────────────────────
+    // ── COMMANDES ───────────────────────────────────────────
+
     if (texte === '/start') {
       await sendMessage(chatId,
-        `👋 Salut ! Je suis *L'Agent*, ton assistant comptable.\n\n` +
-        `*Commandes :*\n` +
-        `📊 /bilan — dépenses du mois\n` +
-        `📚 /completude — revenus Complétude\n` +
-        `💰 /salaire — enregistrer ton salaire LGM\n` +
-        `💎 /epargne — mettre à jour ton épargne\n` +
-        `🎯 /objectifs — progression épargne\n` +
-        `🗓️ /synthese — synthèse complète\n` +
-        `📋 /charges — charges fixes\n\n` +
+        `👋 Salut ! Je suis *L'Agent*, ton assistant personnel.\n\n` +
+        `*📚 Complétude :*\n` +
+        `• /cours — signaler un cours fait\n` +
+        `• /completude — revenus du mois\n` +
+        `• /manques — cours ratés et argent perdu\n\n` +
+        `*💰 Finances :*\n` +
+        `• /bilan — dépenses du mois\n` +
+        `• /objectifs — progression épargne\n` +
+        `• /synthese — bilan complet\n` +
+        `• /charges — charges fixes\n\n` +
         `*Saisie rapide :*\n` +
         `💸 _"Leclerc 45€"_ — dépense\n` +
-        `💰 _"Salaire 2630€"_ — salaire\n` +
-        `💎 _"Épargne 10500€"_ — épargne\n` +
-        `❓ _"Est-ce que je peux acheter X ?"_ — conseil IA`
+        `💰 _"Salaire 2625€"_ — salaire\n` +
+        `💎 _"Épargne 9500€"_ — épargne\n` +
+        `❓ _Pose n'importe quelle question !_`
       );
+      return;
+    }
+
+    // Signaler un cours manuellement
+    if (texte === '/cours') {
+      etatConversation = { etape: 'cours_manuel_nom' };
+      const liste = Object.keys(ELEVES).join(', ');
+      await sendMessage(chatId, `📚 *Quel élève ?*\n\n${liste}`);
       return;
     }
 
@@ -450,35 +493,35 @@ app.post('/webhook', async (req, res) => {
     }
 
     if (texte === '/completude') {
-      const cours = await getCoursMois();
-      const total = cours.reduce((s, c) => s + c.gain, 0);
-      const manque = Math.max(0, OBJECTIF_COMPLETUDE - total);
-      const emoji = total >= OBJECTIF_COMPLETUDE ? '🟢' : total >= 1000 ? '🟡' : '🔴';
+      const ctx = await getContextFinancier();
+      const manque = Math.max(0, OBJECTIF_COMPLETUDE - ctx.completude);
+      const emoji = ctx.completude >= OBJECTIF_COMPLETUDE ? '🟢' : ctx.completude >= 1000 ? '🟡' : '🔴';
       let msg = `📚 *Complétude ${nomMois(new Date())}*\n\n`;
-      msg += `Cours effectués : *${cours.length}*\n`;
-      msg += `${emoji} Total : *${total.toFixed(2)} €* / ${OBJECTIF_COMPLETUDE} €\n`;
-      msg += manque > 0 ? `⚠️ Il manque : *${manque.toFixed(0)} €*` : `🎉 Objectif atteint !`;
-      if (cours.length > 0) {
-        msg += `\n\n*Détail :*\n`;
-        cours.forEach(c => { msg += `• ${c.eleve} : +${c.gain.toFixed(2)} €\n`; });
+      msg += `Cours effectués : *${ctx.cours.length}*\n`;
+      msg += `${emoji} Total : *${ctx.completude.toFixed(2)} €* / ${OBJECTIF_COMPLETUDE} €\n`;
+      msg += manque > 0 ? `⚠️ Il manque : *${manque.toFixed(0)} €*\n` : `🎉 Objectif atteint !\n`;
+      if (ctx.cours.length > 0) {
+        msg += `\n*Détail :*\n`;
+        ctx.cours.forEach(c => { msg += `• ${c.eleve}${c.rattrapage ? ' _(rattrapage)_' : ''} : +${c.gain.toFixed(2)} €\n`; });
       }
       await sendMessage(chatId, msg);
       return;
     }
 
-    if (texte === '/salaire') {
-      const salaire = await getSalaireMois();
-      await sendMessage(chatId,
-        `💰 *Salaire LGM ce mois*\n\nActuel : *${salaire} €*\n\nPour mettre à jour : _"Salaire 2630€"_`
-      );
-      return;
-    }
-
-    if (texte === '/epargne') {
-      const epargne = await getEpargne();
-      await sendMessage(chatId,
-        `💎 *Épargne actuelle*\n\n*${epargne.toLocaleString()} €*\n\nPour mettre à jour : _"Épargne 10500€"_`
-      );
+    if (texte === '/manques') {
+      const ctx = await getContextFinancier();
+      if (ctx.coursManques.length === 0) {
+        await sendMessage(chatId, `✅ *Aucun cours manqué ce mois !* 🎉`);
+        return;
+      }
+      let msg = `📉 *Cours manqués — ${nomMois(new Date())}*\n\n`;
+      ctx.coursManques.forEach(c => {
+        msg += `❌ *${c.eleve}* → -${c.gain_manque.toFixed(2)} €\n`;
+      });
+      msg += `\n💸 *Total manqué : -${ctx.totalManque.toFixed(0)} €*\n`;
+      msg += `✅ Gagné : ${ctx.completude.toFixed(0)} €\n`;
+      msg += `🎯 Potentiel max : ${(ctx.completude + ctx.totalManque).toFixed(0)} €`;
+      await sendMessage(chatId, msg);
       return;
     }
 
@@ -490,8 +533,7 @@ app.post('/webhook', async (req, res) => {
       OBJECTIFS.forEach(o => {
         const delta = ctx.epargneEstimee - o.montant;
         const pct = Math.min(100, Math.round((ctx.epargneEstimee / o.montant) * 100));
-        const emoji = delta >= 0 ? '✅' : '⚠️';
-        msg += `${emoji} *${o.label}* : ${o.montant.toLocaleString()} €\n`;
+        msg += `${delta >= 0 ? '✅' : '⚠️'} *${o.label}* : ${o.montant.toLocaleString()} €\n`;
         msg += `   → ${delta >= 0 ? '+' : ''}${delta.toFixed(0)} € (${pct}%)\n\n`;
       });
       msg += `_Hors tontine 13 000 €, RC et ARE — c'est du bonus !_ 🎁`;
@@ -505,16 +547,48 @@ app.post('/webhook', async (req, res) => {
     }
 
     if (texte === '/charges') {
-      let msg = `🔒 *Charges fixes mensuelles*\n\n`;
-      Object.entries(CHARGES_FIXES).forEach(([k, v]) => {
-        msg += `• ${k} : ${v.toFixed(2)} €\n`;
-      });
-      msg += `\n💸 *Total : ${TOTAL_CHARGES_FIXES.toFixed(0)} €/mois*`;
+      let msg = `🔒 *Charges fixes — ${TOTAL_CHARGES_FIXES.toFixed(0)} €/mois*\n\n`;
+      Object.entries(CHARGES_FIXES).forEach(([k, v]) => { msg += `• ${k} : ${v.toFixed(2)} €\n`; });
       await sendMessage(chatId, msg);
       return;
     }
 
-    // ── Mise à jour épargne ──────────────────────────────────
+    // ── DÉTECTIONS TEXTE LIBRE ──────────────────────────────
+
+    // Signalement cours manuel via texte libre
+    // Ex: "J'ai fait cours avec Hélène" / "Rattrapage avec Margaux"
+    if (texteLower.includes('fait cours') || texteLower.includes('rattrapage') || texteLower.includes('cours avec') || texteLower.includes('j\'ai eu cours')) {
+      const eleve = trouverEleve(texte);
+      if (eleve) {
+        const estRattrapage = texteLower.includes('rattrapage');
+        const profil = ELEVES[eleve];
+        if (profil.question2h) {
+          etatConversation = { etape: 'question2h', nomEleve: eleve, source: estRattrapage ? 'rattrapage' : 'manuel' };
+          await sendMessage(chatId, `📚 Cours avec *${eleve}* !\n\n*C'est la séance à 2h ?*\n\nRéponds *oui* ou *non*`);
+        } else {
+          const gain = profil.taux * profil.duree;
+          await enregistrerCoursFait(chatId, eleve, gain, true);
+          if (profil.fiche) {
+            etatConversation = { etape: 'chapitre', nomEleve: eleve, gain, source: 'manuel' };
+            await sendMessage(chatId, `📝 *Qu'avez-vous vu avec ${eleve} ?*`);
+          }
+        }
+        return;
+      }
+    }
+
+    // Annulation cours via texte libre
+    // Ex: "Pas de cours avec Benjamin" / "Benjamin absent"
+    if (texteLower.includes('pas de cours') || texteLower.includes('absent') || texteLower.includes('annulé') || texteLower.includes('pas fait cours')) {
+      const eleve = trouverEleve(texte);
+      if (eleve) {
+        const gainManque = ELEVES[eleve].taux * 1;
+        await enregistrerCoursManque(chatId, eleve, gainManque);
+        return;
+      }
+    }
+
+    // Mise à jour épargne
     if (texteLower.includes('épargne') || texteLower.includes('epargne') || texteLower.includes('économies')) {
       const match = texte.match(/(\d+([.,]\d{1,2})?)\s*€?/);
       if (match) {
@@ -527,7 +601,7 @@ app.post('/webhook', async (req, res) => {
       }
     }
 
-    // ── Saisie salaire LGM ───────────────────────────────────
+    // Saisie salaire
     if (texteLower.includes('salaire') || texteLower.includes('lgm') || texteLower.includes('paie')) {
       const match = texte.match(/(\d+([.,]\d{1,2})?)\s*€?/);
       if (match) {
@@ -540,7 +614,7 @@ app.post('/webhook', async (req, res) => {
       }
     }
 
-    // ── Rentrée d'argent ─────────────────────────────────────
+    // Rentrée d'argent
     if (texteLower.includes('reçu') || texteLower.includes('vinted') || texteLower.includes('remboursement') || texteLower.includes('rentrée') || texteLower.includes('participation')) {
       const match = texte.match(/(\d+([.,]\d{1,2})?)\s*€?/);
       if (match) {
@@ -551,9 +625,9 @@ app.post('/webhook', async (req, res) => {
       }
     }
 
-    // ── Dépense ──────────────────────────────────────────────
+    // Dépense
     const depense = parseDepense(texte);
-    if (depense) {
+    if (depense && !texteLower.includes('cours') && !texteLower.includes('élève')) {
       await supabase.from('depenses').insert({ montant: depense.montant, categorie: depense.cat, libelle: texte, chat_id: chatId });
       const depenses = await getDepensesMois();
       const totaux = await getTotauxParCat(depenses);
@@ -566,51 +640,71 @@ app.post('/webhook', async (req, res) => {
       return;
     }
 
-    // ── Question IA ──────────────────────────────────────────
+    // ── QUESTION IA ─────────────────────────────────────────
     const ctx = await getContextFinancier();
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
-    const context =
-      `Tu es L'Agent, assistant comptable personnel de Nour-Dine. Réponds en français, direct, bienveillant, 3-4 lignes max.\n` +
-      `Situation ce mois :\n` +
-      `- Salaire LGM : ${ctx.salaire} €\n` +
-      `- Beau-frère : ${BEAU_FRERE} €\n` +
-      `- Complétude : ${ctx.completude.toFixed(0)} € / ${OBJECTIF_COMPLETUDE} €\n` +
-      `- Total revenus : ${ctx.totalRevenus.toFixed(0)} €\n` +
-      `- Charges fixes : ${TOTAL_CHARGES_FIXES.toFixed(0)} €\n` +
-      `- Dépenses variables : ${ctx.totalDep.toFixed(0)} €\n` +
-      `- Solde estimé : ${ctx.solde.toFixed(0)} €\n` +
-      `- Épargne actuelle : ${ctx.epargneBase.toLocaleString()} €\n` +
-      `- Épargne estimée fin de mois : ${ctx.epargneEstimee.toFixed(0)} €\n` +
-      `Budgets : ${Object.entries(ctx.totaux).map(([k,v]) => `${k}: ${v.toFixed(0)}€/${BUDGETS[k].max}€`).join(', ')}.\n` +
-      `Objectifs : juin 12500€, août 15000€, jan2027 20000€.\n` +
-      `Si on te demande si une dépense est possible, analyse le solde et les objectifs pour donner un conseil clair.`;
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+    const coursParEleve = {};
+    ctx.cours.forEach(c => {
+      if (!coursParEleve[c.eleve]) coursParEleve[c.eleve] = { nb: 0, gain: 0 };
+      coursParEleve[c.eleve].nb++;
+      coursParEleve[c.eleve].gain += c.gain;
+    });
+
+    const context = `Tu es L'Agent, assistant comptable et conseiller personnel de Nour-Dine. Tu es direct, bienveillant, intelligent et interactif.
+Tu réponds en français, de manière conversationnelle et naturelle.
+Tu peux répondre à TOUTES les questions — finances, achats, conseils de vie, formations, etc.
+Si on te demande un prix, donne une estimation réaliste du marché français actuel.
+Sois conversationnel — parle comme un ami conseiller intelligent.
+
+=== PROFIL DE NOUR-DINE ===
+- Ingénieur cadre chez LGM (mission Thales), départ prévu août 2026 via rupture conventionnelle
+- Co-fondateur de Dyneos SAS (CFA, formations professionnelles)
+- Tuteur chez Complétude (11 élèves actifs)
+- Certification formateur incendie en cours (Fo.EPI juin 2026, SSIAP 1 juillet 2026)
+- Vit en Île-de-France (Carrières-sous-Poissy), en PACS
+- Objectif : indépendance via formation incendie + Complétude + Dyneos
+
+=== SITUATION FINANCIÈRE CE MOIS ===
+- Salaire LGM : ${ctx.salaire} €
+- Beau-frère : ${BEAU_FRERE} € (jusqu'en novembre 2026)
+- Complétude : ${ctx.completude.toFixed(0)} € / ${OBJECTIF_COMPLETUDE} € objectif
+- Total revenus : ${ctx.totalRevenus.toFixed(0)} €
+- Charges fixes : ${TOTAL_CHARGES_FIXES.toFixed(0)} €/mois
+- Dépenses variables : ${ctx.totalDep.toFixed(0)} €
+- Solde estimé : ${ctx.solde.toFixed(0)} €
+- Épargne actuelle : ${ctx.epargneBase.toLocaleString()} €
+- Épargne projetée fin de mois : ${ctx.epargneEstimee.toFixed(0)} €
+
+=== BUDGETS ===
+${Object.entries(ctx.totaux).map(([k,v]) => `- ${BUDGETS[k].label} : ${v.toFixed(0)}€ / ${BUDGETS[k].max}€`).join('\n')}
+
+=== OBJECTIFS ÉPARGNE ===
+- Fin juin 2026 : 12 500 € (projection : ${ctx.epargneEstimee.toFixed(0)} €)
+- Fin août 2026 : 15 000 €
+- Janvier 2027 : 20 000 € (hors tontine 13 000 € = bonus)
+
+=== ÉLÈVES COMPLÉTUDE ===
+11 élèves actifs : Amel 21,04€/h (5e), Benjamin 24,30€/h (5e), Guillaume 23,88€/h (5e TDA), Margaux 26,60€/h (3e), Nélia 26,60€/h (3e), Hélène 24,30€/h (5e), Noélie 25,78€/h (CE2), Mathéo 23,66€/h (3e), Anne-Gaëlle 24,08€/h (3e), Saïda 25,56€/h (5e), Serena 23,04€/h (5e)
+Ce mois : ${Object.entries(coursParEleve).map(([e,d]) => `${e} ${d.nb} cours +${d.gain.toFixed(0)}€`).join(', ') || 'aucun cours enregistré'}
+Cours manqués : ${ctx.coursManques.length} cours — -${ctx.totalManque.toFixed(0)} €
+
+=== RÈGLES ===
+1. Question achat → prix marché français + analyse budget
+2. Question financière → données réelles ci-dessus
+3. Question élève → infos des élèves ci-dessus
+4. Question générale → réponds naturellement
+5. 4-6 lignes max sauf question complexe`;
 
     await sendMessage(chatId, '🤔 *Analyse en cours...*');
-    const result = await model.generateContent(context + '\n\nQuestion : ' + texte);
+    const result = await model.generateContent(context + '\n\nQuestion de Nour-Dine : ' + texte);
     await sendMessage(chatId, result.response.text());
 
   } catch (err) {
-    console.error('Erreur:', err);
+    console.error('Erreur:', err.message);
     await sendMessage(chatId, "❌ Une erreur s'est produite, réessaie dans quelques secondes.");
   }
 });
-
-// ============================================================
-// FONCTION ENREGISTRER COURS
-// ============================================================
-async function enregistrerCours(chatId, cours, gain) {
-  await supabase.from('cours').insert({ eleve: cours.nom, duree: cours.duree, taux: cours.taux, gain, chat_id: chatId });
-  const coursMois = await getCoursMois();
-  const totalCompletude = coursMois.reduce((s, c) => s + c.gain, 0);
-  const manque = Math.max(0, OBJECTIF_COMPLETUDE - totalCompletude);
-  const emoji = totalCompletude >= OBJECTIF_COMPLETUDE ? '🟢' : totalCompletude >= 1000 ? '🟡' : '🔴';
-  await sendMessage(chatId,
-    `✅ Cours avec *${cours.nom}* enregistré !\n` +
-    `💰 Gain : *+${gain.toFixed(2)} €*\n\n` +
-    `${emoji} Complétude ce mois : *${totalCompletude.toFixed(0)} €* / ${OBJECTIF_COMPLETUDE} €\n` +
-    `${manque > 0 ? `⚠️ Il manque : *${manque.toFixed(0)} €*` : '🎉 Objectif atteint !'}`
-  );
-}
 
 app.get('/', (req, res) => res.send("L'Agent est en ligne ! 🤖"));
 
