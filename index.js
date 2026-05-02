@@ -48,9 +48,6 @@ const OBJECTIFS = [
   { label: 'Janvier 2027',  montant: 20000 },
 ];
 
-// ============================================================
-// ÉLÈVES
-// ============================================================
 const ELEVES = {
   'Amel':        { niveau: '5e',  taux: 21.04, duree: 1.5, tda: false, ficheHebdo: false, question2h: true,  fiche: true,  jour: 1, heure: 17, minute: 0  },
   'Benjamin':    { niveau: '5e',  taux: 24.30, duree: 1.5, tda: false, ficheHebdo: false, question2h: true,  fiche: true,  jour: 2, heure: 18, minute: 0  },
@@ -71,13 +68,46 @@ let etatConversation = null;
 // ============================================================
 // HELPERS
 // ============================================================
+
+// FIX 1 : Barre de progression visuelle
+function barreProgression(valeur, max, taille = 10) {
+  const pct = Math.min(1, valeur / max);
+  const rempli = Math.round(pct * taille);
+  const vide = taille - rempli;
+  const barre = '█'.repeat(rempli) + '░'.repeat(vide);
+  return `[${barre}] ${Math.round(pct * 100)}%`;
+}
+
+// FIX 2 : Découpage messages longs pour Telegram (limite 4096 chars)
 async function sendMessage(chatId, text) {
   const url = `https://api.telegram.org/bot${TOKEN}/sendMessage`;
-  await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'Markdown' })
-  });
+  const MAX = 4000;
+  // Découpe proprement sur les sauts de ligne
+  if (text.length <= MAX) {
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'Markdown' })
+    });
+    return;
+  }
+  const parties = [];
+  let reste = text;
+  while (reste.length > MAX) {
+    let coupe = reste.lastIndexOf('\n', MAX);
+    if (coupe < MAX / 2) coupe = MAX;
+    parties.push(reste.slice(0, coupe));
+    reste = reste.slice(coupe).trim();
+  }
+  parties.push(reste);
+  for (const partie of parties) {
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text: partie, parse_mode: 'Markdown' })
+    });
+    await new Promise(r => setTimeout(r, 400)); // évite le rate limit Telegram
+  }
 }
 
 function heureParis() {
@@ -93,30 +123,86 @@ function nomMois(date) {
   return date.toLocaleString('fr-FR', { month: 'long', year: 'numeric' });
 }
 
+// FIX 3 : Détection catégorie tolérante aux fautes (normalisation + alias étendue)
+function normaliser(s) {
+  return s.toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // retire accents
+    .replace(/[^a-z0-9 ]/g, ' ');
+}
+
 function detectCategorie(texte) {
-  const t = texte.toLowerCase();
-  if (t.includes('essence') || t.includes('esso') || t.includes('station') || t.includes('carburant') || t.includes('dlg') || t.includes('arcycom') || t.includes('certas') || t.includes('relais')) return 'essence';
-  if (t.includes('leclerc') || t.includes('courses') || t.includes('carrefour') || t.includes('lidl') || t.includes('cora') || t.includes('supermarché')) return 'courses';
-  if (t.includes('resto') || t.includes('restaurant') || t.includes('mcdonald') || t.includes('burger') || t.includes('pizza') || t.includes('panda') || t.includes('quick')) return 'restos';
-  if (t.includes('médecin') || t.includes('pharmacie') || t.includes('doctolib') || t.includes('santé') || t.includes('docteur')) return 'sante';
-  if (t.includes('ikea') || t.includes('maison') || t.includes('bricolage') || t.includes('castorama')) return 'maison';
-  if (t.includes('garage') || t.includes('voiture') || t.includes('réparation') || t.includes('contrôle')) return 'voiture';
-  if (t.includes('vêtement') || t.includes('zara') || t.includes('shopping') || t.includes('coiffeur')) return 'shopping';
-  if (t.includes('cinéma') || t.includes('loisir') || t.includes('sport') || t.includes('concert')) return 'loisirs';
-  return 'divers';
+  const t = normaliser(texte);
+  const mots = t.split(/\s+/);
+
+  const regles = [
+    { cat: 'essence',  mots: ['essence', 'esso', 'station', 'carburant', 'dlg', 'arcycom', 'certas', 'relais', 'total', 'bp', 'shell', 'gazole', 'diesel'] },
+    { cat: 'courses',  mots: ['leclerc', 'courses', 'carrefour', 'lidl', 'cora', 'supermarche', 'intermarche', 'aldi', 'biocoop', 'monoprix', 'u express', 'franprix', 'marche'] },
+    { cat: 'restos',   mots: ['resto', 'restaurant', 'mcdonald', 'burger', 'pizza', 'panda', 'quick', 'kebab', 'sushi', 'boulangerie', 'snack', 'brasserie', 'dejeuner', 'diner'] },
+    { cat: 'sante',    mots: ['medecin', 'pharmacie', 'doctolib', 'sante', 'docteur', 'opticien', 'dentiste', 'kiné', 'kine', 'hopital', 'clinique', 'mutuelle'] },
+    { cat: 'maison',   mots: ['ikea', 'maison', 'bricolage', 'castorama', 'leroy', 'brico', 'amazon', 'electro', 'meuble', 'deco', 'decoration'] },
+    { cat: 'voiture',  mots: ['garage', 'voiture', 'reparation', 'controle', 'peage', 'autoroute', 'vignette', 'pneu', 'vidange', 'crit air'] },
+    { cat: 'shopping', mots: ['vetement', 'zara', 'shopping', 'coiffeur', 'hm', 'zalando', 'asos', 'fnac', 'darty', 'bijou', 'chaussure', 'sephora'] },
+    { cat: 'loisirs',  mots: ['cinema', 'loisir', 'concert', 'spectacle', 'livre', 'jeu', 'vacances', 'voyage', 'hotel', 'museum', 'parc', 'sortie'] },
+  ];
+
+  // Score par catégorie (un mot = +1)
+  const scores = {};
+  for (const regle of regles) {
+    scores[regle.cat] = 0;
+    for (const motCle of regle.mots) {
+      if (t.includes(motCle)) scores[regle.cat]++;
+    }
+  }
+  const best = Object.entries(scores).sort((a, b) => b[1] - a[1])[0];
+  return best[1] > 0 ? best[0] : 'divers';
 }
 
 function parseDepense(texte) {
-  const match = texte.match(/(\d+([.,]\d{1,2})?)\s*€?/);
+  // Tolère "45€", "45 €", "45,50", "45.50", "45 euros"
+  const match = texte.match(/(\d+([.,]\d{1,2})?)\s*(€|euros?)?/i);
   if (!match) return null;
   const montant = parseFloat(match[1].replace(',', '.'));
   if (montant <= 0 || montant >= 5000) return null;
   return { montant, cat: detectCategorie(texte) };
 }
 
+// FIX 4 : Recherche d'élève tolérante aux fautes (distance de Levenshtein simplifiée)
+function distanceLev(a, b) {
+  a = a.toLowerCase(); b = b.toLowerCase();
+  if (a === b) return 0;
+  if (a.includes(b) || b.includes(a)) return 0;
+  const dp = Array.from({ length: a.length + 1 }, (_, i) =>
+    Array.from({ length: b.length + 1 }, (_, j) => i === 0 ? j : j === 0 ? i : 0)
+  );
+  for (let i = 1; i <= a.length; i++)
+    for (let j = 1; j <= b.length; j++)
+      dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+  return dp[a.length][b.length];
+}
+
 function trouverEleve(texte) {
-  const t = texte.toLowerCase();
-  return Object.keys(ELEVES).find(nom => t.includes(nom.toLowerCase()));
+  const t = normaliser(texte);
+  const noms = Object.keys(ELEVES);
+
+  // Recherche directe d'abord
+  for (const nom of noms) {
+    if (t.includes(normaliser(nom))) return nom;
+  }
+
+  // Recherche fuzzy : chaque mot du texte vs chaque prénom
+  const mots = t.split(/\s+/).filter(m => m.length >= 3);
+  let meilleur = null, meilleurDist = 3; // tolérance max 2 fautes
+  for (const mot of mots) {
+    for (const nom of noms) {
+      const prenomNorm = normaliser(nom);
+      const dist = distanceLev(mot, prenomNorm);
+      if (dist < meilleurDist) {
+        meilleurDist = dist;
+        meilleur = nom;
+      }
+    }
+  }
+  return meilleur;
 }
 
 // ============================================================
@@ -181,6 +267,44 @@ async function getContextFinancier() {
 }
 
 // ============================================================
+// FIX 5 : MINI-DASHBOARD — affiché après chaque enregistrement
+// ============================================================
+async function envoyerMiniDashboard(chatId, ctx) {
+  const completudePct = Math.min(100, Math.round((ctx.completude / OBJECTIF_COMPLETUDE) * 100));
+  const depTotale = ctx.totalDep;
+  const soldeCouleur = ctx.solde >= 0 ? '🟢' : '🔴';
+
+  let msg = `\n📊 *Dashboard rapide*\n`;
+  msg += `━━━━━━━━━━━━━━━━━\n`;
+  msg += `🎓 Complétude : *${ctx.completude.toFixed(0)} €* / ${OBJECTIF_COMPLETUDE} €\n`;
+  msg += `${barreProgression(ctx.completude, OBJECTIF_COMPLETUDE)}\n\n`;
+
+  // Épargne vers objectif le plus proche non atteint
+  const prochainObj = OBJECTIFS.find(o => ctx.epargneEstimee < o.montant);
+  if (prochainObj) {
+    msg += `🎯 Épargne → ${prochainObj.label} : *${ctx.epargneEstimee.toFixed(0)} €* / ${prochainObj.montant.toLocaleString()} €\n`;
+    msg += `${barreProgression(ctx.epargneEstimee, prochainObj.montant)}\n\n`;
+  } else {
+    msg += `✅ Tous les objectifs épargne atteints ! 🎉\n\n`;
+  }
+
+  // Budgets dépassés ou proches
+  const alertes = Object.entries(ctx.totaux)
+    .filter(([k, v]) => v > BUDGETS[k].max * 0.7)
+    .map(([k, v]) => {
+      const restant = BUDGETS[k].max - v;
+      const emoji = restant < 0 ? '🔴' : '🟡';
+      return `${emoji} ${BUDGETS[k].label} : ${v.toFixed(0)}€ / ${BUDGETS[k].max}€`;
+    });
+  if (alertes.length > 0) {
+    msg += `⚠️ *Budgets à surveiller :*\n${alertes.join('\n')}\n\n`;
+  }
+
+  msg += `${soldeCouleur} Solde estimé ce mois : *${ctx.solde >= 0 ? '+' : ''}${ctx.solde.toFixed(0)} €*`;
+  await sendMessage(chatId, msg);
+}
+
+// ============================================================
 // ENREGISTRER COURS FAIT
 // ============================================================
 async function enregistrerCoursFait(chatId, nomEleve, gain, rattrapages = false) {
@@ -192,17 +316,21 @@ async function enregistrerCoursFait(chatId, nomEleve, gain, rattrapages = false)
     chat_id: chatId,
     rattrapage: rattrapages
   });
-  const cours = await getCoursMois();
-  const totalCompletude = cours.reduce((s, c) => s + c.gain, 0);
-  const manque = Math.max(0, OBJECTIF_COMPLETUDE - totalCompletude);
-  const emoji = totalCompletude >= OBJECTIF_COMPLETUDE ? '🟢' : totalCompletude >= 1000 ? '🟡' : '🔴';
+
+  const ctx = await getContextFinancier();
+  const manque = Math.max(0, OBJECTIF_COMPLETUDE - ctx.completude);
+  const emoji = ctx.completude >= OBJECTIF_COMPLETUDE ? '🟢' : ctx.completude >= 1000 ? '🟡' : '🔴';
   const tag = rattrapages ? ' _(rattrapage)_' : '';
-  await sendMessage(chatId,
-    `✅ Cours avec *${nomEleve}* enregistré${tag} !\n` +
-    `💰 Gain : *+${gain.toFixed(2)} €*\n\n` +
-    `${emoji} Complétude ce mois : *${totalCompletude.toFixed(0)} €* / ${OBJECTIF_COMPLETUDE} €\n` +
-    `${manque > 0 ? `⚠️ Il manque : *${manque.toFixed(0)} €*` : '🎉 Objectif atteint !'}`
-  );
+
+  let msg = `✅ Cours avec *${nomEleve}* enregistré${tag} !\n`;
+  msg += `💰 Gain : *+${gain.toFixed(2)} €*\n\n`;
+  msg += `${emoji} Complétude : *${ctx.completude.toFixed(0)} €* / ${OBJECTIF_COMPLETUDE} €\n`;
+  msg += `${barreProgression(ctx.completude, OBJECTIF_COMPLETUDE)}\n`;
+  msg += manque > 0 ? `⚠️ Il manque : *${manque.toFixed(0)} €*` : `🎉 Objectif atteint !`;
+  await sendMessage(chatId, msg);
+
+  // FIX 5 : mini dashboard après chaque cours
+  await envoyerMiniDashboard(chatId, ctx);
 }
 
 // ============================================================
@@ -214,35 +342,47 @@ async function enregistrerCoursManque(chatId, nomEleve, gainManque) {
     gain_manque: gainManque,
     chat_id: chatId
   });
-  await sendMessage(chatId,
-    `❌ Cours avec *${nomEleve}* non effectué\n` +
-    `💸 Argent manqué : *-${gainManque.toFixed(2)} €*\n\n` +
-    `_Tapez /manques pour voir le bilan des cours ratés_`
-  );
+
+  const ctx = await getContextFinancier();
+  let msg = `❌ Cours avec *${nomEleve}* non effectué\n`;
+  msg += `💸 Manque à gagner : *-${gainManque.toFixed(2)} €*\n\n`;
+  msg += `📉 Total manqué ce mois : *-${ctx.totalManque.toFixed(0)} €* (${ctx.coursManques.length} cours)`;
+  await sendMessage(chatId, msg);
 }
 
 // ============================================================
-// GÉNÉRATION FICHE
+// FIX 6 : GÉNÉRATION FICHE — découpage en parties + meilleur prompt
 // ============================================================
 async function genererFiche(nomEleve, chapitre) {
   const profil = ELEVES[nomEleve];
   const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
   let prompt = '';
 
+  const baseInstructions = `
+RÈGLES IMPORTANTES :
+- Utilise uniquement du texte brut, pas de LaTeX, pas de formules complexes
+- Écris les fractions comme "3/4", les puissances comme "x^2", les racines comme "sqrt(9)"
+- Chaque exercice doit être clairement numéroté
+- Le corrigé doit être séparé par une ligne "=== CORRIGÉ ==="
+`;
+
   if (profil.ficheHebdo) {
     prompt = `Tu es un professeur de maths expert. Génère une fiche d'exercices hebdomadaire pour ${nomEleve}, élève de ${profil.niveau}.
 Chapitre : ${chapitre}
-FORMAT : 5 jours (Lundi→Vendredi), 2 exercices/jour, difficulté croissante, corrigé complet à la fin.
+${baseInstructions}
+FORMAT : 5 jours (Lundi à Vendredi), 2 exercices par jour de difficulté croissante, puis corrigé complet.
 Commence par : "📚 FICHE HEBDOMADAIRE — ${nomEleve} — ${chapitre}"`;
   } else if (profil.tda) {
-    prompt = `Tu es un professeur de maths expert spécialisé TDA. Génère une fiche pour ${nomEleve}, élève de ${profil.niveau}.
+    prompt = `Tu es un professeur de maths expert spécialisé TDA/TDAH. Génère une fiche pour ${nomEleve}, élève de ${profil.niveau}.
 Chapitre : ${chapitre}
-CONSIGNES TDA : exercices courts, consignes simples (1-2 phrases max), max 4 exercices, bien espacés, corrigé à la fin.
-Commence par : "📚 FICHE D'EXERCICES — ${nomEleve} — ${chapitre}"`;
+${baseInstructions}
+CONSIGNES TDA : exercices très courts, 1 consigne par exercice (1 phrase maximum), maximum 4 exercices bien espacés, beaucoup d'espace blanc entre les questions, corrigé à la fin.
+Commence par : "📚 FICHE TDA — ${nomEleve} — ${chapitre}"`;
   } else {
     prompt = `Tu es un professeur de maths expert. Génère une fiche d'exercices pour ${nomEleve}, élève de ${profil.niveau}.
 Chapitre : ${chapitre}
-FORMAT : 4-5 exercices progressifs, adaptés au niveau ${profil.niveau}, corrigé complet à la fin.
+${baseInstructions}
+FORMAT : 5 exercices progressifs (du plus simple au plus difficile), adaptés au niveau ${profil.niveau}, corrigé complet à la fin.
 Commence par : "📚 FICHE D'EXERCICES — ${nomEleve} — ${chapitre}"`;
   }
 
@@ -260,6 +400,7 @@ async function envoyerRappelBiHebdo() {
   msg += `• LGM : ${ctx.salaire} €${ctx.salaire === SALAIRE_LGM_DEFAULT ? ' _(par défaut)_' : ''}\n`;
   msg += `• Beau-frère : ${BEAU_FRERE} €\n`;
   msg += `• Complétude : ${ctx.completude.toFixed(0)} € / ${OBJECTIF_COMPLETUDE} €\n`;
+  msg += `${barreProgression(ctx.completude, OBJECTIF_COMPLETUDE)}\n`;
   if (ctx.revenusSupp > 0) msg += `• Autres : ${ctx.revenusSupp.toFixed(0)} €\n`;
   msg += `\n💸 *Dépenses :*\n`;
   Object.entries(ctx.totaux).forEach(([k, v]) => {
@@ -298,16 +439,47 @@ async function envoyerSyntheseMensuelle() {
   msg += `\n🎯 *OBJECTIFS ÉPARGNE :*\n`;
   OBJECTIFS.forEach(o => {
     const delta = ctx.epargneEstimee - o.montant;
-    msg += `${delta >= 0 ? '✅' : '⚠️'} ${o.label} : ${o.montant.toLocaleString()} € (${delta >= 0 ? '+' : ''}${delta.toFixed(0)} €)\n`;
+    const pct = Math.min(100, Math.round((ctx.epargneEstimee / o.montant) * 100));
+    msg += `${delta >= 0 ? '✅' : '⚠️'} *${o.label}* : ${o.montant.toLocaleString()} €\n`;
+    msg += `${barreProgression(ctx.epargneEstimee, o.montant)} (${delta >= 0 ? '+' : ''}${delta.toFixed(0)} €)\n\n`;
   });
   await sendMessage(CHAT_ID, msg);
+}
+
+// ============================================================
+// FIX 7 : DÉTECTION INTENTION via IA quand le texte n'est pas reconnu
+// (évite que le bot réponde bêtement sur des formulations inhabituelles)
+// ============================================================
+async function detecterIntentionIA(texte, ctx) {
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+  const prompt = `Tu es le cerveau d'un assistant Telegram personnel appelé L'Agent.
+Analyse ce message de l'utilisateur et retourne UNIQUEMENT un objet JSON valide (sans markdown, sans backtick) avec :
+{
+  "intention": "depense" | "cours_fait" | "cours_manque" | "salaire" | "epargne" | "revenu" | "question" | "inconnu",
+  "eleve": "prénom exact parmi [${Object.keys(ELEVES).join(', ')}] ou null",
+  "montant": nombre ou null,
+  "categorie_depense": "essence|courses|restos|sante|maison|voiture|shopping|loisirs|divers" ou null,
+  "reponse_directe": "réponse courte en français si c'est une question générale, sinon null"
+}
+
+Contexte financier rapide : solde ${ctx.solde.toFixed(0)}€, épargne ${ctx.epargneBase}€, complétude ${ctx.completude.toFixed(0)}€/${OBJECTIF_COMPLETUDE}€.
+
+Message : "${texte}"`;
+
+  try {
+    const result = await model.generateContent(prompt);
+    const raw = result.response.text().trim().replace(/```json|```/g, '').trim();
+    return JSON.parse(raw);
+  } catch {
+    return { intention: 'inconnu' };
+  }
 }
 
 // ============================================================
 // SCHEDULER
 // ============================================================
 function demarrerScheduler() {
-  // Ping pour garder le serveur éveillé
   setInterval(() => {
     fetch(`https://budget-bot-production-eaaf.up.railway.app/`).catch(() => {});
   }, 4 * 60 * 1000);
@@ -318,17 +490,14 @@ function demarrerScheduler() {
     const heure = now.getHours();
     const minute = now.getMinutes();
 
-    // Rappels bi-hebdo
     if ((jour === 3 || jour === 0) && heure === 20 && minute === 0) {
       await envoyerRappelBiHebdo();
     }
 
-    // Synthèse fin de mois
     if (now.getDate() === 30 && heure === 20 && minute === 0) {
       await envoyerSyntheseMensuelle();
     }
 
-    // Notifications fin de cours
     for (const [nomEleve, profil] of Object.entries(ELEVES)) {
       if (profil.jour !== jour) continue;
       if (profil.uneSemaineSurDeux && !estSemaineSerena()) continue;
@@ -363,58 +532,68 @@ app.post('/webhook', async (req, res) => {
       const { etape, nomEleve, source, data } = etatConversation;
       const profil = nomEleve ? ELEVES[nomEleve] : null;
 
-      // CONFIRMATION COURS (auto ou manuel)
       if (etape === 'confirmation') {
-        if (texteLower === 'oui') {
+        // FIX 8 : accepte oui/non + variantes naturelles
+        const estOui = /^(oui|yes|ok|ouais|yep|yop|fait|c'est fait|fait cours|✅|👍)$/i.test(texteLower);
+        const estNon = /^(non|no|pas fait|absent|annulé|annule|nope|nan|❌|👎)$/i.test(texteLower);
+
+        if (estOui) {
           if (profil.question2h) {
             etatConversation = { etape: 'question2h', nomEleve, source };
             await sendMessage(chatId, `✅ Super !\n\n*C'est la séance à 2h ?*\n\nRéponds *oui* ou *non*`);
           } else {
-            // Noélie : 1h fixe, pas de fiche
             const gain = profil.taux * profil.duree;
             await enregistrerCoursFait(chatId, nomEleve, gain, source === 'manuel');
             etatConversation = null;
           }
           return;
         }
-        if (texteLower === 'non') {
-          // Cours manqué — on calcule le gain manqué avec 1h par défaut
+        if (estNon) {
           const gainManque = profil.taux * 1;
           await enregistrerCoursManque(chatId, nomEleve, gainManque);
           etatConversation = null;
           return;
         }
+        // Si ni oui ni non, on redemande gentiment
+        await sendMessage(chatId, `Je n'ai pas compris 😅 Réponds juste *oui* ou *non* — as-tu fait cours avec *${nomEleve}* ?`);
+        return;
       }
 
-      // QUESTION 2H
       if (etape === 'question2h') {
-        if (texteLower === 'oui' || texteLower === 'non') {
-          const heuresPay = texteLower === 'oui' ? 2 : 1;
+        const estOui = /^(oui|yes|ok|ouais|yep|2h|deux heures|✅|👍)$/i.test(texteLower);
+        const estNon = /^(non|no|1h|une heure|nope|nan|❌|👎)$/i.test(texteLower);
+
+        if (estOui || estNon) {
+          const heuresPay = estOui ? 2 : 1;
           const gain = profil.taux * heuresPay;
           await enregistrerCoursFait(chatId, nomEleve, gain, source === 'manuel');
 
           if (profil.fiche) {
             etatConversation = { etape: 'chapitre', nomEleve, gain, source };
             await sendMessage(chatId,
-              `📝 *Qu'avez-vous vu aujourd'hui avec ${nomEleve} ?*\n\n_Ex: Fractions, Théorème de Pythagore..._`
+              `📝 *Qu'avez-vous vu aujourd'hui avec ${nomEleve} ?*\n\n_Exemples : Fractions, Théorème de Pythagore, Calcul littéral..._`
             );
           } else {
             etatConversation = null;
           }
           return;
         }
+        await sendMessage(chatId, `Réponds *oui* (2h) ou *non* (1h) 🙂`);
+        return;
       }
 
-      // CHAPITRE POUR FICHE
       if (etape === 'chapitre') {
-        await sendMessage(chatId, `🤔 *Génération de la fiche...*`);
-        const fiche = await genererFiche(nomEleve, texte);
-        await sendMessage(chatId, fiche);
+        await sendMessage(chatId, `📝 *Génération de la fiche en cours...*\n_Ça peut prendre quelques secondes_`);
+        try {
+          const fiche = await genererFiche(nomEleve, texte);
+          await sendMessage(chatId, fiche); // sendMessage gère le découpage automatiquement
+        } catch (err) {
+          await sendMessage(chatId, `❌ Erreur lors de la génération de la fiche. Réessaie avec /fiche`);
+        }
         etatConversation = null;
         return;
       }
 
-      // COURS MANUEL — NOM ÉLÈVE
       if (etape === 'cours_manuel_nom') {
         const eleve = trouverEleve(texte);
         if (eleve) {
@@ -423,15 +602,13 @@ app.post('/webhook', async (req, res) => {
             `📚 Cours avec *${eleve}*\n\nC'est un *rattrapage* ou un cours *normal* supplémentaire ?\n\nRéponds *rattrapage* ou *normal*`
           );
         } else {
-          await sendMessage(chatId, `❓ Je n'ai pas reconnu le prénom. Élèves : ${Object.keys(ELEVES).join(', ')}`);
+          await sendMessage(chatId, `❓ Je n'ai pas reconnu le prénom.\n\nMes élèves : ${Object.keys(ELEVES).join(', ')}`);
         }
         return;
       }
 
-      // COURS MANUEL — TYPE (rattrapage ou normal)
       if (etape === 'cours_manuel_type') {
         const estRattrapage = texteLower.includes('rattrapage');
-        const profil = ELEVES[nomEleve];
         if (profil.question2h) {
           etatConversation = { etape: 'question2h', nomEleve, source: estRattrapage ? 'rattrapage' : 'manuel' };
           await sendMessage(chatId, `*C'est la séance à 2h ?*\n\nRéponds *oui* ou *non*`);
@@ -440,7 +617,7 @@ app.post('/webhook', async (req, res) => {
           await enregistrerCoursFait(chatId, nomEleve, gain, true);
           if (profil.fiche) {
             etatConversation = { etape: 'chapitre', nomEleve, gain, source: 'manuel' };
-            await sendMessage(chatId, `📝 *Qu'avez-vous vu ?*`);
+            await sendMessage(chatId, `📝 *Qu'avez-vous vu avec ${nomEleve} ?*`);
           } else {
             etatConversation = null;
           }
@@ -453,30 +630,38 @@ app.post('/webhook', async (req, res) => {
 
     if (texte === '/start') {
       await sendMessage(chatId,
-        `👋 Salut ! Je suis *L'Agent*, ton assistant personnel.\n\n` +
+        `👋 Salut Nour-Dine ! Je suis *L'Agent*, ton assistant personnel.\n\n` +
         `*📚 Complétude :*\n` +
         `• /cours — signaler un cours fait\n` +
         `• /completude — revenus du mois\n` +
-        `• /manques — cours ratés et argent perdu\n\n` +
+        `• /manques — cours ratés\n\n` +
         `*💰 Finances :*\n` +
         `• /bilan — dépenses du mois\n` +
         `• /objectifs — progression épargne\n` +
         `• /synthese — bilan complet\n` +
-        `• /charges — charges fixes\n\n` +
-        `*Saisie rapide :*\n` +
-        `💸 _"Leclerc 45€"_ — dépense\n` +
-        `💰 _"Salaire 2625€"_ — salaire\n` +
-        `💎 _"Épargne 9500€"_ — épargne\n` +
+        `• /charges — charges fixes\n` +
+        `• /dashboard — vue d'ensemble\n\n` +
+        `*Saisie rapide (écris naturellement) :*\n` +
+        `💸 _"Leclerc 45€"_ → dépense courses\n` +
+        `💸 _"Plein essence 60€"_ → dépense essence\n` +
+        `💰 _"Salaire 2625€"_ → salaire du mois\n` +
+        `💎 _"Épargne 9500€"_ → mise à jour épargne\n` +
+        `📚 _"Cours avec Margaux"_ → signaler un cours\n` +
         `❓ _Pose n'importe quelle question !_`
       );
       return;
     }
 
-    // Signaler un cours manuellement
+    // FIX 9 : Nouvelle commande /dashboard
+    if (texte === '/dashboard') {
+      const ctx = await getContextFinancier();
+      await envoyerMiniDashboard(chatId, ctx);
+      return;
+    }
+
     if (texte === '/cours') {
       etatConversation = { etape: 'cours_manuel_nom' };
-      const liste = Object.keys(ELEVES).join(', ');
-      await sendMessage(chatId, `📚 *Quel élève ?*\n\n${liste}`);
+      await sendMessage(chatId, `📚 *Quel élève ?*\n\n${Object.keys(ELEVES).join(', ')}`);
       return;
     }
 
@@ -487,7 +672,8 @@ app.post('/webhook', async (req, res) => {
         const emoji = v > BUDGETS[k].max ? '🔴' : v > BUDGETS[k].max * 0.8 ? '🟡' : '🟢';
         message += `${emoji} ${BUDGETS[k].label} : ${v.toFixed(0)}€ / ${BUDGETS[k].max}€\n`;
       });
-      message += `\n💰 *Solde estimé : ${ctx.solde >= 0 ? '+' : ''}${ctx.solde.toFixed(0)} €*`;
+      message += `\n💰 *Solde estimé : ${ctx.solde >= 0 ? '+' : ''}${ctx.solde.toFixed(0)} €*\n`;
+      message += `\n_Total dépensé : ${ctx.totalDep.toFixed(0)} € / ${TOTAL_BUDGETS_MAX} € max_`;
       await sendMessage(chatId, message);
       return;
     }
@@ -497,8 +683,9 @@ app.post('/webhook', async (req, res) => {
       const manque = Math.max(0, OBJECTIF_COMPLETUDE - ctx.completude);
       const emoji = ctx.completude >= OBJECTIF_COMPLETUDE ? '🟢' : ctx.completude >= 1000 ? '🟡' : '🔴';
       let msg = `📚 *Complétude ${nomMois(new Date())}*\n\n`;
+      msg += `${emoji} *${ctx.completude.toFixed(2)} €* / ${OBJECTIF_COMPLETUDE} €\n`;
+      msg += `${barreProgression(ctx.completude, OBJECTIF_COMPLETUDE)}\n`;
       msg += `Cours effectués : *${ctx.cours.length}*\n`;
-      msg += `${emoji} Total : *${ctx.completude.toFixed(2)} €* / ${OBJECTIF_COMPLETUDE} €\n`;
       msg += manque > 0 ? `⚠️ Il manque : *${manque.toFixed(0)} €*\n` : `🎉 Objectif atteint !\n`;
       if (ctx.cours.length > 0) {
         msg += `\n*Détail :*\n`;
@@ -532,11 +719,10 @@ app.post('/webhook', async (req, res) => {
       msg += `📈 Projection fin de mois : *${ctx.epargneEstimee.toFixed(0)} €*\n\n`;
       OBJECTIFS.forEach(o => {
         const delta = ctx.epargneEstimee - o.montant;
-        const pct = Math.min(100, Math.round((ctx.epargneEstimee / o.montant) * 100));
         msg += `${delta >= 0 ? '✅' : '⚠️'} *${o.label}* : ${o.montant.toLocaleString()} €\n`;
-        msg += `   → ${delta >= 0 ? '+' : ''}${delta.toFixed(0)} € (${pct}%)\n\n`;
+        msg += `${barreProgression(ctx.epargneEstimee, o.montant)} (${delta >= 0 ? '+' : ''}${delta.toFixed(0)} €)\n\n`;
       });
-      msg += `_Hors tontine 13 000 €, RC et ARE — c'est du bonus !_ 🎁`;
+      msg += `_Hors tontine 13 000 € — c'est du bonus !_ 🎁`;
       await sendMessage(chatId, msg);
       return;
     }
@@ -555,12 +741,11 @@ app.post('/webhook', async (req, res) => {
 
     // ── DÉTECTIONS TEXTE LIBRE ──────────────────────────────
 
-    // Signalement cours manuel via texte libre
-    // Ex: "J'ai fait cours avec Hélène" / "Rattrapage avec Margaux"
-    if (texteLower.includes('fait cours') || texteLower.includes('rattrapage') || texteLower.includes('cours avec') || texteLower.includes('j\'ai eu cours')) {
+    // Cours fait (texte libre)
+    if (/fait cours|cours avec|j'ai eu cours|rattrapage avec|rattrapage/i.test(texte)) {
       const eleve = trouverEleve(texte);
       if (eleve) {
-        const estRattrapage = texteLower.includes('rattrapage');
+        const estRattrapage = /rattrapage/i.test(texte);
         const profil = ELEVES[eleve];
         if (profil.question2h) {
           etatConversation = { etape: 'question2h', nomEleve: eleve, source: estRattrapage ? 'rattrapage' : 'manuel' };
@@ -577,9 +762,8 @@ app.post('/webhook', async (req, res) => {
       }
     }
 
-    // Annulation cours via texte libre
-    // Ex: "Pas de cours avec Benjamin" / "Benjamin absent"
-    if (texteLower.includes('pas de cours') || texteLower.includes('absent') || texteLower.includes('annulé') || texteLower.includes('pas fait cours')) {
+    // Cours annulé (texte libre)
+    if (/pas de cours|absent|annulé|annule|pas fait cours/i.test(texte)) {
       const eleve = trouverEleve(texte);
       if (eleve) {
         const gainManque = ELEVES[eleve].taux * 1;
@@ -588,60 +772,118 @@ app.post('/webhook', async (req, res) => {
       }
     }
 
-    // Mise à jour épargne
-    if (texteLower.includes('épargne') || texteLower.includes('epargne') || texteLower.includes('économies')) {
-      const match = texte.match(/(\d+([.,]\d{1,2})?)\s*€?/);
+    // Épargne
+    if (/épargne|epargne|économies/i.test(texte)) {
+      const match = texte.match(/(\d+([.,]\d{1,2})?)/);
       if (match) {
         const montant = parseFloat(match[1].replace(',', '.'));
         if (montant > 1000) {
           await supabase.from('epargne').insert({ montant, libelle: texte, chat_id: chatId });
+          const ctx = await getContextFinancier();
           await sendMessage(chatId, `✅ Épargne mise à jour : *${montant.toLocaleString()} €* 💎`);
+          await envoyerMiniDashboard(chatId, ctx);
           return;
         }
       }
     }
 
-    // Saisie salaire
-    if (texteLower.includes('salaire') || texteLower.includes('lgm') || texteLower.includes('paie')) {
-      const match = texte.match(/(\d+([.,]\d{1,2})?)\s*€?/);
+    // Salaire
+    if (/salaire|lgm|paie/i.test(texte)) {
+      const match = texte.match(/(\d+([.,]\d{1,2})?)/);
       if (match) {
         const montant = parseFloat(match[1].replace(',', '.'));
         if (montant > 1000 && montant < 10000) {
           await supabase.from('salaires').insert({ montant, libelle: texte, chat_id: chatId });
+          const ctx = await getContextFinancier();
           await sendMessage(chatId, `✅ Salaire LGM enregistré : *${montant} €* 📊`);
+          await envoyerMiniDashboard(chatId, ctx);
           return;
         }
       }
     }
 
-    // Rentrée d'argent
-    if (texteLower.includes('reçu') || texteLower.includes('vinted') || texteLower.includes('remboursement') || texteLower.includes('rentrée') || texteLower.includes('participation')) {
-      const match = texte.match(/(\d+([.,]\d{1,2})?)\s*€?/);
+    // Revenu supplémentaire
+    if (/reçu|vinted|remboursement|rentrée|participation/i.test(texte)) {
+      const match = texte.match(/(\d+([.,]\d{1,2})?)/);
       if (match) {
         const montant = parseFloat(match[1].replace(',', '.'));
         await supabase.from('revenus').insert({ montant, libelle: texte, chat_id: chatId });
+        const ctx = await getContextFinancier();
         await sendMessage(chatId, `✅ Rentrée de *+${montant} €* enregistrée !`);
+        await envoyerMiniDashboard(chatId, ctx);
         return;
       }
     }
 
     // Dépense
     const depense = parseDepense(texte);
-    if (depense && !texteLower.includes('cours') && !texteLower.includes('élève')) {
+    if (depense && !/cours|élève|eleve/i.test(texte)) {
       await supabase.from('depenses').insert({ montant: depense.montant, categorie: depense.cat, libelle: texte, chat_id: chatId });
       const depenses = await getDepensesMois();
       const totaux = await getTotauxParCat(depenses);
       const restant = BUDGETS[depense.cat].max - totaux[depense.cat];
       const emoji = restant < 0 ? '🔴' : restant < BUDGETS[depense.cat].max * 0.2 ? '🟡' : '🟢';
       await sendMessage(chatId,
-        `✅ *${depense.montant} €* — _${BUDGETS[depense.cat].label}_\n` +
-        `${emoji} Restant : *${restant.toFixed(0)} €* / ${BUDGETS[depense.cat].max} €`
+        `✅ *${depense.montant} €* enregistré — _${BUDGETS[depense.cat].label}_\n` +
+        `${emoji} Budget restant : *${restant.toFixed(0)} €* / ${BUDGETS[depense.cat].max} €`
       );
+      // FIX 5 : dashboard après dépense
+      const ctx = await getContextFinancier();
+      await envoyerMiniDashboard(chatId, ctx);
       return;
     }
 
-    // ── QUESTION IA ─────────────────────────────────────────
+    // ── FIX 7 : DÉTECTION INTENTION IA avant de répondre en mode question ─────
     const ctx = await getContextFinancier();
+    const intention = await detecterIntentionIA(texte, ctx);
+
+    // Si l'IA a identifié une intention structurée qu'on aurait ratée
+    if (intention.intention === 'depense' && intention.montant && intention.categorie_depense) {
+      const cat = intention.categorie_depense;
+      await supabase.from('depenses').insert({ montant: intention.montant, categorie: cat, libelle: texte, chat_id: chatId });
+      const depenses = await getDepensesMois();
+      const totaux = await getTotauxParCat(depenses);
+      const restant = BUDGETS[cat].max - totaux[cat];
+      const emoji = restant < 0 ? '🔴' : restant < BUDGETS[cat].max * 0.2 ? '🟡' : '🟢';
+      await sendMessage(chatId,
+        `✅ *${intention.montant} €* enregistré — _${BUDGETS[cat].label}_\n` +
+        `${emoji} Budget restant : *${restant.toFixed(0)} €* / ${BUDGETS[cat].max} €`
+      );
+      await envoyerMiniDashboard(chatId, ctx);
+      return;
+    }
+
+    if (intention.intention === 'cours_fait' && intention.eleve) {
+      const eleve = intention.eleve;
+      const profil = ELEVES[eleve];
+      if (profil.question2h) {
+        etatConversation = { etape: 'question2h', nomEleve: eleve, source: 'manuel' };
+        await sendMessage(chatId, `📚 Cours avec *${eleve}* !\n\n*C'est la séance à 2h ?*\n\nRéponds *oui* ou *non*`);
+      } else {
+        const gain = profil.taux * profil.duree;
+        await enregistrerCoursFait(chatId, eleve, gain, false);
+        if (profil.fiche) {
+          etatConversation = { etape: 'chapitre', nomEleve: eleve, gain, source: 'manuel' };
+          await sendMessage(chatId, `📝 *Qu'avez-vous vu avec ${eleve} ?*`);
+        }
+      }
+      return;
+    }
+
+    if (intention.intention === 'cours_manque' && intention.eleve) {
+      const gainManque = ELEVES[intention.eleve].taux * 1;
+      await enregistrerCoursManque(chatId, intention.eleve, gainManque);
+      return;
+    }
+
+    // ── RÉPONSE IA GÉNÉRALE ─────────────────────────────────
+    // Si l'IA a une réponse directe courte, on l'envoie directement
+    if (intention.reponse_directe) {
+      await sendMessage(chatId, intention.reponse_directe);
+      return;
+    }
+
+    // Sinon réponse IA complète avec contexte
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
     const coursParEleve = {};
@@ -651,57 +893,38 @@ app.post('/webhook', async (req, res) => {
       coursParEleve[c.eleve].gain += c.gain;
     });
 
-    const context = `Tu es L'Agent, assistant comptable et conseiller personnel de Nour-Dine. Tu es direct, bienveillant, intelligent et interactif.
-Tu réponds en français, de manière conversationnelle et naturelle.
-Tu peux répondre à TOUTES les questions — finances, achats, conseils de vie, formations, etc.
+    const contextIA = `Tu es L'Agent, assistant personnel de Nour-Dine. Tu es direct, bienveillant, intelligent et naturel.
+Tu réponds TOUJOURS en français, de manière conversationnelle. Tu es comme un ami conseiller.
+Tu peux répondre à tout : finances, achats, conseils de vie, formations, prix du marché français, etc.
+Tu n'es JAMAIS pointilleux sur les fautes d'orthographe ou les formulations imparfaites.
+Tu comprends le sens général même si le message est mal écrit ou abrégé.
 Si on te demande un prix, donne une estimation réaliste du marché français actuel.
-Sois conversationnel — parle comme un ami conseiller intelligent.
+Garde tes réponses concises (4-6 lignes max) sauf si la question est complexe.
 
-=== PROFIL DE NOUR-DINE ===
+=== PROFIL ===
 - Ingénieur cadre chez LGM (mission Thales), départ prévu août 2026 via rupture conventionnelle
-- Co-fondateur de Dyneos SAS (CFA, formations professionnelles)
+- Co-fondateur de Dyneos SAS (CFA, formations pro)
 - Tuteur chez Complétude (11 élèves actifs)
 - Certification formateur incendie en cours (Fo.EPI juin 2026, SSIAP 1 juillet 2026)
-- Vit en Île-de-France (Carrières-sous-Poissy), en PACS
+- Vit en Île-de-France, en PACS
 - Objectif : indépendance via formation incendie + Complétude + Dyneos
 
-=== SITUATION FINANCIÈRE CE MOIS ===
-- Salaire LGM : ${ctx.salaire} €
-- Beau-frère : ${BEAU_FRERE} € (jusqu'en novembre 2026)
-- Complétude : ${ctx.completude.toFixed(0)} € / ${OBJECTIF_COMPLETUDE} € objectif
-- Total revenus : ${ctx.totalRevenus.toFixed(0)} €
-- Charges fixes : ${TOTAL_CHARGES_FIXES.toFixed(0)} €/mois
-- Dépenses variables : ${ctx.totalDep.toFixed(0)} €
-- Solde estimé : ${ctx.solde.toFixed(0)} €
-- Épargne actuelle : ${ctx.epargneBase.toLocaleString()} €
-- Épargne projetée fin de mois : ${ctx.epargneEstimee.toFixed(0)} €
+=== FINANCES CE MOIS ===
+Salaire LGM : ${ctx.salaire} € | Beau-frère : ${BEAU_FRERE} € | Complétude : ${ctx.completude.toFixed(0)}€/${OBJECTIF_COMPLETUDE}€
+Total revenus : ${ctx.totalRevenus.toFixed(0)} € | Charges fixes : ${TOTAL_CHARGES_FIXES.toFixed(0)} € | Dépenses variables : ${ctx.totalDep.toFixed(0)} €
+Solde estimé : ${ctx.solde.toFixed(0)} € | Épargne actuelle : ${ctx.epargneBase.toLocaleString()} € | Projection : ${ctx.epargneEstimee.toFixed(0)} €
 
 === BUDGETS ===
-${Object.entries(ctx.totaux).map(([k,v]) => `- ${BUDGETS[k].label} : ${v.toFixed(0)}€ / ${BUDGETS[k].max}€`).join('\n')}
+${Object.entries(ctx.totaux).map(([k, v]) => `${BUDGETS[k].label}: ${v.toFixed(0)}€/${BUDGETS[k].max}€`).join(' | ')}
 
-=== OBJECTIFS ÉPARGNE ===
-- Fin juin 2026 : 12 500 € (projection : ${ctx.epargneEstimee.toFixed(0)} €)
-- Fin août 2026 : 15 000 €
-- Janvier 2027 : 20 000 € (hors tontine 13 000 € = bonus)
+Message de Nour-Dine : "${texte}"`;
 
-=== ÉLÈVES COMPLÉTUDE ===
-11 élèves actifs : Amel 21,04€/h (5e), Benjamin 24,30€/h (5e), Guillaume 23,88€/h (5e TDA), Margaux 26,60€/h (3e), Nélia 26,60€/h (3e), Hélène 24,30€/h (5e), Noélie 25,78€/h (CE2), Mathéo 23,66€/h (3e), Anne-Gaëlle 24,08€/h (3e), Saïda 25,56€/h (5e), Serena 23,04€/h (5e)
-Ce mois : ${Object.entries(coursParEleve).map(([e,d]) => `${e} ${d.nb} cours +${d.gain.toFixed(0)}€`).join(', ') || 'aucun cours enregistré'}
-Cours manqués : ${ctx.coursManques.length} cours — -${ctx.totalManque.toFixed(0)} €
-
-=== RÈGLES ===
-1. Question achat → prix marché français + analyse budget
-2. Question financière → données réelles ci-dessus
-3. Question élève → infos des élèves ci-dessus
-4. Question générale → réponds naturellement
-5. 4-6 lignes max sauf question complexe`;
-
-    await sendMessage(chatId, '🤔 *Analyse en cours...*');
-    const result = await model.generateContent(context + '\n\nQuestion de Nour-Dine : ' + texte);
+    await sendMessage(chatId, '🤔 ...');
+    const result = await model.generateContent(contextIA);
     await sendMessage(chatId, result.response.text());
 
   } catch (err) {
-    console.error('Erreur:', err.message);
+    console.error('Erreur:', err.message, err.stack);
     await sendMessage(chatId, "❌ Une erreur s'est produite, réessaie dans quelques secondes.");
   }
 });
