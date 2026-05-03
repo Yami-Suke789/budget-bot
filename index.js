@@ -398,6 +398,119 @@ async function traiterCallback(cb) {
     await send(chatId, '❌ Génération de fiche annulée.');
     return;
   }
+
+  // ── ANNULER — TYPE ─────────────────────────────────────
+  if (data === 'ann_cours_fait') {
+    // Choisir l'élève
+    const rows = [];
+    const noms = Object.keys(ELEVES);
+    for (let i = 0; i < noms.length; i += 3) {
+      rows.push(noms.slice(i, i+3).map(n => ({ t: n, d: 'ann_cf_' + n })));
+    }
+    rows.push([{ t: '↩️ Retour', d: 'annuler' }]);
+    sessionsAnnuler[chatId] = { type: 'cours_fait' };
+    await sendBtns(chatId, '📚 Quel cours effectué annuler ?', rows);
+    return;
+  }
+
+  if (data === 'ann_cours_manque') {
+    const rows = [];
+    const noms = Object.keys(ELEVES);
+    for (let i = 0; i < noms.length; i += 3) {
+      rows.push(noms.slice(i, i+3).map(n => ({ t: n, d: 'ann_cm_' + n })));
+    }
+    rows.push([{ t: '↩️ Retour', d: 'annuler' }]);
+    sessionsAnnuler[chatId] = { type: 'cours_manque' };
+    await sendBtns(chatId, '❌ Quel cours manqué annuler ?', rows);
+    return;
+  }
+
+  if (data === 'ann_depense') {
+    const cats = Object.entries(BUDGETS);
+    const rows = [];
+    for (let i = 0; i < cats.length; i += 3) {
+      rows.push(cats.slice(i, i+3).map(([k, b]) => ({ t: b.label, d: 'ann_dep_' + k })));
+    }
+    rows.push([{ t: '↩️ Retour', d: 'annuler' }]);
+    await sendBtns(chatId, '💸 Quelle catégorie de dépense annuler ?', rows);
+    return;
+  }
+
+  // Annuler cours effectué — élève choisi
+  if (data.startsWith('ann_cf_')) {
+    const eleve = data.replace('ann_cf_', '');
+    const ok = await annulerDernierCours(eleve);
+    delete sessionsAnnuler[chatId];
+    if (ok) {
+      await send(chatId, `✅ Dernier cours de *${eleve}* annulé !`);
+      await resumeCompletude(chatId);
+    } else {
+      await send(chatId, `❌ Aucun cours trouvé pour *${eleve}* ce mois.`);
+    }
+    return;
+  }
+
+  // Annuler cours manqué — élève choisi
+  if (data.startsWith('ann_cm_')) {
+    const eleve = data.replace('ann_cm_', '');
+    const ok = await annulerDernierCoursManque(eleve);
+    delete sessionsAnnuler[chatId];
+    if (ok) {
+      await send(chatId, `✅ Dernier cours manqué de *${eleve}* annulé !`);
+    } else {
+      await send(chatId, `❌ Aucun cours manqué trouvé pour *${eleve}* ce mois.`);
+    }
+    return;
+  }
+
+  // Annuler dépense — catégorie choisie
+  if (data.startsWith('ann_dep_')) {
+    const cat = data.replace('ann_dep_', '');
+    const item = await annulerDerniereDepense(cat);
+    if (item) {
+      await send(chatId, `✅ Dépense annulée : *${item.montant} €* — ${BUDGETS[cat].label}\n_${item.libelle || ''}_`);
+    } else {
+      await send(chatId, `❌ Aucune dépense trouvée pour ${BUDGETS[cat].label} ce mois.`);
+    }
+    return;
+  }
+
+  // ── MODIFIER ───────────────────────────────────────────
+  if (data === 'mod_budget') {
+    const cats = Object.entries(BUDGETS);
+    const rows = [];
+    for (let i = 0; i < cats.length; i += 3) {
+      rows.push(cats.slice(i, i+3).map(([k, b]) => ({ t: b.label + ' (' + b.max + '€)', d: 'mod_bud_' + k })));
+    }
+    rows.push([{ t: '↩️ Retour', d: 'annuler' }]);
+    await sendBtns(chatId, '📊 Quel budget modifier ?', rows);
+    return;
+  }
+
+  if (data === 'mod_depense') {
+    const cats = Object.entries(BUDGETS);
+    const rows = [];
+    for (let i = 0; i < cats.length; i += 3) {
+      rows.push(cats.slice(i, i+3).map(([k, b]) => ({ t: b.label, d: 'mod_dep_' + k })));
+    }
+    rows.push([{ t: '↩️ Retour', d: 'annuler' }]);
+    await sendBtns(chatId, '💸 Rectifier quelle catégorie de dépense ?', rows);
+    return;
+  }
+
+  if (data.startsWith('mod_bud_')) {
+    const cat = data.replace('mod_bud_', '');
+    sessionsModifier[chatId] = { etape: 'attente_montant_budget', categorie: cat };
+    await send(chatId, `📊 Budget *${BUDGETS[cat].label}* actuel : *${BUDGETS[cat].max} €*\n\nEnvoie le nouveau plafond mensuel (ex: *400*)`);
+    return;
+  }
+
+  if (data.startsWith('mod_dep_')) {
+    const cat = data.replace('mod_dep_', '');
+    sessionsModifier[chatId] = { etape: 'attente_rectif_depense', categorie: cat };
+    await send(chatId, `💸 Rectifier la dernière dépense *${BUDGETS[cat].label}*\n\nEnvoie le montant correct (ex: *45*)`);
+    return;
+  }
 }
 
 // ============================================================
@@ -445,6 +558,63 @@ app.post('/webhook', async (req, res) => {
     // /fiche
     if (texte === '/fiche') {
       await demarrerFiche(chatId);
+      return;
+    }
+
+    // /annuler
+    if (texte === '/annuler') {
+      await sendBtns(chatId, '🔄 *Que veux-tu annuler ?*', [
+        [{ t: '📚 Un cours effectué', d: 'ann_cours_fait' }, { t: '❌ Un cours manqué', d: 'ann_cours_manque' }],
+        [{ t: '💸 Une dépense', d: 'ann_depense' }],
+        [{ t: '↩️ Annuler', d: 'annuler' }]
+      ]);
+      return;
+    }
+
+    // /modifier
+    if (texte === '/modifier') {
+      await sendBtns(chatId, '✏️ *Que veux-tu modifier ?*', [
+        [{ t: '📊 Un budget catégorie', d: 'mod_budget' }],
+        [{ t: '💸 Rectifier une dépense', d: 'mod_depense' }],
+        [{ t: '↩️ Annuler', d: 'annuler' }]
+      ]);
+      return;
+    }
+
+    // Attente montant modification budget
+    if (sessionsModifier[chatId] && sessionsModifier[chatId].etape === 'attente_montant_budget') {
+      const cat = sessionsModifier[chatId].categorie;
+      const montant = trouverMontant(texte);
+      if (montant && montant > 0) {
+        BUDGETS[cat].max = montant;
+        delete sessionsModifier[chatId];
+        await send(chatId, `✅ Budget *${BUDGETS[cat].label}* mis à jour : *${montant} €/mois*`);
+      } else {
+        await send(chatId, 'Envoie un montant valide, ex: *400*');
+      }
+      return;
+    }
+
+    // Attente montant rectification dépense
+    if (sessionsModifier[chatId] && sessionsModifier[chatId].etape === 'attente_rectif_depense') {
+      const cat = sessionsModifier[chatId].categorie;
+      const montant = trouverMontant(texte);
+      if (montant && montant > 0) {
+        // Supprimer dernière dépense et recréer avec bon montant
+        const item = await annulerDerniereDepense(cat);
+        if (item) {
+          await saveDepense(chatId, montant, cat, item.libelle || texte);
+          const newData = await getData();
+          const restant = BUDGETS[cat].max - newData.totaux[cat];
+          delete sessionsModifier[chatId];
+          await send(chatId, `✅ Dépense rectifiée : *${montant} €* — ${BUDGETS[cat].label}\nAncien montant : ${item.montant} €`);
+        } else {
+          await send(chatId, `Aucune dépense trouvée pour ${BUDGETS[cat].label} ce mois.`);
+          delete sessionsModifier[chatId];
+        }
+      } else {
+        await send(chatId, 'Envoie le nouveau montant, ex: *45*');
+      }
       return;
     }
 
@@ -866,6 +1036,8 @@ async function creerPDF(eleve, chapitre, contenu) {
 // COMMANDE /fiche — SESSION DÉDIÉE
 // ============================================================
 const sessionsFiches = {};
+const sessionsAnnuler = {};
+const sessionsModifier = {};
 
 async function demarrerFiche(chatId) {
   const elevesDispo = Object.keys(PROFILS_FICHES);
@@ -877,6 +1049,58 @@ async function demarrerFiche(chatId) {
   await sendBtns(chatId, '📚 *Génération de fiche*\n\nPour quel élève ?', rows);
 }
 
+
+
+// ============================================================
+// ANNULATION — SUPPRIME DERNIÈRE ACTION
+// ============================================================
+async function annulerDernierCours(eleve) {
+  const debut = new Date(); debut.setUTCDate(1); debut.setUTCHours(0,0,0,0);
+  const { data } = await supabase.from('cours').select('id')
+    .eq('eleve', eleve).gte('created_at', debut.toISOString())
+    .order('created_at', { ascending: false }).limit(1);
+  if (!data || data.length === 0) return false;
+  const { error } = await supabase.from('cours').delete().eq('id', data[0].id);
+  return !error;
+}
+
+async function annulerDernierCoursManque(eleve) {
+  const debut = new Date(); debut.setUTCDate(1); debut.setUTCHours(0,0,0,0);
+  const { data } = await supabase.from('cours_manques').select('id')
+    .eq('eleve', eleve).gte('created_at', debut.toISOString())
+    .order('created_at', { ascending: false }).limit(1);
+  if (!data || data.length === 0) return false;
+  const { error } = await supabase.from('cours_manques').delete().eq('id', data[0].id);
+  return !error;
+}
+
+async function annulerDerniereDepense(categorie) {
+  const debut = new Date(); debut.setUTCDate(1); debut.setUTCHours(0,0,0,0);
+  const query = supabase.from('depenses').select('id,montant,libelle')
+    .gte('created_at', debut.toISOString())
+    .order('created_at', { ascending: false }).limit(1);
+  if (categorie) query.eq('categorie', categorie);
+  const { data } = await query;
+  if (!data || data.length === 0) return null;
+  const item = data[0];
+  await supabase.from('depenses').delete().eq('id', item.id);
+  return item;
+}
+
+async function modifierBudget(categorie, nouveauMax) {
+  // Stocké en mémoire (redémarre à chaque déploiement)
+  // Pour persistance, on le met en Supabase
+  const { error } = await supabase.from('budgets_custom').upsert({ categorie, max: nouveauMax });
+  return !error;
+}
+
+async function getBudgetsCustom() {
+  const { data } = await supabase.from('budgets_custom').select('*');
+  if (!data || data.length === 0) return {};
+  const custom = {};
+  data.forEach(d => { custom[d.categorie] = d.max; });
+  return custom;
+}
 
 function demarrerScheduler() {
   setInterval(() => {
