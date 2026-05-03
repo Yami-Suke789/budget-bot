@@ -1,6 +1,9 @@
 const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const PDFDocument = require('pdfkit');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 app.use(express.json());
@@ -32,7 +35,7 @@ const TOTAL_CHARGES_FIXES = Object.values(CHARGES_FIXES).reduce((a, b) => a + b,
 
 const BUDGETS = {
   essence:  { label: '⛽ Essence',  max: 300 },
-  courses:  { label: '🛒 Courses',  max: 650 },
+  courses:  { label: '🛒 Courses',  max: 500 },
   restos:   { label: '🍽️ Restos',   max: 80  },
   sante:    { label: '🏥 Santé',    max: 60  },
   maison:   { label: '🏠 Maison',   max: 50  },
@@ -173,7 +176,7 @@ async function saveCours(chatId, eleve, heures, rattrapage) {
 }
 
 async function saveCoursManque(chatId, eleve) {
-  const gain_manque = ELEVES[eleve].taux;
+  const gain_manque = ELEVES[eleve].taux * ELEVES[eleve].duree;
   const { error } = await supabase.from('cours_manques').insert({ eleve, gain_manque, chat_id: String(chatId) });
   if (error) console.error('saveCoursManque error:', error);
   return gain_manque;
@@ -238,6 +241,13 @@ function trouverEleve(texte) {
   return null;
 }
 
+function trouverTousLesEleves(texte) {
+  const t = texte.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  return Object.keys(ELEVES).filter(nom =>
+    t.includes(nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''))
+  );
+}
+
 function trouverMontant(texte) {
   const m = texte.match(/(\d+([.,]\d{1,2})?)\s*€?/);
   return m ? parseFloat(m[1].replace(',', '.')) : null;
@@ -290,8 +300,18 @@ async function traiterCallback(cb) {
 
     if (data === 'cours_non') {
       const gain_manque = await saveCoursManque(chatId, eleve);
-      delete sessions[chatId];
       await send(chatId, `❌ Cours ${eleve} non effectue\n💸 Manque a gagner: *-${gain_manque.toFixed(2)}€*`);
+      // Passer au suivant si file d'attente
+      if (session.fileAttente && session.fileAttente.length > 0) {
+        const next = session.fileAttente[0];
+        const reste = session.fileAttente.slice(1);
+        sessions[chatId] = { eleve: next, rattrapage: session.rattrapage, etape: 'confirmation', fileAttente: reste };
+        await sendBtns(chatId, `📚 Cours suivant — *${next}* — effectue ?`,
+          [[{ t: '✅ Oui', d: 'cours_oui' }, { t: '❌ Non', d: 'cours_non' }], [{ t: '↩️ Annuler', d: 'annuler' }]]
+        );
+      } else {
+        delete sessions[chatId];
+      }
       return;
     }
 
@@ -304,11 +324,16 @@ async function traiterCallback(cb) {
       ]);
     } else {
       const gain = await saveCours(chatId, eleve, ELEVES[eleve].duree, session.rattrapage || false);
-      sessions[chatId] = { ...session, etape: 'chapitre' };
       await send(chatId, `✅ Cours ${eleve} enregistre ! *+${gain.toFixed(2)}€*`);
       await resumeCompletude(chatId);
-      if (ELEVES[eleve].fiche) {
-        await send(chatId, `📝 Qu'avez-vous vu aujourd'hui avec ${eleve} ?`);
+      // Passer au suivant si file d'attente
+      if (session.fileAttente && session.fileAttente.length > 0) {
+        const next = session.fileAttente[0];
+        const reste = session.fileAttente.slice(1);
+        sessions[chatId] = { eleve: next, rattrapage: session.rattrapage, etape: 'confirmation', fileAttente: reste };
+        await sendBtns(chatId, `📚 Cours suivant — *${next}* — effectue ?`,
+          [[{ t: '✅ Oui', d: 'cours_oui' }, { t: '❌ Non', d: 'cours_non' }], [{ t: '↩️ Annuler', d: 'annuler' }]]
+        );
       } else {
         delete sessions[chatId];
       }
@@ -324,9 +349,14 @@ async function traiterCallback(cb) {
     const gain = await saveCours(chatId, eleve, heures, session.rattrapage || false);
     await send(chatId, `✅ Cours ${eleve} enregistre ! *+${gain.toFixed(2)}€*`);
     await resumeCompletude(chatId);
-    if (ELEVES[eleve].fiche) {
-      sessions[chatId] = { ...session, etape: 'chapitre' };
-      await send(chatId, `📝 Qu'avez-vous vu aujourd'hui avec ${eleve} ?`);
+    // Passer au suivant si file d'attente
+    if (session.fileAttente && session.fileAttente.length > 0) {
+      const next = session.fileAttente[0];
+      const reste = session.fileAttente.slice(1);
+      sessions[chatId] = { eleve: next, rattrapage: session.rattrapage, etape: 'confirmation', fileAttente: reste };
+      await sendBtns(chatId, `📚 Cours suivant — *${next}* — effectue ?`,
+        [[{ t: '✅ Oui', d: 'cours_oui' }, { t: '❌ Non', d: 'cours_non' }], [{ t: '↩️ Annuler', d: 'annuler' }]]
+      );
     } else {
       delete sessions[chatId];
     }
@@ -351,6 +381,21 @@ async function traiterCallback(cb) {
   if (data === 'annuler') {
     delete sessions[chatId];
     await send(chatId, '❌ Action annulee.');
+    return;
+  }
+
+  // Fiche — choix élève
+  if (data.startsWith('fiche_eleve_')) {
+    const eleve = data.replace('fiche_eleve_', '');
+    sessionsFiches[chatId] = { eleve, etape: 'attente_chapitre' };
+    await send(chatId, `📚 Fiche pour *${eleve}*\n\nQuel chapitre as-tu vu en cours ?\n_Ex: Fractions, Théorème de Pythagore, Equations..._`);
+    return;
+  }
+
+  // Fiche — annuler
+  if (data === 'fiche_annuler') {
+    delete sessionsFiches[chatId];
+    await send(chatId, '❌ Génération de fiche annulée.');
     return;
   }
 }
@@ -394,6 +439,29 @@ app.post('/webhook', async (req, res) => {
     if (texte === '/reset') {
       delete sessions[chatId];
       await send(chatId, '🔄 Conversation reinitialisee !');
+      return;
+    }
+
+    // /fiche
+    if (texte === '/fiche') {
+      await demarrerFiche(chatId);
+      return;
+    }
+
+    // Attente chapitre pour fiche
+    if (sessionsFiches[chatId] && sessionsFiches[chatId].etape === 'attente_chapitre') {
+      const eleve = sessionsFiches[chatId].eleve;
+      delete sessionsFiches[chatId];
+      await send(chatId, `📝 Génération de la fiche pour *${eleve}*...`);
+      try {
+        const contenu = await genererContenuFiche(eleve, texte);
+        const pdfPath = await creerPDF(eleve, texte, contenu);
+        await sendDocument(chatId, pdfPath, `fiche_${eleve}_${texte.replace(/ /g,'_')}.pdf`);
+        fs.unlinkSync(pdfPath);
+      } catch (err) {
+        console.error('Erreur fiche PDF:', err.message);
+        await send(chatId, '❌ Erreur génération fiche. Réessaie.');
+      }
       return;
     }
 
@@ -467,22 +535,26 @@ app.post('/webhook', async (req, res) => {
     }
 
     // ── DÉTECTION COURS ────────────────────────────────────
-    const eleve = trouverEleve(texte);
+    const tousEleves = trouverTousLesEleves(texte);
+    const eleve = tousEleves[0] || null;
     const isCours = /cours|rattrapage|seance/i.test(texte);
     const isPasFait = /pas fait|absent|annule|pas pu|rate/i.test(texte);
 
     if (eleve && isCours) {
       const rattrapage = /rattrapage/i.test(texte);
+      const fileAttente = tousEleves.slice(1); // autres élèves à traiter après
 
       if (isPasFait) {
-        // Cours manqué direct
-        const gain_manque = await saveCoursManque(chatId, eleve);
-        await send(chatId, `❌ Cours ${eleve} non effectue\n💸 Manque: *-${gain_manque.toFixed(2)}€*`);
+        // Cours manqué direct pour tous les élèves mentionnés
+        for (const el of tousEleves) {
+          const gain_manque = await saveCoursManque(chatId, el);
+          await send(chatId, `❌ Cours ${el} non effectue\n💸 Manque: *-${gain_manque.toFixed(2)}€*`);
+        }
         return;
       }
 
-      // Demander si fait ou pas
-      sessions[chatId] = { eleve, rattrapage, etape: 'confirmation' };
+      // Demander si fait ou pas — file d'attente pour les suivants
+      sessions[chatId] = { eleve, rattrapage, etape: 'confirmation', fileAttente };
       await sendBtns(chatId,
         `📚 Cours avec *${eleve}*${rattrapage ? ' _(rattrapage)_' : ''} — effectue ?`,
         [
@@ -597,6 +669,214 @@ function estSemaineSerena() {
   const debut = new Date('2026-05-10');
   return Math.floor((new Date() - debut) / (7 * 24 * 60 * 60 * 1000)) % 2 === 0;
 }
+
+
+// ============================================================
+// ENVOI DOCUMENT TELEGRAM
+// ============================================================
+async function sendDocument(chatId, filePath, filename) {
+  const FormData = require('form-data');
+  const form = new FormData();
+  form.append('chat_id', String(chatId));
+  form.append('document', fs.createReadStream(filePath), { filename });
+  await fetch(`https://api.telegram.org/bot${TOKEN}/sendDocument`, {
+    method: 'POST',
+    body: form,
+    headers: form.getHeaders()
+  });
+}
+
+// ============================================================
+// GÉNÉRATION FICHE PDF
+// ============================================================
+const PROFILS_FICHES = {
+  'Amel':        { niveau: '5e',  format: 'standard' },
+  'Benjamin':    { niveau: '5e',  format: 'standard', note: 'Impatient, erreurs attention — inclure exercices de vérification' },
+  'Guillaume':   { niveau: '5e',  format: 'tda',      note: 'TDA — consignes ultra courtes, max 4 exos, beaucoup espace' },
+  'Margaux':     { niveau: '3e',  format: 'standard' },
+  'Nélia':       { niveau: '3e',  format: 'standard' },
+  'Hélène':      { niveau: '5e',  format: 'standard' },
+  'Mathéo':      { niveau: '3e',  format: 'hebdo',    note: 'Fiche lundi-vendredi, 2 exos courts par jour' },
+  'Anne-Gaëlle': { niveau: '3e',  format: 'standard' },
+  'Saïda':       { niveau: '5e',  format: 'standard' },
+  'Serena':      { niveau: '5e',  format: 'standard' },
+};
+
+async function genererContenuFiche(eleve, chapitre) {
+  const profil = PROFILS_FICHES[eleve];
+  const model = genAI.getGenerativeModel({ model: MODELE });
+
+  const regles = `REGLES ABSOLUES:
+- Texte brut uniquement, ZERO LaTeX
+- Fractions: ecrire "3/4", puissances: "x^2", racines: "racine(9)"
+- Exercices numerotes clairement
+- Corrige complet apres "=== CORRIGE ==="
+- Adapte au programme officiel de ${profil.niveau} en France`;
+
+  let prompt = '';
+
+  if (profil.format === 'hebdo') {
+    prompt = `Tu es professeur de mathematiques experimente. Cree une fiche hebdomadaire pour ${eleve}, eleve de ${profil.niveau}.
+Chapitre: ${chapitre}
+${regles}
+${profil.note ? 'Note pedagogique: ' + profil.note : ''}
+
+FORMAT STRICT:
+LUNDI
+Exercice 1: [enonce court]
+Exercice 2: [enonce court]
+
+MARDI
+Exercice 3: [enonce court]
+Exercice 4: [enonce court]
+
+MERCREDI
+Exercice 5: [enonce court]
+Exercice 6: [enonce court]
+
+JEUDI
+Exercice 7: [enonce court]
+Exercice 8: [enonce court]
+
+VENDREDI
+Exercice 9: [enonce court]
+Exercice 10: [enonce court]
+
+=== CORRIGE ===
+[Corrige complet de tous les exercices]`;
+
+  } else if (profil.format === 'tda') {
+    prompt = `Tu es professeur specialise TDA/TDAH. Cree une fiche pour ${eleve}, eleve de ${profil.niveau}.
+Chapitre: ${chapitre}
+${regles}
+${profil.note ? 'Note pedagogique: ' + profil.note : ''}
+
+CONSIGNES SPECIALES:
+- Maximum 4 exercices
+- 1 seule phrase par consigne
+- Beaucoup d'espace entre les exercices
+- Enonces tres simples et directs
+- Pas de sous-questions
+
+=== CORRIGE ===
+[Corrige complet]`;
+
+  } else {
+    prompt = `Tu es professeur de mathematiques experimente. Cree une fiche d'exercices pour ${eleve}, eleve de ${profil.niveau}.
+Chapitre: ${chapitre}
+${regles}
+${profil.note ? 'Note pedagogique: ' + profil.note : ''}
+
+FORMAT:
+- 4 a 5 exercices de difficulte progressive
+- Exercice 1-2: application directe du cours
+- Exercice 3-4: problemes avec mise en situation
+- Exercice 5 (optionnel): exercice challenge
+- Adapte exactement au programme de ${profil.niveau}
+
+=== CORRIGE ===
+[Corrige detaille avec toutes les etapes]`;
+  }
+
+  const result = await model.generateContent(prompt);
+  return result.response.text();
+}
+
+async function creerPDF(eleve, chapitre, contenu) {
+  const profil = PROFILS_FICHES[eleve];
+  const tmpPath = path.join('/tmp', `fiche_${eleve}_${Date.now()}.pdf`);
+
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ margin: 40, size: 'A4' });
+    const stream = fs.createWriteStream(tmpPath);
+    doc.pipe(stream);
+
+    // ── En-tête ──────────────────────────────────────────
+    doc.rect(0, 0, doc.page.width, 80).fill('#0D1B2A');
+    doc.fillColor('white').fontSize(18).font('Helvetica-Bold')
+       .text("L'Agent — Fiche d'exercices", 40, 20, { align: 'left' });
+    doc.fontSize(11).font('Helvetica')
+       .text(`${eleve} — ${profil.niveau} — ${chapitre}`, 40, 48);
+    doc.text(new Date().toLocaleDateString('fr-FR'), 40, 62);
+
+    doc.fillColor('#333333');
+    doc.moveDown(3);
+
+    // ── Contenu ──────────────────────────────────────────
+    const lignes = contenu.split('
+');
+    let dansCorrige = false;
+
+    for (const ligne of lignes) {
+      if (ligne.trim() === '') {
+        doc.moveDown(0.4);
+        continue;
+      }
+
+      if (ligne.startsWith('=== CORRIGE ===')) {
+        // Séparateur corrigé
+        doc.moveDown(1);
+        doc.rect(40, doc.y, doc.page.width - 80, 1).fill('#F26419');
+        doc.moveDown(0.5);
+        doc.fillColor('#F26419').fontSize(13).font('Helvetica-Bold')
+           .text('CORRIGÉ', 40, doc.y);
+        doc.fillColor('#333333');
+        dansCorrige = true;
+        doc.moveDown(0.5);
+        continue;
+      }
+
+      // Jours de la semaine (format hebdo)
+      if (/^(LUNDI|MARDI|MERCREDI|JEUDI|VENDREDI)$/i.test(ligne.trim())) {
+        doc.moveDown(0.5);
+        doc.fillColor('#0D1B2A').fontSize(12).font('Helvetica-Bold')
+           .text(ligne.trim(), 40, doc.y);
+        doc.fillColor('#333333');
+        continue;
+      }
+
+      // Exercices
+      if (/^exercice\s*\d+/i.test(ligne.trim())) {
+        doc.moveDown(0.3);
+        const couleur = dansCorrige ? '#2E7D32' : '#0D1B2A';
+        doc.fillColor(couleur).fontSize(11).font('Helvetica-Bold')
+           .text(ligne.trim(), 40, doc.y, { width: doc.page.width - 80 });
+        doc.fillColor('#333333');
+        continue;
+      }
+
+      // Texte normal
+      doc.fontSize(10).font('Helvetica')
+         .text(ligne, 40, doc.y, { width: doc.page.width - 80 });
+    }
+
+    // ── Pied de page ─────────────────────────────────────
+    const pageBottom = doc.page.height - 30;
+    doc.rect(0, pageBottom - 10, doc.page.width, 40).fill('#0D1B2A');
+    doc.fillColor('white').fontSize(8).font('Helvetica')
+       .text('Généré par L'Agent • Complétude', 40, pageBottom, { align: 'center', width: doc.page.width - 80 });
+
+    doc.end();
+    stream.on('finish', () => resolve(tmpPath));
+    stream.on('error', reject);
+  });
+}
+
+// ============================================================
+// COMMANDE /fiche — SESSION DÉDIÉE
+// ============================================================
+const sessionsFiches = {};
+
+async function demarrerFiche(chatId) {
+  const elevesDispo = Object.keys(PROFILS_FICHES);
+  const rows = [];
+  for (let i = 0; i < elevesDispo.length; i += 3) {
+    rows.push(elevesDispo.slice(i, i + 3).map(n => ({ t: n, d: `fiche_eleve_${n}` })));
+  }
+  rows.push([{ t: '↩️ Annuler', d: 'fiche_annuler' }]);
+  await sendBtns(chatId, '📚 *Génération de fiche*\n\nPour quel élève ?', rows);
+}
+
 
 function demarrerScheduler() {
   setInterval(() => {
