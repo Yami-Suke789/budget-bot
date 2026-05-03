@@ -973,8 +973,7 @@ async function creerPDF(eleve, chapitre, contenu) {
     doc.moveDown(3);
 
     // ── Contenu ──────────────────────────────────────────
-    const lignes = contenu.split('
-');
+    const lignes = contenu.split('\n');
     let dansCorrige = false;
 
     for (const ligne of lignes) {
@@ -1024,7 +1023,7 @@ async function creerPDF(eleve, chapitre, contenu) {
     const pageBottom = doc.page.height - 30;
     doc.rect(0, pageBottom - 10, doc.page.width, 40).fill('#0D1B2A');
     doc.fillColor('white').fontSize(8).font('Helvetica')
-       .text('Généré par L'Agent • Complétude', 40, pageBottom, { align: 'center', width: doc.page.width - 80 });
+       .text("Généré par L'Agent • Complétude", 40, pageBottom, { align: 'center', width: doc.page.width - 80 });
 
     doc.end();
     stream.on('finish', () => resolve(tmpPath));
