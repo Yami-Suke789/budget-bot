@@ -1681,13 +1681,13 @@ function renderBudgets(d){
   const totalMax=Object.values(d.budgets).reduce((s,b)=>s+b.max,0);
   const totalPct=pct(totalDep,totalMax);
   const totalCol=col(totalPct);
-  bl.innerHTML=`<div class="card-label" style="margin-bottom:.6rem">Dépenses variables${isCurrent?'':' <span class="badge badge-hist">Archivé</span>'}</div>`;
+  bl.innerHTML=\`<div class="card-label" style="margin-bottom:.6rem">Dépenses variables${isCurrent?'':' <span class="badge badge-hist">Archivé</span>'}</div>\`;
   Object.entries(d.totaux).forEach(([k,v])=>{
     const b=d.budgets[k];const p=pct(v,b.max);const c=col(p);
     const items=(d.detail||{})[k]||[];const hasItems=items.length>0;
-    bl.innerHTML+=`<div class="cat-btn" id="cat-btn-${k}" onclick="${hasItems?'toggleDetail(\''+k+'\')':''}" style="${!hasItems?'cursor:default':''}"><span>${b.label}</span><div style="display:flex;align-items:center;gap:8px"><div class="mini-bar"><div class="mini-fill" style="width:${p}%;background:${c}"></div></div><span style="color:${c};min-width:82px;text-align:right;font-family:var(--mono);font-size:.7rem">${v.toFixed(0)}€ / ${b.max}€</span><span class="chevron">${hasItems?'›':''}</span></div></div><div class="cat-detail" id="cat-det-${k}">${items.length===0?'<div style="color:var(--muted);font-size:.68rem;padding:4px 0">Aucune dépense</div>':items.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).map(dep=>{const date=new Date(dep.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});return `<div class="dep-item"><span>${dep.libelle||'—'}</span><div style="text-align:right"><span style="color:var(--text)">${dep.montant.toFixed(2)} €</span><br><span class="dep-date">${date}</span></div></div>`;}).join('')}</div>`;
+    bl.innerHTML+=\`<div class="cat-btn" id="cat-btn-${k}" onclick="${hasItems?'toggleDetail(\''+k+'\')':''}" style="${!hasItems?'cursor:default':''}"><span>${b.label}</span><div style="display:flex;align-items:center;gap:8px"><div class="mini-bar"><div class="mini-fill" style="width:${p}%;background:${c}"></div></div><span style="color:${c};min-width:82px;text-align:right;font-family:var(--mono);font-size:.7rem">${v.toFixed(0)}€ / ${b.max}€</span><span class="chevron">${hasItems?'›':''}</span></div></div><div class="cat-detail" id="cat-det-${k}">${items.length===0?'<div style="color:var(--muted);font-size:.68rem;padding:4px 0">Aucune dépense</div>':items.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).map(dep=>{const date=new Date(dep.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});return \`<div class="dep-item"><span>${dep.libelle||'—'}</span><div style="text-align:right"><span style="color:var(--text)">${dep.montant.toFixed(2)} €</span><br><span class="dep-date">${date}</span></div></div>\`;}).join('')}</div>\`;
   });
-  bl.innerHTML+=`<div class="dep-total-bar"><div><div class="lbl">Total dépenses variables</div><div style="font-size:.62rem;color:var(--muted);margin-top:2px">Budget max cumulé : ${totalMax} €</div></div><div style="text-align:right"><div class="val" style="color:${totalCol}">${totalDep.toFixed(0)} €</div><div style="font-size:.6rem;color:var(--muted)">(${totalPct}%)</div></div></div>`;
+  bl.innerHTML+=\`<div class="dep-total-bar"><div><div class="lbl">Total dépenses variables</div><div style="font-size:.62rem;color:var(--muted);margin-top:2px">Budget max cumulé : ${totalMax} €</div></div><div style="text-align:right"><div class="val" style="color:${totalCol}">${totalDep.toFixed(0)} €</div><div style="font-size:.6rem;color:var(--muted)">(${totalPct}%)</div></div></div>\`;
 }
 function renderPrelevements(d){
   const isCurrent=d.mois_offset===0;
@@ -1695,19 +1695,19 @@ function renderPrelevements(d){
   if(isCurrent&&d.prelevements_a_venir&&d.prelevements_a_venir.length>0){
     const totalSem=d.prelevements_a_venir.reduce((s,p)=>s+p.montant,0);
     pAlert.style.display='block';
-    pAlert.innerHTML=`<div class="alert-box"><div class="alert-title">⚠️ Dans les 7 prochains jours — ${totalSem.toFixed(0)} €</div>${d.prelevements_a_venir.map(p=>{const q=p.dansJours===0?'Aujourd\'hui':p.dansJours===1?'Demain':`Dans ${p.dansJours}j`;return `<div style="display:flex;justify-content:space-between;margin-top:4px;font-size:.72rem"><span style="color:var(--muted)">${q} · ${p.nom}</span><span style="color:var(--amber);font-family:var(--mono)">${p.montant.toFixed(2)} €</span></div>`;}).join('')}</div>`;
+    pAlert.innerHTML=\`<div class="alert-box"><div class="alert-title">⚠️ Dans les 7 prochains jours — ${totalSem.toFixed(0)} €</div>${d.prelevements_a_venir.map(p=>{const q=p.dansJours===0?'Aujourd\'hui':p.dansJours===1?'Demain':\`Dans ${p.dansJours}j\`;return \`<div style="display:flex;justify-content:space-between;margin-top:4px;font-size:.72rem"><span style="color:var(--muted)">${q} · ${p.nom}</span><span style="color:var(--amber);font-family:var(--mono)">${p.montant.toFixed(2)} €</span></div>\`;}).join('')}</div>\`;
   }else{pAlert.style.display='none';}
   const pl=document.getElementById('p-ls');
   const aujourd=new Date().getDate();
-  pl.innerHTML=`<div class="card-label" style="margin-bottom:.4rem">Prélèvements du mois${isCurrent?'':' <span class="badge badge-hist">Archivé</span>'}</div>`;
-  pl.innerHTML+=`<div class="row"><span style="color:var(--muted);font-size:.65rem">Restant ce mois</span><span style="color:var(--red);font-weight:700;font-family:var(--mono)">-${d.total_prelevements_restants?.toFixed(0)||'—'} €</span></div>`;
-  if(!isCurrent){(d.prelevements_tous||[]).filter(p=>p.frequence!=='trimestriel').forEach(p=>{pl.innerHTML+=`<div class="prel-row"><span>${p.nom}</span><div style="display:flex;gap:8px;align-items:center"><span style="color:var(--muted)">le ${p.jour||'—'}</span><span style="font-family:var(--mono)">${p.montant.toFixed(2)} €</span></div></div>`;});return;}
+  pl.innerHTML=\`<div class="card-label" style="margin-bottom:.4rem">Prélèvements du mois${isCurrent?'':' <span class="badge badge-hist">Archivé</span>'}</div>\`;
+  pl.innerHTML+=\`<div class="row"><span style="color:var(--muted);font-size:.65rem">Restant ce mois</span><span style="color:var(--red);font-weight:700;font-family:var(--mono)">-${d.total_prelevements_restants?.toFixed(0)||'—'} €</span></div>\`;
+  if(!isCurrent){(d.prelevements_tous||[]).filter(p=>p.frequence!=='trimestriel').forEach(p=>{pl.innerHTML+=\`<div class="prel-row"><span>${p.nom}</span><div style="display:flex;gap:8px;align-items:center"><span style="color:var(--muted)">le ${p.jour||'—'}</span><span style="font-family:var(--mono)">${p.montant.toFixed(2)} €</span></div></div>\`;});return;}
   const passes=(d.prelevements_tous||[]).filter(p=>p.jour&&p.jour<aujourd&&p.frequence!=='trimestriel');
   const restants=(d.prelevements_tous||[]).filter(p=>p.jour&&p.jour>=aujourd&&p.frequence!=='trimestriel');
   const trimest=(d.prelevements_tous||[]).filter(p=>p.frequence==='trimestriel');
-  if(restants.length>0){pl.innerHTML+='<div class="section-title">À venir</div>';restants.forEach(p=>{const diff=p.jour-aujourd;let bc='prel-ok',bt=`le ${p.jour}`;if(diff===0){bc='prel-urgent';bt="Auj.";}else if(diff<=2){bc='prel-urgent';bt=`Dans ${diff}j`;}else if(diff<=5){bc='prel-soon';bt=`Dans ${diff}j`;}pl.innerHTML+=`<div class="prel-row"><span>${p.nom}</span><div style="display:flex;gap:8px;align-items:center"><span class="prel-badge ${bc}">${bt}</span><span style="font-family:var(--mono)">${p.montant.toFixed(2)} €</span></div></div>`;});}
-  if(passes.length>0){pl.innerHTML+='<div class="section-title">Déjà passés</div>';passes.forEach(p=>{pl.innerHTML+=`<div class="prel-row past"><span>${p.nom}</span><span style="color:var(--muted);font-family:var(--mono)">${p.montant.toFixed(2)} €</span></div>`;});}
-  if(trimest.length>0){pl.innerHTML+='<div class="section-title">Trimestriels</div>';trimest.forEach(p=>{pl.innerHTML+=`<div class="prel-row"><span>${p.nom}</span><span style="color:var(--muted);font-family:var(--mono)">${p.montant.toFixed(2)} €/trim</span></div>`;});}
+  if(restants.length>0){pl.innerHTML+='<div class="section-title">À venir</div>';restants.forEach(p=>{const diff=p.jour-aujourd;let bc='prel-ok',bt=\`le ${p.jour}\`;if(diff===0){bc='prel-urgent';bt="Auj.";}else if(diff<=2){bc='prel-urgent';bt=\`Dans ${diff}j\`;}else if(diff<=5){bc='prel-soon';bt=\`Dans ${diff}j\`;}pl.innerHTML+=\`<div class="prel-row"><span>${p.nom}</span><div style="display:flex;gap:8px;align-items:center"><span class="prel-badge ${bc}">${bt}</span><span style="font-family:var(--mono)">${p.montant.toFixed(2)} €</span></div></div>\`;});}
+  if(passes.length>0){pl.innerHTML+='<div class="section-title">Déjà passés</div>';passes.forEach(p=>{pl.innerHTML+=\`<div class="prel-row past"><span>${p.nom}</span><span style="color:var(--muted);font-family:var(--mono)">${p.montant.toFixed(2)} €</span></div>\`;});}
+  if(trimest.length>0){pl.innerHTML+='<div class="section-title">Trimestriels</div>';trimest.forEach(p=>{pl.innerHTML+=\`<div class="prel-row"><span>${p.nom}</span><span style="color:var(--muted);font-family:var(--mono)">${p.montant.toFixed(2)} €/trim</span></div>\`;});}
 }
 function renderRevenus(d){
   document.getElementById('r-total').textContent=fmt(d.total_revenus);
@@ -1718,9 +1718,9 @@ function renderRevenus(d){
   const sources=[{icon:'💼',label:'Salaire LGM',val:d.salaire,sub:'Mensuel net'},{icon:'👤',label:'Beau-frère',val:d.beau_frere,sub:'Mensuel fixe'},{icon:'📚',label:'Complétude',val:d.completude,sub:d.nb_cours+' cours ce mois'}];
   const rs=document.getElementById('r-sources');
   rs.innerHTML='<div class="card-label" style="margin-bottom:.6rem">Sources de revenus</div>';
-  sources.forEach(s=>{const barW=Math.min(100,Math.round((s.val/d.total_revenus)*100));rs.innerHTML+=`<div class="row"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:1rem">${s.icon}</span><div><div style="font-size:.75rem">${s.label}</div><div style="font-size:.6rem;color:var(--muted)">${s.sub}</div></div></div><div style="text-align:right"><div style="font-family:var(--mono);font-size:.82rem;color:var(--green)">${Math.round(s.val).toLocaleString('fr-FR')} €</div><div style="font-size:.58rem;color:var(--muted)">${barW}%</div></div></div><div class="bar" style="margin:.3rem 0 .5rem"><div class="fill" style="width:${barW}%;background:var(--green)"></div></div>`;});
+  sources.forEach(s=>{const barW=Math.min(100,Math.round((s.val/d.total_revenus)*100));rs.innerHTML+=\`<div class="row"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:1rem">${s.icon}</span><div><div style="font-size:.75rem">${s.label}</div><div style="font-size:.6rem;color:var(--muted)">${s.sub}</div></div></div><div style="text-align:right"><div style="font-family:var(--mono);font-size:.82rem;color:var(--green)">${Math.round(s.val).toLocaleString('fr-FR')} €</div><div style="font-size:.58rem;color:var(--muted)">${barW}%</div></div></div><div class="bar" style="margin:.3rem 0 .5rem"><div class="fill" style="width:${barW}%;background:var(--green)"></div></div>\`;});
   const supp=d.revenus_supp||[];const rsupp=document.getElementById('r-supp');
-  if(supp.length>0){rsupp.style.display='block';const totalSupp=supp.reduce((s,r)=>s+r.montant,0);rsupp.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem"><div class="card-label" style="margin:0">Rentrées supplémentaires</div><span style="font-family:var(--mono);font-size:.8rem;color:var(--green)">+${Math.round(totalSupp).toLocaleString('fr-FR')} €</span></div>`;supp.forEach(r=>{const date=new Date(r.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});rsupp.innerHTML+=`<div class="row"><span style="font-size:.75rem">${r.libelle||'Divers'}</span><div style="text-align:right"><span style="font-family:var(--mono);color:var(--green)">+${r.montant.toFixed(2)} €</span><br><span style="font-size:.6rem;color:var(--muted)">${date}</span></div></div>`;});}else{rsupp.style.display='none';}
+  if(supp.length>0){rsupp.style.display='block';const totalSupp=supp.reduce((s,r)=>s+r.montant,0);rsupp.innerHTML=\`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem"><div class="card-label" style="margin:0">Rentrées supplémentaires</div><span style="font-family:var(--mono);font-size:.8rem;color:var(--green)">+${Math.round(totalSupp).toLocaleString('fr-FR')} €</span></div>\`;supp.forEach(r=>{const date=new Date(r.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});rsupp.innerHTML+=\`<div class="row"><span style="font-size:.75rem">${r.libelle||'Divers'}</span><div style="text-align:right"><span style="font-family:var(--mono);color:var(--green)">+${r.montant.toFixed(2)} €</span><br><span style="font-size:.6rem;color:var(--muted)">${date}</span></div></div>\`;});}else{rsupp.style.display='none';}
 }
 async function charger(){
   try{
@@ -1756,7 +1756,7 @@ async function charger(){
     renderRevenus(d);renderBudgets(d);renderPrelevements(d);
     const ol=document.getElementById('o-ls');
     ol.innerHTML='<div class="card-label" style="margin-bottom:.6rem">Progression épargne</div>';
-    d.objectifs.forEach(o=>{const p=pct(d.epargne_estimee,o.montant);const c=col(p);const delta=Math.round(d.epargne_estimee-o.montant);ol.innerHTML+=`<div class="obj"><div class="obj-header"><span>${delta>=0?'✅':'⚠️'} ${o.label}</span><span style="color:${c};font-family:var(--mono)">${delta>=0?'+':''}${delta.toLocaleString('fr-FR')} €</span></div><div class="bar"><div class="fill" style="width:${p}%;background:${c}"></div></div><div style="display:flex;justify-content:space-between;font-size:.6rem;color:var(--muted);margin-top:3px"><span>${Math.round(d.epargne_estimee).toLocaleString('fr-FR')} €</span><span>${o.montant.toLocaleString('fr-FR')} €</span></div></div>`;});
+    d.objectifs.forEach(o=>{const p=pct(d.epargne_estimee,o.montant);const c=col(p);const delta=Math.round(d.epargne_estimee-o.montant);ol.innerHTML+=\`<div class="obj"><div class="obj-header"><span>${delta>=0?'✅':'⚠️'} ${o.label}</span><span style="color:${c};font-family:var(--mono)">${delta>=0?'+':''}${delta.toLocaleString('fr-FR')} €</span></div><div class="bar"><div class="fill" style="width:${p}%;background:${c}"></div></div><div style="display:flex;justify-content:space-between;font-size:.6rem;color:var(--muted);margin-top:3px"><span>${Math.round(d.epargne_estimee).toLocaleString('fr-FR')} €</span><span>${o.montant.toLocaleString('fr-FR')} €</span></div></div>\`;});
     document.getElementById('upd').textContent='Actualisé à '+new Date().toLocaleTimeString('fr-FR');
   }catch(e){document.getElementById('upd').textContent='Erreur de chargement';console.error(e);}
 }
@@ -1766,10 +1766,7 @@ setInterval(charger,30000);
 </body>
 </html>`);
 });
-
-// ============================================================
-// DÉMARRAGE
-// ============================================================
+                                                                                                                                      
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, async () => {
   console.log(`L'Agent écoute sur le port ${PORT}`);
