@@ -174,32 +174,22 @@ body::before{
     <div class="card"><div class="card-label">Projection</div><div class="card-value" id="a-pr">—</div></div>
     <div class="card"><div class="card-label">Revenus</div><div class="card-value green" id="a-rv">—</div><div class="card-sub" id="a-rv-det">—</div></div>
     <div class="card"><div class="card-label">Charges fixes</div><div class="card-value orange" id="a-cf-total">—</div></div>
-    <div class="charges-variables-block">
-      <div class="card-label">Charges variables</div>
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <span style="font-size:.72rem;color:var(--muted)">Total ce mois</span>
-        <span style="font-family:var(--mono);font-size:1.2rem;font-weight:700;color:var(--red)" id="a-cv-total">—</span>
-      </div>
-    </div>
+    <div class="card"><div class="card-label">Dépenses</div><div class="card-value red" id="a-dp-sub">—</div></div>
     <div class="card"><div class="card-label">Solde estimé</div><div class="card-value" id="a-sl">—</div><div class="bar"><div class="fill" id="a-sl-b" style="width:0%"></div></div></div>
-  </div>
-</div>
-
-<!-- COMPLETUDE pleine largeur sous l'aperçu -->
-<div class="completude-full" id="completude-bar" style="display:none">
-  <div class="completude-card">
-    <div class="completude-left">
-      <div class="label">Complétude cours</div>
-      <div class="val" id="a-co-val">—</div>
-      <div class="sub" id="a-co-s">—</div>
+    <div class="card full">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div class="card-label">Complétude cours</div>
+          <div class="card-value" id="a-co-val" style="font-size:1.2rem">—</div>
+          <div class="card-sub" id="a-co-s">—</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:1.6rem;font-weight:700;font-family:var(--mono)" id="a-co-pct">—%</div>
+          <div style="font-size:.6rem;color:var(--muted)">de l'objectif</div>
+        </div>
+      </div>
+      <div class="bar" style="height:5px;margin:.6rem 0 0"><div class="fill" id="a-co-b" style="width:0%"></div></div>
     </div>
-    <div class="completude-right">
-      <div class="pct" id="a-co-pct">—%</div>
-      <div class="sub">de l'objectif</div>
-    </div>
-  </div>
-  <div style="padding:0 2px;margin-top:.4rem">
-    <div class="bar" style="height:5px;margin:0"><div class="fill" id="a-co-b" style="width:0%"></div></div>
   </div>
 </div>
 
@@ -257,7 +247,7 @@ function setTab(t){
   document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',tabs[i]===t));
   document.querySelectorAll('.section').forEach(el=>el.classList.remove('active'));
   document.getElementById('tab-'+t).classList.add('active');
-  document.getElementById('completude-bar').style.display=(t==='apercu')?'':'none';
+
 }
 
 function changerMois(dir){
@@ -377,7 +367,7 @@ async function charger(){
       });
       cvList.innerHTML=cvHTML||'<div style="color:var(--muted);font-size:.72rem">Aucune dépense variable</div>';
     }
-    document.getElementById('a-cv-total').textContent='-'+Math.round(d.total_dep||0)+' €';
+    document.getElementById('a-dp-sub').textContent='-'+Math.round(d.total_dep||0)+' €';
     const sl=document.getElementById('a-sl');
     sl.textContent=(d.solde>=0?'+':'')+fmt(d.solde);
     sl.style.color=cs(d.solde);
@@ -391,7 +381,6 @@ async function charger(){
     document.getElementById('a-co-s').textContent=Math.round(d.completude)+' / '+d.objectif_completude+' €';
     document.getElementById('a-co-pct').textContent=cp+'%';
     document.getElementById('a-co-pct').style.color=col(cp);
-    document.getElementById('completude-bar').style.display='';
     // Cours
     document.getElementById('c-nb').textContent=d.nb_cours;
     document.getElementById('c-mn').textContent=d.nb_cours_manques;
