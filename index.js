@@ -1372,7 +1372,6 @@ app.get('/api/dashboard', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
 // ============================================================
 // DASHBOARD HTML  — remplace app.get('/dashboard', ...) existant
 // ============================================================
@@ -1602,6 +1601,7 @@ body::after{
   <div class="tab active" onclick="setTab('apercu')">Aperçu</div>
   <div class="tab" onclick="setTab('completude')">Cours</div>
   <div class="tab" onclick="setTab('budgets')">Dépenses</div>
+  <div class="tab" onclick="setTab('revenus')">Revenus</div>
   <div class="tab" onclick="setTab('prelevements')">Prélèv.</div>
   <div class="tab" onclick="setTab('objectifs')">Objectifs</div>
 </div>
@@ -1609,47 +1609,42 @@ body::after{
 <!-- APERÇU -->
 <div class="section active" id="tab-apercu">
   <div class="grid">
-    <div class="card"><div class="card-label">Épargne actuelle</div><div class="card-value green" id="a-ep">—</div></div>
-    <div class="card"><div class="card-label">Projection fin mois</div><div class="card-value" id="a-pr">—</div></div>
 
-    <!-- Revenus -->
-    <div class="card full">
-      <div class="card-label">Revenus ce mois</div>
+    <!-- Ligne 1 : Épargne -->
+    <div class="card">
+      <div class="card-label">Épargne actuelle</div>
+      <div class="card-value green" id="a-ep">—</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Projection</div>
+      <div class="card-value" id="a-pr">—</div>
+    </div>
+
+    <!-- Ligne 2 : Revenus / Charges+Dépenses -->
+    <div class="card">
+      <div class="card-label">Revenus</div>
       <div class="card-value green" id="a-rv">—</div>
-      <div class="bar"><div class="fill" id="a-rv-b" style="width:100%;background:var(--green)"></div></div>
-      <div id="a-rv-det" style="margin-top:.5rem"></div>
+      <div class="card-sub" id="a-rv-det">—</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Charges fixes</div>
+      <div class="card-value orange" id="a-cf-total">—</div>
+      <div class="card-sub red" id="a-dp-sub">—</div>
     </div>
 
-    <!-- Charges fixes — NOUVEAU BLOC REDESIGNÉ -->
-    <div class="card full">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.4rem">
-        <div class="card-label" style="margin:0">Charges fixes mensuelles</div>
-        <span class="badge badge-orange" id="a-cf-badge">—</span>
-      </div>
-      <div class="charges-grid" id="a-cf-grid"></div>
-      <div class="charges-total">
-        <span class="lbl">🔒 Total charges</span>
-        <span class="val" id="a-cf-total">—</span>
-      </div>
-    </div>
-
-    <!-- Dépenses variables -->
-    <div class="card"><div class="card-label">Dépenses variables</div><div class="card-value red" id="a-dp">—</div></div>
-
-    <!-- Solde -->
+    <!-- Ligne 3 : Solde + Complétude -->
     <div class="card">
       <div class="card-label">Solde estimé</div>
       <div class="card-value" id="a-sl">—</div>
-      <div class="bar"><div class="fill" id="a-sl-b" style="width:0%"></div></div>
+      <div class="bar" style="margin-top:.5rem"><div class="fill" id="a-sl-b" style="width:0%"></div></div>
     </div>
-
-    <!-- Complétude -->
-    <div class="card full">
-      <div class="card-label">Complétude — objectif cours</div>
+    <div class="card">
+      <div class="card-label">Complétude</div>
       <div class="card-value" id="a-co">—</div>
-      <div class="bar"><div class="fill" id="a-co-b" style="width:0%"></div></div>
+      <div class="bar" style="margin-top:.5rem"><div class="fill" id="a-co-b" style="width:0%"></div></div>
       <div class="card-sub" id="a-co-s">—</div>
     </div>
+
   </div>
 </div>
 
@@ -1678,6 +1673,16 @@ body::after{
   </div>
 </div>
 
+<!-- REVENUS -->
+<div class="section" id="tab-revenus">
+  <div class="grid">
+    <div class="card"><div class="card-label">Total revenus</div><div class="card-value green" id="r-total">—</div></div>
+    <div class="card"><div class="card-label">Complétude</div><div class="card-value" id="r-completude">—</div><div class="card-sub" id="r-co-s">—</div></div>
+    <div class="card full" id="r-sources">Chargement...</div>
+    <div class="card full" id="r-supp" style="display:none"></div>
+  </div>
+</div>
+
 <!-- OBJECTIFS -->
 <div class="section" id="tab-objectifs">
   <div class="grid">
@@ -1699,7 +1704,7 @@ function col(p){return p>=100?'var(--red)':p>=80?'var(--amber)':'var(--green)'}
 function cs(v){return v>=500?'var(--green)':v>=0?'var(--amber)':'var(--red)'}
 
 function setTab(t){
-  const tabs=['apercu','completude','budgets','prelevements','objectifs'];
+  const tabs=['apercu','completude','budgets','revenus','prelevements','objectifs'];
   document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',tabs[i]===t));
   document.querySelectorAll('.section').forEach(el=>el.classList.remove('active'));
   document.getElementById('tab-'+t).classList.add('active');
@@ -1743,15 +1748,6 @@ const CHARGES_FIXES_LISTE = [
 ];
 
 function renderChargesFixes(totalCharges){
-  const grid=document.getElementById('a-cf-grid');
-  const badge=document.getElementById('a-cf-badge');
-  badge.textContent=CHARGES_FIXES_LISTE.length+' postes';
-  grid.innerHTML=CHARGES_FIXES_LISTE.map(c=>\`
-    <div class="charge-item">
-      <div class="charge-name">\${c.nom}</div>
-      <div class="charge-val">\${c.montant.toFixed(2).replace('.',',')} €</div>
-    </div>
-  \`).join('');
   document.getElementById('a-cf-total').textContent=fmt2(totalCharges||2432.98);
 }
 
@@ -1871,6 +1867,63 @@ function renderPrelevements(d){
 }
 
 /* ── MAIN LOADER ──────────────────────────── */
+/* ── REVENUS ──────────────────────────────── */
+function renderRevenus(d){
+  // Cards résumé
+  document.getElementById('r-total').textContent=fmt(d.total_revenus);
+  const cp=pct(d.completude,d.objectif_completude);
+  const rco=document.getElementById('r-completude');
+  rco.textContent=fmt(d.completude);
+  rco.style.color=col(cp);
+  document.getElementById('r-co-s').textContent=cp+'% de l\'objectif '+d.objectif_completude+' €';
+
+  // Sources fixes
+  const sources=[
+    {icon:'💼',label:'Salaire LGM',val:d.salaire,sub:'Mensuel net'},
+    {icon:'👤',label:'Beau-frère',val:d.beau_frere,sub:'Mensuel fixe'},
+    {icon:'📚',label:'Complétude',val:d.completude,sub:d.nb_cours+' cours ce mois'},
+  ];
+  const rs=document.getElementById('r-sources');
+  rs.innerHTML='<div class="card-label" style="margin-bottom:.6rem">Sources de revenus</div>';
+  sources.forEach(s=>{
+    const barW=Math.min(100,Math.round((s.val/d.total_revenus)*100));
+    rs.innerHTML+=\`
+      <div class="row">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:1rem">\${s.icon}</span>
+          <div>
+            <div style="font-size:.75rem">\${s.label}</div>
+            <div style="font-size:.6rem;color:var(--muted)">\${s.sub}</div>
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-family:var(--mono);font-size:.82rem;color:var(--green)">\${Math.round(s.val).toLocaleString('fr-FR')} €</div>
+          <div style="font-size:.58rem;color:var(--muted)">\${barW}%</div>
+        </div>
+      </div>
+      <div class="bar" style="margin:.3rem 0 .5rem"><div class="fill" style="width:\${barW}%;background:var(--green)"></div></div>
+    \`;
+  });
+
+  // Revenus supplémentaires
+  const supp=d.revenus_supp||[];
+  const rsupp=document.getElementById('r-supp');
+  if(supp.length>0){
+    rsupp.style.display='block';
+    const totalSupp=supp.reduce((s,r)=>s+r.montant,0);
+    rsupp.innerHTML=\`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem">
+      <div class="card-label" style="margin:0">Rentrées supplémentaires</div>
+      <span style="font-family:var(--mono);font-size:.8rem;color:var(--green)">+\${Math.round(totalSupp).toLocaleString('fr-FR')} €</span>
+    </div>\`;
+    supp.forEach(r=>{
+      const date=new Date(r.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
+      rsupp.innerHTML+=\`<div class="row"><span style="font-size:.75rem">\${r.libelle||'Divers'}</span><div style="text-align:right"><span style="font-family:var(--mono);color:var(--green)">+\${r.montant.toFixed(2)} €</span><br><span style="font-size:.6rem;color:var(--muted)">\${date}</span></div></div>\`;
+    });
+  } else {
+    rsupp.style.display='none';
+  }
+}
+
 async function charger(){
   try{
     const r=await fetch('/api/dashboard?mois='+moisOffset);
@@ -1895,22 +1948,19 @@ async function charger(){
     pr.textContent=fmt(d.epargne_estimee);
     pr.style.color=d.epargne_estimee>=12500?'var(--green)':d.epargne_estimee>=10000?'var(--amber)':'var(--red)';
 
-    // Revenus + détail
+    // Revenus — total + sous-titre sources
     document.getElementById('a-rv').textContent=fmt(d.total_revenus);
-    const rvDet=document.getElementById('a-rv-det');
-    const rvItems=[
-      {label:'💼 LGM',val:d.salaire},
-      {label:'👤 Beau-frère',val:d.beau_frere},
-      {label:'📚 Complétude',val:d.completude},
-      ...(d.revenus_supp||[]).map(r=>({label:'➕ '+r.libelle,val:r.montant})),
-    ];
-    rvDet.innerHTML=rvItems.map(i=>\`<div class="row" style="font-size:.7rem"><span style="color:var(--muted)">\${i.label}</span><span style="font-family:var(--mono)">\${i.val.toFixed(0)} €</span></div>\`).join('');
+    const srcParts=[];
+    if(d.salaire) srcParts.push('LGM '+d.salaire+'€');
+    if(d.completude) srcParts.push('Cours '+Math.round(d.completude)+'€');
+    if((d.revenus_supp||[]).length) srcParts.push('+divers');
+    document.getElementById('a-rv-det').textContent=srcParts.join(' · ');
 
-    // Charges fixes
+    // Charges fixes + dépenses variables sous-titre
     renderChargesFixes(d.charges_fixes);
+    document.getElementById('a-dp-sub').textContent='Variables : -'+Math.round(d.total_dep)+' €';
 
-    // Dépenses + solde
-    document.getElementById('a-dp').textContent='-'+fmt(d.total_dep);
+    // Solde
     const sl=document.getElementById('a-sl');
     sl.textContent=(d.solde>=0?'+':'')+fmt(d.solde);
     sl.style.color=cs(d.solde);
@@ -1922,7 +1972,7 @@ async function charger(){
     co.textContent=fmt(d.completude);
     co.style.color=col(cp);
     document.getElementById('a-co-b').style.cssText='width:'+cp+'%;background:'+col(cp);
-    document.getElementById('a-co-s').textContent=fmt(d.completude)+' / '+fmt(d.objectif_completude)+' ('+cp+'%)';
+    document.getElementById('a-co-s').textContent=Math.round(d.completude)+' / '+d.objectif_completude+' € ('+cp+'%)';
 
     // Cours
     document.getElementById('c-nb').textContent=d.nb_cours;
@@ -1935,6 +1985,9 @@ async function charger(){
       document.getElementById('c-mc').style.display='block';
       document.getElementById('c-ml').innerHTML=d.cours_manques.map(c=>'<div class="cours-row"><span>'+c.eleve+'</span><span class="red" style="font-family:var(--mono)">-'+c.gain_manque.toFixed(2)+' €</span></div>').join('');
     }
+
+    // Revenus
+    renderRevenus(d);
 
     // Budgets
     renderBudgets(d);
@@ -1975,7 +2028,6 @@ setInterval(charger,30000);
 </body>
 </html>`);
 });
-
 // ============================================================
 // DÉMARRAGE
 // ============================================================
