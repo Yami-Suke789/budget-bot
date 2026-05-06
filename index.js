@@ -1380,6 +1380,9 @@ app.get('/api/dashboard', async (req, res) => {
 // ============================================================
 // DASHBOARD HTML  — remplace app.get('/dashboard', ...) existant
 // ============================================================
+// ============================================================
+// DASHBOARD HTML  — remplace app.get('/dashboard', ...) existant
+// ============================================================
 app.get('/dashboard', (req, res) => {
   res.send(`<!DOCTYPE html>
 <html lang="fr">
@@ -2033,6 +2036,7 @@ setInterval(charger,30000);
 </body>
 </html>`);
 });
+
 app.get('/', (req, res) => res.send("L'Agent est en ligne ! 🤖"));
 
 // ============================================================
