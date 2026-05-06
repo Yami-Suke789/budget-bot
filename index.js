@@ -1377,6 +1377,9 @@ app.get('/api/dashboard', async (req, res) => {
 // DASHBOARD HTML
 // ============================================================
 
+// ============================================================
+// DASHBOARD HTML  — remplace app.get('/dashboard', ...) existant
+// ============================================================
 app.get('/dashboard', (req, res) => {
   res.send(`<!DOCTYPE html>
 <html lang="fr">
