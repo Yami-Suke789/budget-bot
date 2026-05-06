@@ -4,6 +4,7 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
+const FormData = require('form-data');
 
 const app = express();
 app.use(express.json());
@@ -12,251 +13,864 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_KEY);
 const TOKEN = process.env.TELEGRAM_TOKEN;
 const CHAT_ID = process.env.CHAT_ID;
-const MODELE = 'gemini-2.0-flash';
+const MODELE = 'gemini-3-flash-preview';
 
 const SALAIRE_LGM_DEFAULT = 2500;
 const BEAU_FRERE = 320;
 const OBJECTIF_COMPLETUDE = 1500;
-const EPARGNE_DEPART = 9000;
-
-const CHARGES_FIXES = {
-  'Loyer': 832.46, 'Tontine 1': 500, 'Tontine 2': 500,
-  'Virement m\u00e8re': 150, 'Place parking': 50, 'Malakoff mutuelle': 57.03,
-  'ENI \u00e9nergie': 39.40, 'Bouygues mobile': 17.99, 'Bouygues box': 24,
-  'Basic Fit': 22.99, 'Assurance habitation': 8.46, 'Assurance auto': 64.24,
-  'Salle sport femme': 44, 'Canal+ fr\u00e8re': 13, 'Cours arabe': 31,
-  'Claude.ai': 21.60, 'Helloasso': 12.55, 'Stripe asso': 10,
-  'Disney+': 6.99, 'Crunchyroll': 8.99, 'Cotisation bancaire': 18.30,
-};
-const TOTAL_CHARGES_FIXES = Object.values(CHARGES_FIXES).reduce((a, b) => a + b, 0);
-
-const PRELEVEMENTS_DATES = [
-  { nom: 'Loyer',               montant: 832.46, jour: 1  },
-  { nom: 'Tontine 1',           montant: 500.00, jour: 1  },
-  { nom: 'Helloasso',           montant: 12.55,  jour: 1  },
-  { nom: 'Place parking',       montant: 50.00,  jour: 1  },
-  { nom: 'Salle sport femme',   montant: 44.00,  jour: 1  },
-  { nom: 'Cours arabe',         montant: 31.00,  jour: 3  },
-  { nom: 'Virement m\u00e8re', montant: 150.00, jour: 5  },
-  { nom: 'Assurance habitation',montant: 8.46,   jour: 7  },
-  { nom: 'ENI \u00e9nergie',   montant: 39.40,  jour: 7  },
-  { nom: 'Basic Fit',           montant: 22.99,  jour: 7  },
-  { nom: 'Malakoff mutuelle',   montant: 57.03,  jour: 9  },
-  { nom: 'Crunchyroll',         montant: 8.99,   jour: 13 },
-  { nom: 'Stripe asso',         montant: 10.00,  jour: 13 },
-  { nom: 'Tontine 2',           montant: 500.00, jour: 15 },
-  { nom: 'Bouygues mobile',     montant: 17.99,  jour: 17 },
-  { nom: 'Assurance auto',      montant: 64.24,  jour: 20 },
-  { nom: 'Disney+',             montant: 6.99,   jour: 22 },
-  { nom: 'Canal+ fr\u00e8re',  montant: 13.00,  jour: 24 },
-  { nom: 'Claude.ai',           montant: 21.60,  jour: 27 },
-  { nom: 'Bouygues box',        montant: 24.00,  jour: 30 },
-  { nom: 'Cotisation bancaire', montant: 18.30,  jour: null, frequence: 'trimestriel' },
-];
+const EPARGNE_DEPART = 7000;
 
 const BUDGETS = {
-  essence:  { label: '\u26fd Essence',  max: 300 },
-  courses:  { label: '\ud83d\udecd Courses',  max: 500 },
-  restos:   { label: '\ud83c\udf7d\ufe0f Restos',   max: 80  },
-  sante:    { label: '\ud83c\udfe5 Sant\u00e9',    max: 60  },
-  maison:   { label: '\ud83c\udfe0 Maison',   max: 50  },
-  voiture:  { label: '\ud83d\ude97 Voiture',  max: 50  },
-  shopping: { label: '\ud83d\udc57 Shopping', max: 50  },
-  loisirs:  { label: '\ud83c\udf89 Loisirs',  max: 50  },
-  divers:   { label: '\ud83d\udce6 Divers',   max: 50  },
+  essence:  { label: 'Essence',  max: 300 },
+  courses:  { label: 'Courses',  max: 500 },
+  restos:   { label: 'Restos',   max: 80  },
+  sante:    { label: 'Sante',    max: 60  },
+  maison:   { label: 'Maison',   max: 50  },
+  voiture:  { label: 'Voiture',  max: 50  },
+  shopping: { label: 'Shopping', max: 50  },
+  loisirs:  { label: 'Loisirs',  max: 50  },
+  divers:   { label: 'Divers',   max: 50  },
 };
 
 const OBJECTIFS = [
   { label: 'Fin juin 2026', montant: 12500 },
-  { label: 'Fin ao\u00fbt 2026', montant: 15000 },
+  { label: 'Fin aout 2026', montant: 15000 },
   { label: 'Janvier 2027',  montant: 20000 },
 ];
 
-let ELEVES = {
-  'Amel':        { niveau: '5e',  taux: 21.04, duree: 1.5, tda: false, ficheHebdo: false, question2h: true,  fiche: true,  jour: 1, heure: 17, minute: 0  },
-  'Benjamin':    { niveau: '5e',  taux: 24.30, duree: 1.5, tda: false, ficheHebdo: false, question2h: true,  fiche: true,  jour: 2, heure: 18, minute: 0  },
-  'Guillaume':   { niveau: '5e',  taux: 23.88, duree: 1.5, tda: true,  ficheHebdo: false, question2h: true,  fiche: true,  jour: 3, heure: 17, minute: 30 },
-  'Margaux':     { niveau: '3e',  taux: 26.60, duree: 1.5, tda: false, ficheHebdo: false, question2h: true,  fiche: true,  jour: 4, heure: 16, minute: 0  },
-  'N\u00e9lia': { niveau: '3e',  taux: 26.60, duree: 1.5, tda: false, ficheHebdo: false, question2h: true,  fiche: true,  jour: 4, heure: 17, minute: 30 },
-  'H\u00e9l\u00e8ne': { niveau: '5e', taux: 24.30, duree: 1.5, tda: false, ficheHebdo: false, question2h: true, fiche: true, jour: 6, heure: 8, minute: 0 },
-  'No\u00e9lie': { niveau: 'CE2', taux: 25.78, duree: 1.0, tda: false, ficheHebdo: false, question2h: false, fiche: false, jour: 6, heure: 10, minute: 0 },
-  'Math\u00e9o': { niveau: '3e', taux: 23.66, duree: 1.5, tda: false, ficheHebdo: true,  question2h: true,  fiche: true,  jour: 6, heure: 11, minute: 30 },
-  'Anne-Ga\u00eblle': { niveau: '3e', taux: 24.08, duree: 1.5, tda: false, ficheHebdo: false, question2h: true, fiche: true, jour: 6, heure: 13, minute: 0 },
-  'Sa\u00efda': { niveau: '5e',  taux: 25.56, duree: 1.5, tda: false, ficheHebdo: false, question2h: true,  fiche: true,  jour: 6, heure: 15, minute: 0  },
-  'Serena':      { niveau: '5e',  taux: 23.04, duree: 1.5, tda: false, ficheHebdo: false, question2h: true,  fiche: true,  jour: 0, heure: 13, minute: 0, uneSemaineSurDeux: true },
-};
+const JOURS_NOM = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
 
-async function chargerElevesCustom() {
-  try {
-    const { data } = await supabase.from('eleves_custom').select('*').eq('actif', true);
-    if (data && data.length > 0) {
-      data.forEach(e => {
-        ELEVES[e.nom] = { niveau: e.niveau, taux: e.taux, duree: e.duree, tda: e.tda || false, ficheHebdo: e.fiche_hebdo || false, question2h: e.question_2h !== false, fiche: e.fiche !== false, jour: e.jour, heure: e.heure, minute: e.minute || 0, uneSemaineSurDeux: e.une_semaine_sur_deux || false };
-      });
-      console.log(data.length + ' \u00e9l\u00e8ves custom charg\u00e9s');
-    }
-  } catch (err) { console.error('Erreur chargement \u00e9l\u00e8ves custom:', err.message); }
-}
-
-const sessions = {}, sessionsFiches = {}, sessionsAnnuler = {}, sessionsModifier = {}, sessionsAjoutEleve = {}, sessionsRevenu = {};
+const sessions = {};
+const sessionsFiches = {};
+const sessionsEleves = {};
 
 async function send(chatId, text) {
   const url = `https://api.telegram.org/bot${TOKEN}/sendMessage`;
   const MAX = 3800;
-  const post = async (t) => { const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: chatId, text: t, parse_mode: 'Markdown' }) }); const j = await r.json(); if (!j.ok) await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: chatId, text: t }) }); };
+  const post = async (t) => {
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: String(chatId), text: t, parse_mode: 'Markdown' })
+    });
+    const j = await r.json();
+    if (!j.ok) {
+      await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: String(chatId), text: t })
+      });
+    }
+  };
   if (text.length <= MAX) { await post(text); return; }
   let reste = text;
-  while (reste.length > 0) { let c = reste.length > MAX ? reste.lastIndexOf('\n', MAX) : reste.length; if (c < MAX / 2) c = Math.min(MAX, reste.length); await post(reste.slice(0, c)); reste = reste.slice(c).trim(); if (reste) await new Promise(r => setTimeout(r, 500)); }
-}
-async function sendBtns(chatId, text, buttons) { await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'Markdown', reply_markup: { inline_keyboard: buttons.map(row => row.map(b => ({ text: b.t, callback_data: b.d }))) } }) }); }
-async function answerCB(id) { await fetch(`https://api.telegram.org/bot${TOKEN}/answerCallbackQuery`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ callback_query_id: id }) }); }
-async function removeBtns(chatId, msgId) { await fetch(`https://api.telegram.org/bot${TOKEN}/editMessageReplyMarkup`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: chatId, message_id: msgId, reply_markup: { inline_keyboard: [] } }) }); }
-
-function getDebutMois(moisOffset = 0) { const d = new Date(); d.setUTCDate(1); d.setUTCHours(0, 0, 0, 0); if (moisOffset !== 0) d.setUTCMonth(d.getUTCMonth() + moisOffset); return d.toISOString(); }
-function getFinMois(moisOffset = 0) { const d = new Date(); d.setUTCDate(1); d.setUTCHours(0, 0, 0, 0); d.setUTCMonth(d.getUTCMonth() + moisOffset + 1); return d.toISOString(); }
-
-async function getData(moisOffset = 0) {
-  const debut = getDebutMois(moisOffset), fin = getFinMois(moisOffset);
-  const [d1,d2,d3,d4,d5,d6] = await Promise.all([supabase.from('depenses').select('*').gte('created_at',debut).lt('created_at',fin),supabase.from('cours').select('*').gte('created_at',debut).lt('created_at',fin),supabase.from('cours_manques').select('*').gte('created_at',debut).lt('created_at',fin),supabase.from('revenus').select('*').gte('created_at',debut).lt('created_at',fin),supabase.from('salaires').select('*').gte('created_at',debut).lt('created_at',fin).order('created_at',{ascending:false}).limit(1),supabase.from('epargne').select('*').order('created_at',{ascending:false}).limit(1)]);
-  const depenses=d1.data||[],cours=d2.data||[],coursManques=d3.data||[],revenus=d4.data||[];
-  const salaire=d5.data?.length>0?d5.data[0].montant:SALAIRE_LGM_DEFAULT;
-  const epargneBase=d6.data?.length>0?d6.data[0].montant:EPARGNE_DEPART;
-  const totaux={};Object.keys(BUDGETS).forEach(k=>totaux[k]=0);depenses.forEach(d=>{if(totaux[d.categorie]!==undefined)totaux[d.categorie]+=d.montant;});
-  const detail={};Object.keys(BUDGETS).forEach(k=>detail[k]=[]);depenses.forEach(d=>{if(detail[d.categorie]!==undefined)detail[d.categorie].push(d);});
-  const totalDep=Object.values(totaux).reduce((a,b)=>a+b,0),completude=cours.reduce((s,c)=>s+c.gain,0),totalManque=coursManques.reduce((s,c)=>s+c.gain_manque,0),revenusSupp=revenus.reduce((s,r)=>s+r.montant,0),totalRevenus=salaire+BEAU_FRERE+completude+revenusSupp,solde=totalRevenus-TOTAL_CHARGES_FIXES-totalDep,epargneEstimee=epargneBase+solde;
-  return {depenses,cours,coursManques,revenus,totaux,detail,totalDep,completude,totalManque,revenusSupp,totalRevenus,solde,epargneEstimee,salaire,epargneBase,moisOffset};
+  while (reste.length > 0) {
+    let c = reste.length > MAX ? reste.lastIndexOf('\n', MAX) : reste.length;
+    if (c < MAX / 2) c = Math.min(MAX, reste.length);
+    await post(reste.slice(0, c));
+    reste = reste.slice(c).trim();
+    if (reste) await new Promise(r => setTimeout(r, 500));
+  }
 }
 
-async function saveCours(chatId,eleve,heures,rattrapage){const p=ELEVES[eleve];const gain=p.taux*heures;const{error}=await supabase.from('cours').insert({eleve,duree:p.duree,taux:p.taux,gain,chat_id:String(chatId),rattrapage});if(error)console.error('saveCours error:',error);return gain;}
-async function saveCoursManque(chatId,eleve){const gain_manque=ELEVES[eleve].taux*ELEVES[eleve].duree;const{error}=await supabase.from('cours_manques').insert({eleve,gain_manque,chat_id:String(chatId)});if(error)console.error('saveCoursManque error:',error);return gain_manque;}
-async function saveDepense(chatId,montant,categorie,libelle){const{error}=await supabase.from('depenses').insert({montant,categorie,libelle,chat_id:String(chatId)});if(error)console.error('saveDepense error:',error);}
-async function saveSalaire(chatId,montant){const{error}=await supabase.from('salaires').insert({montant,libelle:'Salaire LGM',chat_id:String(chatId)});if(error)console.error('saveSalaire error:',error);}
-async function saveEpargne(chatId,montant){const{error}=await supabase.from('epargne').insert({montant,libelle:'Epargne',chat_id:String(chatId)});if(error)console.error('saveEpargne error:',error);}
-async function saveRevenu(chatId,montant,libelle){const{error}=await supabase.from('revenus').insert({montant,libelle,chat_id:String(chatId)});if(error)console.error('saveRevenu error:',error);}
-async function saveEleveCustom(chatId,eleveData){const{error}=await supabase.from('eleves_custom').insert({nom:eleveData.nom,niveau:eleveData.niveau,taux:eleveData.taux,duree:eleveData.duree,tda:eleveData.tda||false,fiche_hebdo:eleveData.ficheHebdo||false,question_2h:eleveData.question2h!==false,fiche:eleveData.fiche!==false,jour:eleveData.jour,heure:eleveData.heure,minute:eleveData.minute||0,une_semaine_sur_deux:eleveData.uneSemaineSurDeux||false,actif:true,chat_id:String(chatId)});if(error)console.error('saveEleveCustom error:',error);return!error;}
+async function sendBtns(chatId, text, buttons) {
+  await fetch(`https://api.telegram.org/bot${TOKEN}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      chat_id: String(chatId), text, parse_mode: 'Markdown',
+      reply_markup: { inline_keyboard: buttons.map(row => row.map(b => ({ text: b.t, callback_data: b.d }))) }
+    })
+  });
+}
 
-function getPrelEvementsAVenir(joursAvance=7){const now=new Date(new Date().toLocaleString('en-US',{timeZone:'Europe/Paris'}));const aujourdhui=now.getDate();const finPeriode=aujourdhui+joursAvance;const dernierJour=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();const aVenir=[];PRELEVEMENTS_DATES.forEach(p=>{if(!p.jour)return;let j=p.jour;if(j>dernierJour)j=dernierJour;if(j>=aujourdhui&&j<=Math.min(finPeriode,dernierJour))aVenir.push({...p,jourEffectif:j,dansJours:j-aujourdhui});});return aVenir.sort((a,b)=>a.jourEffectif-b.jourEffectif);}
-function getTotalPrelevementsRestants(){const now=new Date(new Date().toLocaleString('en-US',{timeZone:'Europe/Paris'}));const aujourdhui=now.getDate();const dernierJour=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();let total=0;PRELEVEMENTS_DATES.forEach(p=>{if(!p.jour)return;let j=p.jour>dernierJour?dernierJour:p.jour;if(j>=aujourdhui)total+=p.montant;});return total;}
+async function answerCB(id) {
+  await fetch(`https://api.telegram.org/bot${TOKEN}/answerCallbackQuery`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ callback_query_id: id })
+  });
+}
 
-async function geminiParle(chatId,message,data){const model=genAI.getGenerativeModel({model:MODELE});const ctx=`Tu es L'Agent, assistant personnel de Nour-Dine. Naturel, direct, bienveillant. Max 4 lignes.\nFinances: LGM ${data.salaire}\u20ac, Completude ${data.completude.toFixed(0)}\u20ac/${OBJECTIF_COMPLETUDE}\u20ac, Solde ${data.solde.toFixed(0)}\u20ac\nReponds naturellement en francais. Jamais de JSON ni de balises.`;const result=await model.generateContent(ctx+'\n\nMessage: '+message);return result.response.text();}
+async function removeBtns(chatId, msgId) {
+  await fetch(`https://api.telegram.org/bot${TOKEN}/editMessageReplyMarkup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: String(chatId), message_id: msgId, reply_markup: { inline_keyboard: [] } })
+  });
+}
 
-const PROFILS_FICHES={'Amel':{niveau:'5e',format:'standard'},'Benjamin':{niveau:'5e',format:'standard',note:'Impatient, erreurs attention'},'Guillaume':{niveau:'5e',format:'tda',note:'TDA - consignes ultra courtes, max 4 exos'},'Margaux':{niveau:'3e',format:'standard'},'N\u00e9lia':{niveau:'3e',format:'standard'},'H\u00e9l\u00e8ne':{niveau:'5e',format:'standard'},'Math\u00e9o':{niveau:'3e',format:'hebdo',note:'Fiche lundi-vendredi, 2 exos courts par jour'},'Anne-Ga\u00eblle':{niveau:'3e',format:'standard'},'Sa\u00efda':{niveau:'5e',format:'standard'},'Serena':{niveau:'5e',format:'standard'}};
+async function sendDoc(chatId, filePath, filename) {
+  const form = new FormData();
+  form.append('chat_id', String(chatId));
+  form.append('document', fs.createReadStream(filePath), { filename });
+  await fetch(`https://api.telegram.org/bot${TOKEN}/sendDocument`, {
+    method: 'POST', body: form, headers: form.getHeaders()
+  });
+}
 
-async function genererContenuFiche(eleve,chapitre){const profil=PROFILS_FICHES[eleve]||{niveau:ELEVES[eleve]?.niveau||'5e',format:'standard'};const model=genAI.getGenerativeModel({model:MODELE});const regles=`REGLES ABSOLUES:\n- Texte brut uniquement, ZERO LaTeX\n- Fractions: "3/4", puissances: "x^2"\n- Corrige complet apres "=== CORRIGE ==="\n- Adapte au programme officiel de ${profil.niveau} en France`;let prompt='';if(profil.format==='hebdo')prompt=`Tu es professeur de mathematiques. Fiche hebdo pour ${eleve} (${profil.niveau}). Chapitre: ${chapitre}. ${regles}${profil.note?'\nNote: '+profil.note:''}\nFORMAT: LUNDI/MARDI/MERCREDI/JEUDI/VENDREDI avec 2 exercices chacun.\n=== CORRIGE ===\n[Corrige]`;else if(profil.format==='tda')prompt=`Professeur TDA. Fiche pour ${eleve} (${profil.niveau}). Chapitre: ${chapitre}. ${regles}${profil.note?'\nNote: '+profil.note:''}\nMax 4 exercices.\n=== CORRIGE ===\n[Corrige]`;else prompt=`Professeur maths. Fiche pour ${eleve} (${profil.niveau}). Chapitre: ${chapitre}. ${regles}${profil.note?'\nNote: '+profil.note:''}\n4 exercices progressifs.\n=== CORRIGE ===\n[Corrige detaille]`;const result=await model.generateContent(prompt);return result.response.text();}
+async function getEleves() {
+  const { data } = await supabase.from('eleves').select('*').eq('actif', true).order('jour').order('heure');
+  return data || [];
+}
 
-async function creerPDF(eleve,chapitre,contenu){const profil=PROFILS_FICHES[eleve]||{niveau:ELEVES[eleve]?.niveau||'5e'};const tmpPath=path.join('/tmp',`fiche_${eleve}_${Date.now()}.pdf`);return new Promise((resolve,reject)=>{const doc=new PDFDocument({margin:40,size:'A4'});const stream=fs.createWriteStream(tmpPath);doc.pipe(stream);doc.rect(0,0,doc.page.width,80).fill('#0D1B2A');doc.fillColor('white').fontSize(18).font('Helvetica-Bold').text("L'Agent \u2014 Fiche d'exercices",40,20);doc.fontSize(11).font('Helvetica').text(`${eleve} \u2014 ${profil.niveau} \u2014 ${chapitre}`,40,48);doc.text(new Date().toLocaleDateString('fr-FR'),40,62);doc.fillColor('#333333').moveDown(3);const lignes=contenu.split('\n');let dansCorrige=false;for(const ligne of lignes){if(ligne.trim()===''){doc.moveDown(0.4);continue;}if(ligne.startsWith('=== CORRIGE ===')){doc.moveDown(1).rect(40,doc.y,doc.page.width-80,1).fill('#F26419').moveDown(0.5);doc.fillColor('#F26419').fontSize(13).font('Helvetica-Bold').text('CORRIG\u00c9',40,doc.y);doc.fillColor('#333333');dansCorrige=true;doc.moveDown(0.5);continue;}if(/^(LUNDI|MARDI|MERCREDI|JEUDI|VENDREDI)$/i.test(ligne.trim())){doc.moveDown(0.5).fillColor('#0D1B2A').fontSize(12).font('Helvetica-Bold').text(ligne.trim(),40,doc.y);doc.fillColor('#333333');continue;}if(/^exercice\s*\d+/i.test(ligne.trim())){doc.moveDown(0.3);doc.fillColor(dansCorrige?'#2E7D32':'#0D1B2A').fontSize(11).font('Helvetica-Bold').text(ligne.trim(),40,doc.y,{width:doc.page.width-80});doc.fillColor('#333333');continue;}doc.fontSize(10).font('Helvetica').text(ligne,40,doc.y,{width:doc.page.width-80});}const pb=doc.page.height-30;doc.rect(0,pb-10,doc.page.width,40).fill('#0D1B2A');doc.fillColor('white').fontSize(8).font('Helvetica').text("G\u00e9n\u00e9r\u00e9 par L'Agent \u2022 Compl\u00e9tude",40,pb,{align:'center',width:doc.page.width-80});doc.end();stream.on('finish',()=>resolve(tmpPath));stream.on('error',reject);});}
+async function getData(mois, annee) {
+  const now = new Date();
+  const m = mois !== undefined ? mois : now.getMonth();
+  const y = annee !== undefined ? annee : now.getFullYear();
+  const debut = new Date(y, m, 1, 0, 0, 0, 0);
+  const fin = new Date(y, m + 1, 1, 0, 0, 0, 0);
 
-function trouverEleve(texte){const t=texte.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');for(const nom of Object.keys(ELEVES)){if(t.includes(nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')))return nom;}return null;}
-function trouverTousLesEleves(texte){const t=texte.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');return Object.keys(ELEVES).filter(nom=>t.includes(nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')));}
-function trouverMontant(texte){const m=texte.match(/(\d+([.,]\d{1,2})?)\s*\u20ac?/);return m?parseFloat(m[1].replace(',','.')):null;}
-function trouverCategorie(texte){const t=texte.toLowerCase();if(/essence|plein|carburant|station|total|esso/.test(t))return'essence';if(/leclerc|courses|carrefour|lidl|cora|supermarche|aldi/.test(t))return'courses';if(/resto|restaurant|mcdo|burger|pizza|kebab|sushi/.test(t))return'restos';if(/medecin|pharmacie|docteur|sante|doctolib/.test(t))return'sante';if(/ikea|maison|bricolage|castorama/.test(t))return'maison';if(/garage|voiture|reparation|pneu|peage/.test(t))return'voiture';if(/vetement|zara|shopping|coiffeur|hm/.test(t))return'shopping';if(/cinema|loisir|concert|sport|sortie/.test(t))return'loisirs';return null;}
+  const [d1, d2, d3, d4, d5, d6, d7] = await Promise.all([
+    supabase.from('depenses').select('*').gte('created_at', debut.toISOString()).lt('created_at', fin.toISOString()),
+    supabase.from('cours').select('*').gte('created_at', debut.toISOString()).lt('created_at', fin.toISOString()),
+    supabase.from('cours_manques').select('*').gte('created_at', debut.toISOString()).lt('created_at', fin.toISOString()),
+    supabase.from('revenus').select('*').gte('created_at', debut.toISOString()).lt('created_at', fin.toISOString()),
+    supabase.from('salaires').select('*').gte('created_at', debut.toISOString()).lt('created_at', fin.toISOString()).order('created_at', { ascending: false }).limit(1),
+    supabase.from('epargne').select('*').order('created_at', { ascending: false }).limit(1),
+    supabase.from('prelevements').select('*').eq('actif', true).order('jour_mois'),
+  ]);
 
-const JOURS_NOMS=['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
-const NIVEAUX_VALIDES=['CP','CE1','CE2','CM1','CM2','6e','5e','4e','3e','2nde','1\u00e8re','Terminale'];
+  const depenses = d1.data || [];
+  const cours = d2.data || [];
+  const coursManques = d3.data || [];
+  const revenus = d4.data || [];
+  const salaire = d5.data?.length > 0 ? d5.data[0].montant : SALAIRE_LGM_DEFAULT;
+  const epargneBase = d6.data?.length > 0 ? d6.data[0].montant : EPARGNE_DEPART;
+  const prelevements = d7.data || [];
+  const totalCharges = prelevements.filter(p => p.frequence === 'mensuel').reduce((s, p) => s + p.montant, 0);
 
-async function resumeCompletude(chatId){const data=await getData();const manque=Math.max(0,OBJECTIF_COMPLETUDE-data.completude);const pct=Math.min(100,Math.round((data.completude/OBJECTIF_COMPLETUDE)*100));const emoji=data.completude>=OBJECTIF_COMPLETUDE?'\ud83d\udfe2':data.completude>=1000?'\ud83d\udfe1':'\ud83d\udd34';await send(chatId,`${emoji} Completude: *${data.completude.toFixed(0)}\u20ac* / ${OBJECTIF_COMPLETUDE}\u20ac (${pct}%)\n${manque>0?`\u26a0\ufe0f Il manque: *${manque.toFixed(0)}\u20ac*`:'\ud83c\udf89 Objectif atteint !'}`);}
+  const totaux = {};
+  Object.keys(BUDGETS).forEach(k => totaux[k] = 0);
+  depenses.forEach(d => { if (totaux[d.categorie] !== undefined) totaux[d.categorie] += d.montant; });
 
-async function demarrerAjoutEleve(chatId){sessionsAjoutEleve[chatId]={etape:'nom'};await send(chatId,'\ud83d\udc64 *Ajouter un nouvel \u00e9l\u00e8ve*\n\n\u00c9tape 1/7 \u2014 Quel est son pr\u00e9nom ?\n_Ex: Thomas, Marie..._');}
-async function traiterAjoutEleve(chatId,texte){const sess=sessionsAjoutEleve[chatId];if(!sess)return false;switch(sess.etape){case'nom':{const nom=texte.trim();if(nom.length<2||nom.length>30){await send(chatId,'Pr\u00e9nom invalide.');return true;}if(ELEVES[nom]){await send(chatId,`*${nom}* existe d\u00e9j\u00e0 !`);delete sessionsAjoutEleve[chatId];return true;}sess.nom=nom;sess.etape='niveau';const rows=[];for(let i=0;i<NIVEAUX_VALIDES.length;i+=4)rows.push(NIVEAUX_VALIDES.slice(i,i+4).map(n=>({t:n,d:'ae_niv_'+n})));rows.push([{t:'Annuler',d:'ae_annuler'}]);await sendBtns(chatId,`\ud83d\udc64 *${nom}*\n\n\u00c9tape 2/7 \u2014 Niveau ?`,rows);return true;}case'taux':{const taux=parseFloat(texte.replace(',','.'));if(isNaN(taux)||taux<10||taux>100){await send(chatId,'Taux invalide. Ex: *24.50*');return true;}sess.taux=taux;sess.etape='duree';await sendBtns(chatId,`\u00c9tape 4/7 \u2014 Dur\u00e9e ?`,[[{t:'1h',d:'ae_dur_1'},{t:'1h30',d:'ae_dur_1.5'},{t:'2h',d:'ae_dur_2'}],[{t:'Annuler',d:'ae_annuler'}]]);return true;}case'heure':{const m=texte.match(/^(\d{1,2})h(\d{0,2})$/i);if(!m){await send(chatId,'Format invalide. Ex: *17h00*');return true;}const h=parseInt(m[1]),min=parseInt(m[2]||'0');if(h<7||h>21||min%15!==0){await send(chatId,'Heure invalide.');return true;}sess.heure=h;sess.minute=min;sess.etape='options';await sendBtns(chatId,'\u00c9tape 7/7 \u2014 Options ?',[[{t:'TDA/TDAH',d:'ae_opt_tda'},{t:'Fiche hebdo',d:'ae_opt_hebdo'}],[{t:'1 semaine/2',d:'ae_opt_2sem'},{t:'Aucune',d:'ae_opt_none'}],[{t:'Annuler',d:'ae_annuler'}]]);return true;}}return false;}
+  const totalDep = Object.values(totaux).reduce((a, b) => a + b, 0);
+  const completude = cours.reduce((s, c) => s + c.gain, 0);
+  const totalManque = coursManques.reduce((s, c) => s + c.gain_manque, 0);
+  const revenusSupp = revenus.reduce((s, r) => s + r.montant, 0);
+  const totalRevenus = salaire + BEAU_FRERE + completude + revenusSupp;
+  const solde = totalRevenus - totalCharges - totalDep;
+  const epargneEstimee = epargneBase + solde;
 
-async function annulerDernierCours(eleve){const debut=new Date();debut.setUTCDate(1);debut.setUTCHours(0,0,0,0);const{data}=await supabase.from('cours').select('id').eq('eleve',eleve).gte('created_at',debut.toISOString()).order('created_at',{ascending:false}).limit(1);if(!data||data.length===0)return false;const{error}=await supabase.from('cours').delete().eq('id',data[0].id);return!error;}
-async function annulerDernierCoursManque(eleve){const debut=new Date();debut.setUTCDate(1);debut.setUTCHours(0,0,0,0);const{data}=await supabase.from('cours_manques').select('id').eq('eleve',eleve).gte('created_at',debut.toISOString()).order('created_at',{ascending:false}).limit(1);if(!data||data.length===0)return false;const{error}=await supabase.from('cours_manques').delete().eq('id',data[0].id);return!error;}
-async function annulerDerniereDepense(categorie){const debut=new Date();debut.setUTCDate(1);debut.setUTCHours(0,0,0,0);const{data}=await supabase.from('depenses').select('id,montant,libelle').eq('categorie',categorie).gte('created_at',debut.toISOString()).order('created_at',{ascending:false}).limit(1);if(!data||data.length===0)return null;const item=data[0];await supabase.from('depenses').delete().eq('id',item.id);return item;}
-async function demarrerFiche(chatId){const elevesDispo=Object.keys(ELEVES);const rows=[];for(let i=0;i<elevesDispo.length;i+=3)rows.push(elevesDispo.slice(i,i+3).map(n=>({t:n,d:'fiche_eleve_'+n})));rows.push([{t:'Annuler',d:'fiche_annuler'}]);await sendBtns(chatId,'\ud83d\udcda *G\u00e9n\u00e9ration de fiche*\n\nPour quel \u00e9l\u00e8ve ?',rows);}
+  return { depenses, cours, coursManques, revenus, totaux, totalDep, completude, totalManque, revenusSupp, totalRevenus, solde, epargneEstimee, salaire, epargneBase, prelevements, totalCharges, mois: m, annee: y };
+}
 
-async function traiterCallback(cb){
-  const chatId=cb.message.chat.id,msgId=cb.message.message_id,data=cb.data;
-  await answerCB(cb.id);await removeBtns(chatId,msgId);
-  const session=sessions[chatId]||{};
-  if(data==='ae_annuler'){delete sessionsAjoutEleve[chatId];await send(chatId,'Ajout annul\u00e9.');return;}
-  if(data.startsWith('ae_niv_')){const sess=sessionsAjoutEleve[chatId];if(!sess)return;sess.niveau=data.replace('ae_niv_','');sess.etape='taux';await send(chatId,'\u00c9tape 3/7 \u2014 Taux horaire ? Ex: *24.50*');return;}
-  if(data.startsWith('ae_dur_')){const sess=sessionsAjoutEleve[chatId];if(!sess)return;sess.duree=parseFloat(data.replace('ae_dur_',''));sess.etape='jour';const rows=JOURS_NOMS.map((j,i)=>[{t:j,d:'ae_jour_'+i}]);rows.push([{t:'Annuler',d:'ae_annuler'}]);await sendBtns(chatId,'\u00c9tape 5/7 \u2014 Jour ?',rows);return;}
-  if(data.startsWith('ae_jour_')){const sess=sessionsAjoutEleve[chatId];if(!sess)return;sess.jour=parseInt(data.replace('ae_jour_',''));sess.etape='heure';await send(chatId,'\u00c9tape 6/7 \u2014 Heure ? Ex: *17h00*');return;}
-  if(data.startsWith('ae_opt_')){const sess=sessionsAjoutEleve[chatId];if(!sess)return;const opt=data.replace('ae_opt_','');if(!sess.options)sess.options={};if(opt==='tda')sess.options.tda=true;else if(opt==='hebdo')sess.options.ficheHebdo=true;else if(opt==='2sem')sess.options.uneSemaineSurDeux=true;const eleveData={nom:sess.nom,niveau:sess.niveau,taux:sess.taux,duree:sess.duree,jour:sess.jour,heure:sess.heure,minute:sess.minute||0,tda:sess.options?.tda||false,ficheHebdo:sess.options?.ficheHebdo||false,uneSemaineSurDeux:sess.options?.uneSemaineSurDeux||false,question2h:true,fiche:true};const ok=await saveEleveCustom(chatId,eleveData);if(ok){ELEVES[eleveData.nom]=eleveData;await send(chatId,`\u2705 *${eleveData.nom}* ajout\u00e9 !`);}else{await send(chatId,'Erreur lors de l\'ajout.');}delete sessionsAjoutEleve[chatId];return;}
-  if(data==='cours_oui'||data==='cours_non'){const eleve=session.eleve;if(!eleve)return;if(data==='cours_non'){const gm=await saveCoursManque(chatId,eleve);await send(chatId,`\u274c Cours ${eleve} non effectu\u00e9\n\ud83d\udcb8 Manque: *-${gm.toFixed(2)}\u20ac*`);if(session.fileAttente?.length>0){const next=session.fileAttente[0];sessions[chatId]={eleve:next,rattrapage:session.rattrapage,etape:'confirmation',fileAttente:session.fileAttente.slice(1)};await sendBtns(chatId,`\ud83d\udcda *${next}* \u2014 effectu\u00e9 ?`,[[{t:'\u2705 Oui',d:'cours_oui'},{t:'\u274c Non',d:'cours_non'}],[{t:'Annuler',d:'annuler'}]]);}else{delete sessions[chatId];}return;}if(ELEVES[eleve].question2h){sessions[chatId]={...session,etape:'question2h'};await sendBtns(chatId,`\u2705 Cours *${eleve}*\n\nC'\u00e9tait la s\u00e9ance \u00e0 2h ?`,[[{t:'2h (1\u00e8re s\u00e9ance)',d:'h2'},{t:'1h (suivante)',d:'h1'}],[{t:'Annuler',d:'annuler'}]]);}else{const gain=await saveCours(chatId,eleve,ELEVES[eleve].duree,session.rattrapage||false);await send(chatId,`\u2705 Cours ${eleve} enregistr\u00e9 ! *+${gain.toFixed(2)}\u20ac*`);await resumeCompletude(chatId);if(session.fileAttente?.length>0){const next=session.fileAttente[0];sessions[chatId]={eleve:next,rattrapage:session.rattrapage,etape:'confirmation',fileAttente:session.fileAttente.slice(1)};await sendBtns(chatId,`\ud83d\udcda *${next}* \u2014 effectu\u00e9 ?`,[[{t:'\u2705 Oui',d:'cours_oui'},{t:'\u274c Non',d:'cours_non'}],[{t:'Annuler',d:'annuler'}]]);}else{delete sessions[chatId];}}return;}
-  if(data==='h2'||data==='h1'){const eleve=session.eleve;if(!eleve)return;const heures=data==='h2'?2:1;const gain=await saveCours(chatId,eleve,heures,session.rattrapage||false);await send(chatId,`\u2705 Cours ${eleve} enregistr\u00e9 ! *+${gain.toFixed(2)}\u20ac*`);await resumeCompletude(chatId);if(session.fileAttente?.length>0){const next=session.fileAttente[0];sessions[chatId]={eleve:next,rattrapage:session.rattrapage,etape:'confirmation',fileAttente:session.fileAttente.slice(1)};await sendBtns(chatId,`\ud83d\udcda *${next}* \u2014 effectu\u00e9 ?`,[[{t:'\u2705 Oui',d:'cours_oui'},{t:'\u274c Non',d:'cours_non'}],[{t:'Annuler',d:'annuler'}]]);}else{delete sessions[chatId];}return;}
-  if(data.startsWith('cat_')){const cat=data.replace('cat_','');const montant=session.montant;if(!montant)return;await saveDepense(chatId,montant,cat,session.libelle||'');const nd=await getData();const restant=BUDGETS[cat].max-nd.totaux[cat];const emoji=restant<0?'\ud83d\udd34':restant<BUDGETS[cat].max*0.2?'\ud83d\udfe1':'\ud83d\udfe2';delete sessions[chatId];await send(chatId,`\u2705 *${montant}\u20ac* \u2014 ${BUDGETS[cat].label}\n${emoji} Restant: *${restant.toFixed(0)}\u20ac* / ${BUDGETS[cat].max}\u20ac`);return;}
-  if(data==='annuler'){delete sessions[chatId];await send(chatId,'\u274c Action annul\u00e9e.');return;}
-  if(data.startsWith('fiche_eleve_')){const eleve=data.replace('fiche_eleve_','');sessionsFiches[chatId]={eleve,etape:'attente_chapitre'};await send(chatId,`\ud83d\udcda Fiche pour *${eleve}*\n\nQuel chapitre ?`);return;}
-  if(data==='fiche_annuler'){delete sessionsFiches[chatId];await send(chatId,'Fiche annul\u00e9e.');return;}
-  if(data==='ann_cours_fait'){const rows=[];const noms=Object.keys(ELEVES);for(let i=0;i<noms.length;i+=3)rows.push(noms.slice(i,i+3).map(n=>({t:n,d:'ann_cf_'+n})));rows.push([{t:'Retour',d:'annuler'}]);sessionsAnnuler[chatId]={type:'cours_fait'};await sendBtns(chatId,'Quel cours annuler ?',rows);return;}
-  if(data==='ann_cours_manque'){const rows=[];const noms=Object.keys(ELEVES);for(let i=0;i<noms.length;i+=3)rows.push(noms.slice(i,i+3).map(n=>({t:n,d:'ann_cm_'+n})));rows.push([{t:'Retour',d:'annuler'}]);await sendBtns(chatId,'Quel cours manqu\u00e9 annuler ?',rows);return;}
-  if(data==='ann_depense'){const cats=Object.entries(BUDGETS);const rows=[];for(let i=0;i<cats.length;i+=3)rows.push(cats.slice(i,i+3).map(([k,b])=>({t:b.label,d:'ann_dep_'+k})));rows.push([{t:'Retour',d:'annuler'}]);await sendBtns(chatId,'Quelle d\u00e9pense annuler ?',rows);return;}
-  if(data.startsWith('ann_cf_')){const eleve=data.replace('ann_cf_','');const ok=await annulerDernierCours(eleve);delete sessionsAnnuler[chatId];if(ok){await send(chatId,`\u2705 Cours *${eleve}* annul\u00e9 !`);await resumeCompletude(chatId);}else{await send(chatId,`Aucun cours trouv\u00e9 pour *${eleve}*.`);}return;}
-  if(data.startsWith('ann_cm_')){const eleve=data.replace('ann_cm_','');const ok=await annulerDernierCoursManque(eleve);delete sessionsAnnuler[chatId];if(ok)await send(chatId,`\u2705 Cours manqu\u00e9 *${eleve}* annul\u00e9 !`);else await send(chatId,'Aucun cours manqu\u00e9 trouv\u00e9.');return;}
-  if(data.startsWith('ann_dep_')){const cat=data.replace('ann_dep_','');const item=await annulerDerniereDepense(cat);if(item)await send(chatId,`\u2705 D\u00e9pense annul\u00e9e : *${item.montant} \u20ac* \u2014 ${BUDGETS[cat].label}`);else await send(chatId,'Aucune d\u00e9pense trouv\u00e9e.');return;}
-  if(data==='mod_budget'){const cats=Object.entries(BUDGETS);const rows=[];for(let i=0;i<cats.length;i+=3)rows.push(cats.slice(i,i+3).map(([k,b])=>({t:b.label+' ('+b.max+'\u20ac)',d:'mod_bud_'+k})));rows.push([{t:'Retour',d:'annuler'}]);await sendBtns(chatId,'Quel budget modifier ?',rows);return;}
-  if(data==='mod_depense'){const cats=Object.entries(BUDGETS);const rows=[];for(let i=0;i<cats.length;i+=3)rows.push(cats.slice(i,i+3).map(([k,b])=>({t:b.label,d:'mod_dep_'+k})));rows.push([{t:'Retour',d:'annuler'}]);await sendBtns(chatId,'Rectifier quelle d\u00e9pense ?',rows);return;}
-  if(data.startsWith('mod_bud_')){const cat=data.replace('mod_bud_','');sessionsModifier[chatId]={etape:'attente_montant_budget',categorie:cat};await send(chatId,`Budget *${BUDGETS[cat].label}* actuel : *${BUDGETS[cat].max} \u20ac*\n\nNouveau plafond mensuel ?`);return;}
-  if(data.startsWith('mod_dep_')){const cat=data.replace('mod_dep_','');sessionsModifier[chatId]={etape:'attente_rectif_depense',categorie:cat};await send(chatId,`Rectifier la derni\u00e8re d\u00e9pense *${BUDGETS[cat].label}*\n\nMontant correct ?`);return;}
-  if(data.startsWith('rev_type_')){const type=data.replace('rev_type_','');sessionsRevenu[chatId]={type,etape:'montant'};await send(chatId,`\ud83d\udcb0 *${type}*\n\nMontant re\u00e7u ?`);return;}
+async function saveCours(chatId, eleve, heures, rattrapage) {
+  const gain = eleve.taux * heures;
+  const { error } = await supabase.from('cours').insert({ eleve: eleve.nom, duree: eleve.duree, taux: eleve.taux, gain, chat_id: String(chatId), rattrapage });
+  if (error) console.error('saveCours:', error.message);
+  return gain;
+}
+
+async function saveCoursManque(chatId, eleve) {
+  const gain_manque = eleve.taux * eleve.duree;
+  const { error } = await supabase.from('cours_manques').insert({ eleve: eleve.nom, gain_manque, chat_id: String(chatId) });
+  if (error) console.error('saveCoursManque:', error.message);
+  return gain_manque;
+}
+
+async function saveDepense(chatId, montant, categorie, libelle) {
+  const { error } = await supabase.from('depenses').insert({ montant, categorie, libelle, chat_id: String(chatId) });
+  if (error) console.error('saveDepense:', error.message);
+}
+
+async function saveSalaire(chatId, montant) {
+  const { error } = await supabase.from('salaires').insert({ montant, libelle: 'Salaire LGM', chat_id: String(chatId) });
+  if (error) console.error('saveSalaire:', error.message);
+}
+
+async function saveEpargne(chatId, montant) {
+  const { error } = await supabase.from('epargne').insert({ montant, libelle: 'Epargne', chat_id: String(chatId) });
+  if (error) console.error('saveEpargne:', error.message);
+}
+
+async function saveRevenu(chatId, montant, libelle) {
+  const { error } = await supabase.from('revenus').insert({ montant, libelle, chat_id: String(chatId) });
+  if (error) console.error('saveRevenu:', error.message);
+}
+
+async function annulerDernierCours(nom) {
+  const debut = new Date(); debut.setDate(1); debut.setHours(0,0,0,0);
+  const { data } = await supabase.from('cours').select('id').eq('eleve', nom).gte('created_at', debut.toISOString()).order('created_at', { ascending: false }).limit(1);
+  if (data?.length > 0) { await supabase.from('cours').delete().eq('id', data[0].id); return true; }
+  return false;
+}
+
+async function annulerDernierCoursManque(nom) {
+  const debut = new Date(); debut.setDate(1); debut.setHours(0,0,0,0);
+  const { data } = await supabase.from('cours_manques').select('id').eq('eleve', nom).gte('created_at', debut.toISOString()).order('created_at', { ascending: false }).limit(1);
+  if (data?.length > 0) { await supabase.from('cours_manques').delete().eq('id', data[0].id); return true; }
+  return false;
+}
+
+async function annulerDerniereDepense(cat) {
+  const debut = new Date(); debut.setDate(1); debut.setHours(0,0,0,0);
+  const { data } = await supabase.from('depenses').select('id,montant,libelle').eq('categorie', cat).gte('created_at', debut.toISOString()).order('created_at', { ascending: false }).limit(1);
+  if (data?.length > 0) { await supabase.from('depenses').delete().eq('id', data[0].id); return data[0]; }
+  return null;
+}
+
+async function resumeCompletude(chatId) {
+  const data = await getData();
+  const manque = Math.max(0, OBJECTIF_COMPLETUDE - data.completude);
+  const pct = Math.min(100, Math.round((data.completude / OBJECTIF_COMPLETUDE) * 100));
+  const emoji = data.completude >= OBJECTIF_COMPLETUDE ? 'OK' : data.completude >= 1000 ? 'Bien' : 'Attention';
+  await send(chatId, `Completude: *${data.completude.toFixed(0)} EUR* / ${OBJECTIF_COMPLETUDE} EUR (${pct}%) - ${emoji}\n${manque > 0 ? `Il manque: *${manque.toFixed(0)} EUR*` : 'Objectif atteint!'}`);
+}
+
+function trouverMontant(texte) {
+  const m = texte.match(/(\d+([.,]\d{1,2})?)\s*EUR?/i) || texte.match(/(\d+([.,]\d{1,2})?)/);
+  return m ? parseFloat(m[1].replace(',', '.')) : null;
+}
+
+function trouverCategorie(texte) {
+  const t = texte.toLowerCase();
+  if (/essence|plein|carburant|station|total|esso/.test(t)) return 'essence';
+  if (/leclerc|courses|carrefour|lidl|cora|supermarche|aldi|marche/.test(t)) return 'courses';
+  if (/resto|restaurant|mcdo|burger|pizza|kebab|sushi/.test(t)) return 'restos';
+  if (/medecin|pharmacie|docteur|sante|doctolib|kine/.test(t)) return 'sante';
+  if (/ikea|maison|bricolage|castorama|leroy/.test(t)) return 'maison';
+  if (/garage|voiture|reparation|pneu|peage/.test(t)) return 'voiture';
+  if (/vetement|zara|shopping|coiffeur|hm/.test(t)) return 'shopping';
+  if (/cinema|loisir|concert|sport|sortie/.test(t)) return 'loisirs';
+  return null;
+}
+
+async function trouverEleves(texte) {
+  const eleves = await getEleves();
+  const t = texte.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  return eleves.filter(e => t.includes(e.nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')));
+}
+
+async function genererContenuFiche(eleve, chapitre) {
+  const model = genAI.getGenerativeModel({ model: MODELE });
+  const regles = 'REGLES: texte brut, fractions 3/4, puissances x^2, max 600 mots, corrige apres === CORRIGE ===';
+  let prompt = '';
+  if (eleve.fiche_hebdo) {
+    prompt = `Professeur maths. Fiche hebdo pour ${eleve.nom} (${eleve.niveau}). Chapitre: ${chapitre}. ${regles}. Lundi-Vendredi 2 exos/jour.`;
+  } else if (eleve.tda) {
+    prompt = `Professeur TDA. Fiche pour ${eleve.nom} (${eleve.niveau}). Chapitre: ${chapitre}. ${regles}. Max 4 exos courts.`;
+  } else {
+    prompt = `Professeur maths. Fiche pour ${eleve.nom} (${eleve.niveau}). Chapitre: ${chapitre}. ${regles}. 4 exos progressifs niveau ${eleve.niveau}.`;
+  }
+  const result = await model.generateContent(prompt);
+  return result.response.text();
+}
+
+async function creerPDF(eleve, chapitre, contenu) {
+  const tmpPath = path.join('/tmp', `fiche_${eleve.nom}_${Date.now()}.pdf`);
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ margin: 40, size: 'A4' });
+    const stream = fs.createWriteStream(tmpPath);
+    doc.pipe(stream);
+    doc.rect(0, 0, doc.page.width, 80).fill('#0D1B2A');
+    doc.fillColor('white').fontSize(18).font('Helvetica-Bold').text("L'Agent - Fiche d'exercices", 40, 20);
+    doc.fontSize(11).font('Helvetica').text(`${eleve.nom} - ${eleve.niveau} - ${chapitre}`, 40, 48).text(new Date().toLocaleDateString('fr-FR'), 40, 62);
+    doc.fillColor('#333333').moveDown(3);
+    const lignes = contenu.split('\n');
+    let dansCorrige = false;
+    for (const ligne of lignes) {
+      if (ligne.trim() === '') { doc.moveDown(0.4); continue; }
+      if (ligne.startsWith('=== CORRIGE ===')) {
+        doc.moveDown(1);
+        doc.rect(40, doc.y, doc.page.width - 80, 1).fill('#F26419');
+        doc.moveDown(0.5);
+        doc.fillColor('#F26419').fontSize(13).font('Helvetica-Bold').text('CORRIGE', 40, doc.y);
+        doc.fillColor('#333333'); dansCorrige = true; doc.moveDown(0.5); continue;
+      }
+      if (/^(LUNDI|MARDI|MERCREDI|JEUDI|VENDREDI)$/i.test(ligne.trim())) {
+        doc.moveDown(0.5);
+        doc.fillColor('#0D1B2A').fontSize(12).font('Helvetica-Bold').text(ligne.trim(), 40, doc.y);
+        doc.fillColor('#333333'); continue;
+      }
+      if (/^exercice\s*\d+/i.test(ligne.trim())) {
+        doc.moveDown(0.3);
+        doc.fillColor(dansCorrige ? '#2E7D32' : '#0D1B2A').fontSize(11).font('Helvetica-Bold').text(ligne.trim(), 40, doc.y, { width: doc.page.width - 80 });
+        doc.fillColor('#333333'); continue;
+      }
+      doc.fontSize(10).font('Helvetica').text(ligne, 40, doc.y, { width: doc.page.width - 80 });
+    }
+    const pageBottom = doc.page.height - 30;
+    doc.rect(0, pageBottom - 10, doc.page.width, 40).fill('#0D1B2A');
+    doc.fillColor('white').fontSize(8).font('Helvetica').text("Genere par L'Agent - Completude", 40, pageBottom, { align: 'center', width: doc.page.width - 80 });
+    doc.end();
+    stream.on('finish', () => resolve(tmpPath));
+    stream.on('error', reject);
+  });
+}
+
+async function envoyerRappelBiHebdo() {
+  const data = await getData();
+  const mois = new Date().toLocaleString('fr-FR', { month: 'long', year: 'numeric' });
+  let msg = `Rappel bi-hebdo - ${mois}\n\nLGM: ${data.salaire}EUR | Beau-frere: ${BEAU_FRERE}EUR | Completude: ${data.completude.toFixed(0)}EUR/${OBJECTIF_COMPLETUDE}EUR\n\nDepenses:\n`;
+  Object.entries(data.totaux).forEach(([k, v]) => {
+    if (v > 0) {
+      const e = v > BUDGETS[k].max ? '[DEPASSE]' : v > BUDGETS[k].max * 0.8 ? '[Attention]' : '[OK]';
+      msg += `${e} ${BUDGETS[k].label}: ${v.toFixed(0)}/${BUDGETS[k].max}EUR\n`;
+    }
+  });
+  msg += `\nSolde: *${data.solde >= 0 ? '+' : ''}${data.solde.toFixed(0)}EUR*`;
+  if (data.totalManque > 0) msg += `\nManques: *-${data.totalManque.toFixed(0)}EUR*`;
+  msg += '\n\nDes depenses a enregistrer?';
+  await send(CHAT_ID, msg);
+}
+
+async function envoyerSyntheseMensuelle() {
+  const data = await getData();
+  const mois = new Date().toLocaleString('fr-FR', { month: 'long', year: 'numeric' }).toUpperCase();
+  let msg = `SYNTHESE ${mois}\n\nREVENUS: ${data.totalRevenus.toFixed(0)}EUR\n- LGM: ${data.salaire}EUR\n- Beau-frere: ${BEAU_FRERE}EUR\n- Completude: ${data.completude.toFixed(0)}EUR\n`;
+  msg += `\nCHARGES: -${data.totalCharges.toFixed(0)}EUR\n\nDEPENSES: -${data.totalDep.toFixed(0)}EUR\n`;
+  Object.entries(data.totaux).forEach(([k, v]) => {
+    msg += `${BUDGETS[k].label}: ${v.toFixed(0)}/${BUDGETS[k].max}EUR\n`;
+  });
+  msg += `\nSOLDE: ${data.solde >= 0 ? '+' : ''}${data.solde.toFixed(0)}EUR\n\nOBJECTIFS:\n`;
+  OBJECTIFS.forEach(o => {
+    const delta = data.epargneEstimee - o.montant;
+    msg += `${delta >= 0 ? 'OK' : 'PAS OK'} ${o.label}: ${o.montant.toLocaleString()}EUR (${delta >= 0 ? '+' : ''}${delta.toFixed(0)}EUR)\n`;
+  });
+  await send(CHAT_ID, msg);
+}
+
+function estSemaineSerena() {
+  const debut = new Date('2026-05-10');
+  return Math.floor((new Date() - debut) / (7 * 24 * 60 * 60 * 1000)) % 2 === 0;
+}
+
+async function demarrerScheduler() {
+  setInterval(() => {
+    fetch('https://budget-bot-production-eaaf.up.railway.app/').catch(() => {});
+  }, 4 * 60 * 1000);
+
+  setInterval(async () => {
+    const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
+    const jour = now.getDay(), heure = now.getHours(), minute = now.getMinutes();
+    if ((jour === 3 || jour === 0) && heure === 20 && minute === 0) await envoyerRappelBiHebdo();
+    if (now.getDate() === 30 && heure === 20 && minute === 0) await envoyerSyntheseMensuelle();
+    const eleves = await getEleves();
+    for (const eleve of eleves) {
+      if (eleve.jour !== jour) continue;
+      if (eleve.une_semaine_sur_deux && !estSemaineSerena()) continue;
+      const totalMin = eleve.minute + Math.floor(eleve.duree * 60);
+      const heureFin = eleve.heure + Math.floor(totalMin / 60);
+      const minuteFin = totalMin % 60;
+      if (heure === heureFin && minute === minuteFin) {
+        sessions[CHAT_ID] = { eleve, rattrapage: false, etape: 'confirmation', fileAttente: [] };
+        await sendBtns(CHAT_ID, `Fin de cours!\n\nAs-tu fait cours avec *${eleve.nom}* ?`,
+          [[{ t: 'Oui', d: 'cours_oui' }, { t: 'Non', d: 'cours_non' }], [{ t: 'Annuler', d: 'annuler' }]]
+        );
+      }
+    }
+  }, 60000);
+}
+
+async function traiterCallback(cb) {
+  const chatId = cb.message.chat.id;
+  const msgId = cb.message.message_id;
+  const data = cb.data;
+  await answerCB(cb.id);
+  await removeBtns(chatId, msgId);
+  const session = sessions[chatId] || {};
+
+  if (data === 'annuler') { delete sessions[chatId]; await send(chatId, 'Action annulee.'); return; }
+
+  if (data === 'cours_oui' || data === 'cours_non') {
+    const eleve = session.eleve;
+    if (!eleve) return;
+    if (data === 'cours_non') {
+      const gainManque = await saveCoursManque(chatId, eleve);
+      await send(chatId, `Cours ${eleve.nom} non effectue - Manque: -${gainManque.toFixed(2)}EUR`);
+      if (session.fileAttente?.length > 0) {
+        const next = session.fileAttente[0];
+        sessions[chatId] = { eleve: next, rattrapage: false, etape: 'confirmation', fileAttente: session.fileAttente.slice(1) };
+        await sendBtns(chatId, `Cours suivant - *${next.nom}* - effectue?`, [[{ t: 'Oui', d: 'cours_oui' }, { t: 'Non', d: 'cours_non' }], [{ t: 'Annuler', d: 'annuler' }]]);
+      } else { delete sessions[chatId]; }
+      return;
+    }
+    if (eleve.question_2h) {
+      sessions[chatId] = { ...session, etape: 'question2h' };
+      await sendBtns(chatId, `Cours avec *${eleve.nom}* - C etait la seance a 2h?`, [[{ t: '2h (1ere seance)', d: 'h2' }, { t: '1h (suivante)', d: 'h1' }], [{ t: 'Annuler', d: 'annuler' }]]);
+    } else {
+      const gain = await saveCours(chatId, eleve, eleve.duree, session.rattrapage || false);
+      await send(chatId, `Cours ${eleve.nom} enregistre! +${gain.toFixed(2)}EUR`);
+      await resumeCompletude(chatId);
+      if (session.fileAttente?.length > 0) {
+        const next = session.fileAttente[0];
+        sessions[chatId] = { eleve: next, rattrapage: false, etape: 'confirmation', fileAttente: session.fileAttente.slice(1) };
+        await sendBtns(chatId, `Cours suivant - *${next.nom}* - effectue?`, [[{ t: 'Oui', d: 'cours_oui' }, { t: 'Non', d: 'cours_non' }], [{ t: 'Annuler', d: 'annuler' }]]);
+      } else { delete sessions[chatId]; }
+    }
+    return;
+  }
+
+  if (data === 'h2' || data === 'h1') {
+    const eleve = session.eleve;
+    if (!eleve) return;
+    const heures = data === 'h2' ? 2 : 1;
+    const gain = await saveCours(chatId, eleve, heures, session.rattrapage || false);
+    await send(chatId, `Cours ${eleve.nom} enregistre! +${gain.toFixed(2)}EUR`);
+    await resumeCompletude(chatId);
+    if (session.fileAttente?.length > 0) {
+      const next = session.fileAttente[0];
+      sessions[chatId] = { eleve: next, rattrapage: false, etape: 'confirmation', fileAttente: session.fileAttente.slice(1) };
+      await sendBtns(chatId, `Cours suivant - *${next.nom}* - effectue?`, [[{ t: 'Oui', d: 'cours_oui' }, { t: 'Non', d: 'cours_non' }], [{ t: 'Annuler', d: 'annuler' }]]);
+    } else { delete sessions[chatId]; }
+    return;
+  }
+
+  if (data.startsWith('sel_eleve_')) {
+    const elevId = parseInt(data.replace('sel_eleve_', ''));
+    const eleves = await getEleves();
+    const eleve = eleves.find(e => e.id === elevId);
+    if (eleve) {
+      sessions[chatId] = { eleve, rattrapage: false, etape: 'confirmation', fileAttente: [] };
+      await sendBtns(chatId, `Cours avec *${eleve.nom}* - effectue?`, [[{ t: 'Oui', d: 'cours_oui' }, { t: 'Non', d: 'cours_non' }], [{ t: 'Annuler', d: 'annuler' }]]);
+    }
+    return;
+  }
+
+  if (data.startsWith('cat_')) {
+    const cat = data.replace('cat_', '');
+    const montant = session.montant;
+    if (!montant) return;
+    await saveDepense(chatId, montant, cat, session.libelle || '');
+    const newData = await getData();
+    const restant = BUDGETS[cat].max - newData.totaux[cat];
+    const emoji = restant < 0 ? 'DEPASSE' : 'OK';
+    delete sessions[chatId];
+    await send(chatId, `${montant}EUR - ${BUDGETS[cat].label} [${emoji}]\nRestant: ${restant.toFixed(0)}EUR / ${BUDGETS[cat].max}EUR`);
+    return;
+  }
+
+  if (data.startsWith('annul_cours_')) {
+    const nom = data.replace('annul_cours_', '');
+    const ok = await annulerDernierCours(nom);
+    await send(chatId, ok ? `Dernier cours de *${nom}* annule!` : `Aucun cours de ${nom} ce mois.`);
+    return;
+  }
+  if (data.startsWith('annul_manque_')) {
+    const nom = data.replace('annul_manque_', '');
+    const ok = await annulerDernierCoursManque(nom);
+    await send(chatId, ok ? `Dernier cours manque de *${nom}* annule!` : `Aucun cours manque de ${nom} ce mois.`);
+    return;
+  }
+  if (data.startsWith('annul_dep_')) {
+    const cat = data.replace('annul_dep_', '');
+    const item = await annulerDerniereDepense(cat);
+    await send(chatId, item ? `Derniere depense ${BUDGETS[cat].label} annulee! (${item.libelle} - ${item.montant.toFixed(2)}EUR)` : `Aucune depense ${BUDGETS[cat].label} ce mois.`);
+    return;
+  }
+
+  if (data === 'annul_type_cours') {
+    const eleves = await getEleves();
+    const rows = [];
+    for (let i = 0; i < eleves.length; i += 3) rows.push(eleves.slice(i, i+3).map(e => ({ t: e.nom, d: `annul_cours_${e.nom}` })));
+    rows.push([{ t: 'Retour', d: 'annuler' }]);
+    await sendBtns(chatId, 'Annuler cours de quel eleve?', rows);
+    return;
+  }
+  if (data === 'annul_type_manque') {
+    const eleves = await getEleves();
+    const rows = [];
+    for (let i = 0; i < eleves.length; i += 3) rows.push(eleves.slice(i, i+3).map(e => ({ t: e.nom, d: `annul_manque_${e.nom}` })));
+    rows.push([{ t: 'Retour', d: 'annuler' }]);
+    await sendBtns(chatId, 'Annuler cours manque de quel eleve?', rows);
+    return;
+  }
+  if (data === 'annul_type_depense') {
+    const cats = Object.entries(BUDGETS);
+    const rows = [];
+    for (let i = 0; i < cats.length; i += 3) rows.push(cats.slice(i, i+3).map(([k, b]) => ({ t: b.label, d: `annul_dep_${k}` })));
+    rows.push([{ t: 'Retour', d: 'annuler' }]);
+    await sendBtns(chatId, 'Annuler quelle depense?', rows);
+    return;
+  }
+
+  if (data.startsWith('fiche_eleve_')) {
+    const elevId = parseInt(data.replace('fiche_eleve_', ''));
+    const eleves = await getEleves();
+    const eleve = eleves.find(e => e.id === elevId);
+    if (eleve) {
+      sessionsFiches[chatId] = { eleve, etape: 'attente_chapitre' };
+      await send(chatId, `Fiche pour *${eleve.nom}* (${eleve.niveau})\n\nQuel chapitre as-tu vu?\n_Ex: Fractions, Pythagore, Equations..._`);
+    }
+    return;
+  }
+  if (data === 'fiche_annuler') { delete sessionsFiches[chatId]; await send(chatId, 'Generation annulee.'); return; }
+
+  if (data.startsWith('ne_niveau_')) {
+    const niveau = data.replace('ne_niveau_', '');
+    sessionsEleves[chatId] = { ...sessionsEleves[chatId], niveau, etape: 'taux' };
+    await send(chatId, `Niveau *${niveau}* OK\n\nQuel est son taux horaire Completude? (ex: 24.50)`);
+    return;
+  }
+  if (data.startsWith('ne_jour_')) {
+    const jour = parseInt(data.replace('ne_jour_', ''));
+    sessionsEleves[chatId] = { ...sessionsEleves[chatId], jour, etape: 'heure' };
+    await send(chatId, `Jour *${JOURS_NOM[jour]}* OK\n\nHeure de debut? (ex: 14h30 ou 17h)`);
+    return;
+  }
+  if (data.startsWith('ne_duree_')) {
+    const duree = parseFloat(data.replace('ne_duree_', ''));
+    sessionsEleves[chatId] = { ...sessionsEleves[chatId], duree, etape: 'tda' };
+    await sendBtns(chatId, `Duree *${duree}h* OK\n\nEleve avec TDA?`, [[{ t: 'Oui TDA', d: 'ne_tda_true' }, { t: 'Non', d: 'ne_tda_false' }]]);
+    return;
+  }
+  if (data === 'ne_tda_true' || data === 'ne_tda_false') {
+    const tda = data === 'ne_tda_true';
+    sessionsEleves[chatId] = { ...sessionsEleves[chatId], tda, etape: 'fiche_hebdo' };
+    await sendBtns(chatId, `TDA: *${tda ? 'Oui' : 'Non'}* OK\n\nFiche hebdomadaire (lundi-vendredi)?`, [[{ t: 'Oui hebdo', d: 'ne_hebdo_true' }, { t: 'Non standard', d: 'ne_hebdo_false' }]]);
+    return;
+  }
+  if (data === 'ne_hebdo_true' || data === 'ne_hebdo_false') {
+    const ficheHebdo = data === 'ne_hebdo_true';
+    sessionsEleves[chatId] = { ...sessionsEleves[chatId], ficheHebdo, etape: 'question2h' };
+    await sendBtns(chatId, `Format: *${ficheHebdo ? 'Hebdo' : 'Standard'}* OK\n\nSeance a 2h possible?`, [[{ t: 'Oui 2h', d: 'ne_2h_true' }, { t: 'Non fixe', d: 'ne_2h_false' }]]);
+    return;
+  }
+  if (data === 'ne_2h_true' || data === 'ne_2h_false') {
+    const q2h = data === 'ne_2h_true';
+    const s = sessionsEleves[chatId];
+    const { error } = await supabase.from('eleves').insert({
+      nom: s.nom, niveau: s.niveau, taux: s.taux, duree: s.duree,
+      tda: s.tda, fiche_hebdo: s.ficheHebdo, question_2h: q2h,
+      fiche: true, jour: s.jour, heure: s.heure, minute: s.minute,
+      une_semaine_sur_deux: false, actif: true
+    });
+    delete sessionsEleves[chatId];
+    if (error) { await send(chatId, `Erreur: ${error.message}`); }
+    else { await send(chatId, `*${s.nom}* ajoute! Niveau: ${s.niveau} | ${s.taux}EUR/h | ${JOURS_NOM[s.jour]} ${s.heure}h${s.minute > 0 ? s.minute : ''}`); }
+    return;
+  }
+
+  if (data.startsWith('prel_del_')) {
+    const id = parseInt(data.replace('prel_del_', ''));
+    await supabase.from('prelevements').update({ actif: false }).eq('id', id);
+    await send(chatId, 'Prelevement desactive!');
+    return;
+  }
+
+  if (data === 'prel_ajouter') {
+    sessions[chatId] = { etape: 'prel_nom' };
+    await send(chatId, 'Nom du prelevement?');
+    return;
+  }
 }
 
 app.post('/webhook', async (req, res) => {
   res.sendStatus(200);
-  const body=req.body;
-  if(body.callback_query){await traiterCallback(body.callback_query).catch(e=>console.error('CB error:',e.message));return;}
-  const msg=body.message;if(!msg||!msg.text)return;
-  const chatId=msg.chat.id,texte=msg.text.trim(),session=sessions[chatId]||{};
+  const body = req.body;
+  if (body.callback_query) {
+    await traiterCallback(body.callback_query).catch(e => console.error('CB:', e.message));
+    return;
+  }
+  const msg = body.message;
+  if (!msg || !msg.text) return;
+  const chatId = msg.chat.id;
+  const texte = msg.text.trim();
+  const session = sessions[chatId] || {};
+
   try {
-    if(texte==='/start'){delete sessions[chatId];await send(chatId,`\ud83d\udc4b Salut Nour-Dine ! Je suis *L'Agent*.\n\n\ud83d\udcda _"cours avec Margaux"_ \u2192 signaler un cours\n\ud83d\udcb8 _"Leclerc 45\u20ac"_ \u2192 d\u00e9pense\n\ud83d\udc64 /ajouteleve \u2192 nouvel \u00e9l\u00e8ve\n\ud83d\udcb0 /revenu \u2192 enregistrer une rentr\u00e9e\n\ud83d\udcc5 /prelevements \u2192 voir ce qui arrive\n\ud83c\udf10 Dashboard: https://budget-bot-production-eaaf.up.railway.app/dashboard`);return;}
-    if(texte==='/reset'){delete sessions[chatId];await send(chatId,'\ud83d\udd04 R\u00e9initialis\u00e9 !');return;}
-    if(texte==='/fiche'){await demarrerFiche(chatId);return;}
-    if(texte==='/ajouteleve'||texte==='/ajouter'||/ajouter?\s+[\u00e9e]l[\u00e8e]ve/i.test(texte)){await demarrerAjoutEleve(chatId);return;}
-    if(texte==='/revenu'||texte==='/revenus'){await sendBtns(chatId,'\ud83d\udcb0 *Quel type de rentr\u00e9e ?*',[[{t:'\ud83d\udcbc Vinted / vente',d:'rev_type_Vente Vinted'},{t:'\ud83d\udd04 Remboursement',d:'rev_type_Remboursement'}],[{t:'\ud83c\udf81 Cadeau / don',d:'rev_type_Cadeau'},{t:'\ud83d\udce6 Autre',d:'rev_type_Autre revenu'}],[{t:'Annuler',d:'annuler'}]]);return;}
-    if(texte==='/prelevements'||texte==='\/pr\u00e9l\u00e8vements'){const now=new Date(new Date().toLocaleString('en-US',{timeZone:'Europe/Paris'}));const auj=now.getDate();const av=getPrelEvementsAVenir(7);const tot=getTotalPrelevementsRestants();let m=`\ud83d\udcc5 *Pr\u00e9l\u00e8vements \u2014 Suivi du mois*\n\n\ud83d\udccd Nous sommes le *${auj}*\n\ud83d\udcb0 Total restant ce mois: *${tot.toFixed(2)}\u20ac*\n\n`;if(av.length>0){m+='\u26a0\ufe0f *Dans les 7 prochains jours:*\n';av.forEach(p=>{const q=p.dansJours===0?'Aujourd\'hui':p.dansJours===1?'Demain':'Dans '+p.dansJours+'j';m+='\u2022 '+q+' ('+p.jourEffectif+') \u2014 '+p.nom+': *'+p.montant.toFixed(2)+'\u20ac*\n';});const ts=av.reduce((s,p)=>s+p.montant,0);m+='\n\ud83d\udcb8 Total cette semaine: *'+ts.toFixed(2)+'\u20ac*\n';}else{m+='\u2705 Aucun pr\u00e9l\u00e8vement dans les 7 prochains jours\n';}await send(chatId,m);return;}
-    if(texte==='/annuler'){await sendBtns(chatId,'\ud83d\udd04 *Que veux-tu annuler ?*',[[{t:'\ud83d\udcda Un cours effectu\u00e9',d:'ann_cours_fait'},{t:'\u274c Un cours manqu\u00e9',d:'ann_cours_manque'}],[{t:'\ud83d\udcb8 Une d\u00e9pense',d:'ann_depense'}],[{t:'Annuler',d:'annuler'}]]);return;}
-    if(texte==='/modifier'){await sendBtns(chatId,'\u270f\ufe0f *Que veux-tu modifier ?*',[[{t:'\ud83d\udcca Un budget cat\u00e9gorie',d:'mod_budget'}],[{t:'\ud83d\udcb8 Rectifier une d\u00e9pense',d:'mod_depense'}],[{t:'Annuler',d:'annuler'}]]);return;}
-    if(sessionsAjoutEleve[chatId]){const handled=await traiterAjoutEleve(chatId,texte);if(handled)return;}
-    if(sessionsRevenu[chatId]?.etape==='montant'){const m=trouverMontant(texte);if(m&&m>0){const type=sessionsRevenu[chatId].type;delete sessionsRevenu[chatId];await saveRevenu(chatId,m,type);await send(chatId,`\u2705 Rentr\u00e9e *+${m}\u20ac* enregistr\u00e9e !`);}else{await send(chatId,'Envoie un montant valide, ex: *150*');}return;}
-    if(sessionsModifier[chatId]?.etape==='attente_montant_budget'){const cat=sessionsModifier[chatId].categorie;const m=trouverMontant(texte);if(m&&m>0){BUDGETS[cat].max=m;delete sessionsModifier[chatId];await send(chatId,`\u2705 Budget *${BUDGETS[cat].label}* mis \u00e0 jour : *${m} \u20ac/mois*`);}else{await send(chatId,'Envoie un montant valide, ex: *400*');}return;}
-    if(sessionsModifier[chatId]?.etape==='attente_rectif_depense'){const cat=sessionsModifier[chatId].categorie;const m=trouverMontant(texte);if(m&&m>0){const item=await annulerDerniereDepense(cat);if(item){await saveDepense(chatId,m,cat,item.libelle||texte);delete sessionsModifier[chatId];await send(chatId,`\u2705 D\u00e9pense rectifi\u00e9e : *${m} \u20ac* \u2014 ${BUDGETS[cat].label}`);}else{await send(chatId,'Aucune d\u00e9pense trouv\u00e9e.');delete sessionsModifier[chatId];}}else{await send(chatId,'Envoie le nouveau montant, ex: *45*');}return;}
-    if(sessionsFiches[chatId]?.etape==='attente_chapitre'){const eleve=sessionsFiches[chatId].eleve;delete sessionsFiches[chatId];await send(chatId,`\ud83d\udcdd G\u00e9n\u00e9ration de la fiche pour *${eleve}*...`);try{const contenu=await genererContenuFiche(eleve,texte);const pdfPath=await creerPDF(eleve,texte,contenu);await sendDocument(chatId,pdfPath,`fiche_${eleve}_${texte.replace(/ /g,'_')}.pdf`);fs.unlinkSync(pdfPath);}catch(err){console.error('Erreur fiche PDF:',err.message);await send(chatId,'Erreur g\u00e9n\u00e9ration fiche.');}return;}
-    if(texte==='/bilan'){const data=await getData();let m=`\ud83d\udcca *Bilan ${new Date().toLocaleString('fr-FR',{month:'long',year:'numeric'})}*\n\n`;Object.entries(data.totaux).forEach(([k,v])=>{const e=v>BUDGETS[k].max?'\ud83d\udd34':v>BUDGETS[k].max*0.8?'\ud83d\udfe1':'\ud83d\udfe2';m+=e+' '+BUDGETS[k].label+': '+v.toFixed(0)+'\u20ac / '+BUDGETS[k].max+'\u20ac\n';});m+='\n\ud83d\udcb0 *Solde: '+(data.solde>=0?'+':'')+data.solde.toFixed(0)+'\u20ac*';await send(chatId,m);return;}
-    if(texte==='/completude'){const data=await getData();let m='\ud83d\udcda *Compl\u00e9tude '+new Date().toLocaleString('fr-FR',{month:'long',year:'numeric'})+'*\n\n\ud83d\udfe2 *'+data.completude.toFixed(2)+'\u20ac* / '+OBJECTIF_COMPLETUDE+'\u20ac\nCours: '+data.cours.length+'\n';if(data.cours.length>0){m+='\n*D\u00e9tail:*\n';data.cours.forEach(c=>{m+='\u2022 '+c.eleve+(c.rattrapage?' (rattrapage)':'')+': +'+c.gain.toFixed(2)+'\u20ac\n';});}if(data.coursManques.length>0){m+='\n\u274c *Manques:*\n';data.coursManques.forEach(c=>{m+='\u2022 '+c.eleve+': -'+c.gain_manque.toFixed(2)+'\u20ac\n';});}await send(chatId,m);return;}
-    if(texte==='/objectifs'){const data=await getData();let m='\ud83c\udfaf *Objectifs \u00e9pargne*\n\n\ud83d\udcbc Actuelle: *'+data.epargneBase.toLocaleString()+'\u20ac*\n\ud83d\udcc8 Projection: *'+data.epargneEstimee.toFixed(0)+'\u20ac*\n\n';OBJECTIFS.forEach(o=>{const delta=data.epargneEstimee-o.montant;const pct=Math.min(100,Math.round((data.epargneEstimee/o.montant)*100));m+=(delta>=0?'\u2705':'\u26a0\ufe0f')+' *'+o.label+'*: '+o.montant.toLocaleString()+'\u20ac \u2014 '+pct+'%\n';});await send(chatId,m);return;}
-    const tousEleves=trouverTousLesEleves(texte),eleve=tousEleves[0]||null;
-    const isCours=/cours|rattrapage|seance/i.test(texte),isPasFait=/pas fait|absent|annule|pas pu|rate/i.test(texte);
-    if(eleve&&isCours){const rattrapage=/rattrapage/i.test(texte);const fileAttente=tousEleves.slice(1);if(isPasFait){for(const el of tousEleves){const gm=await saveCoursManque(chatId,el);await send(chatId,`\u274c Cours ${el} non effectu\u00e9\n\ud83d\udcb8 Manque: *-${gm.toFixed(2)}\u20ac*`);}return;}sessions[chatId]={eleve,rattrapage,etape:'confirmation',fileAttente};await sendBtns(chatId,`\ud83d\udcda Cours avec *${eleve}*${rattrapage?' _(rattrapage)_':''} \u2014 effectu\u00e9 ?`,[[{t:'\u2705 Oui',d:'cours_oui'},{t:'\u274c Non',d:'cours_non'}],[{t:'Annuler',d:'annuler'}]]);return;}
-    const montant=trouverMontant(texte),cat=trouverCategorie(texte);
-    if(montant&&montant>0&&montant<5000&&!isCours){if(cat){await saveDepense(chatId,montant,cat,texte);const nd=await getData();const restant=BUDGETS[cat].max-nd.totaux[cat];const emoji=restant<0?'\ud83d\udd34':restant<BUDGETS[cat].max*0.2?'\ud83d\udfe1':'\ud83d\udfe2';await send(chatId,`\u2705 *${montant}\u20ac* \u2014 ${BUDGETS[cat].label}\n${emoji} Restant: *${restant.toFixed(0)}\u20ac* / ${BUDGETS[cat].max}\u20ac`);}else{sessions[chatId]={montant,libelle:texte,etape:'choix_cat'};const cats=Object.entries(BUDGETS);const rows=[];for(let i=0;i<cats.length;i+=3)rows.push(cats.slice(i,i+3).map(([k,b])=>({t:b.label,d:'cat_'+k})));rows.push([{t:'Annuler',d:'annuler'}]);await sendBtns(chatId,`\ud83d\udcb8 *${montant}\u20ac* \u2014 Quelle cat\u00e9gorie ?`,rows);}return;}
-    if(/salaire|lgm|paie/i.test(texte)&&montant&&montant>1000){await saveSalaire(chatId,montant);await send(chatId,`\u2705 Salaire LGM enregistr\u00e9: *${montant}\u20ac*`);return;}
-    if(/epargne|\u00e9pargne|economies/i.test(texte)&&montant&&montant>1000){await saveEpargne(chatId,montant);await send(chatId,`\u2705 \u00c9pargne mise \u00e0 jour: *${montant.toLocaleString()}\u20ac*`);return;}
-    if(/recu|vinted|remboursement|rentree|participation/i.test(texte)&&montant){await saveRevenu(chatId,montant,texte);await send(chatId,`\u2705 Rentr\u00e9e *+${montant}\u20ac* enregistr\u00e9e !`);return;}
-    const data=await getData();const reponse=await geminiParle(chatId,texte,data);await send(chatId,reponse);
-  } catch(err){console.error('Erreur webhook:',err.message);await send(chatId,'Erreur technique, r\u00e9essaie.');}
+    if (sessionsFiches[chatId]?.etape === 'attente_chapitre') {
+      const eleve = sessionsFiches[chatId].eleve;
+      delete sessionsFiches[chatId];
+      await send(chatId, `Generation fiche pour *${eleve.nom}*...`);
+      const contenu = await genererContenuFiche(eleve, texte);
+      const pdfPath = await creerPDF(eleve, texte, contenu);
+      await sendDoc(chatId, pdfPath, `fiche_${eleve.nom}_${texte.replace(/ /g,'_')}.pdf`);
+      fs.unlinkSync(pdfPath);
+      return;
+    }
+
+    if (sessionsEleves[chatId]?.etape === 'taux') {
+      const taux = parseFloat(texte.replace(',', '.'));
+      if (taux > 0) {
+        sessionsEleves[chatId] = { ...sessionsEleves[chatId], taux, etape: 'jour' };
+        await sendBtns(chatId, `Taux *${taux}EUR/h* OK\n\nJour du cours?`, [
+          [{ t: 'Lundi', d: 'ne_jour_1' }, { t: 'Mardi', d: 'ne_jour_2' }, { t: 'Mercredi', d: 'ne_jour_3' }],
+          [{ t: 'Jeudi', d: 'ne_jour_4' }, { t: 'Vendredi', d: 'ne_jour_5' }],
+          [{ t: 'Samedi', d: 'ne_jour_6' }, { t: 'Dimanche', d: 'ne_jour_0' }],
+        ]);
+      } else { await send(chatId, 'Envoie un nombre valide ex: 24.50'); }
+      return;
+    }
+
+    if (sessionsEleves[chatId]?.etape === 'heure') {
+      const match = texte.match(/(\d{1,2})[h:\s]?(\d{0,2})/);
+      if (match) {
+        const heure = parseInt(match[1]);
+        const minute = match[2] ? parseInt(match[2]) : 0;
+        sessionsEleves[chatId] = { ...sessionsEleves[chatId], heure, minute, etape: 'duree' };
+        await sendBtns(chatId, `Heure *${heure}h${minute > 0 ? minute : ''}* OK\n\nDuree?`, [[{ t: '1h', d: 'ne_duree_1' }, { t: '1h30', d: 'ne_duree_1.5' }, { t: '2h', d: 'ne_duree_2' }]]);
+      } else { await send(chatId, 'Format invalide. Ex: 14h30 ou 17h'); }
+      return;
+    }
+
+    if (sessionsEleves[chatId]?.etape === 'nom') {
+      sessionsEleves[chatId] = { nom: texte.trim(), etape: 'niveau' };
+      await sendBtns(chatId, `Prenom *${texte.trim()}* OK\n\nQuel niveau?`, [
+        [{ t: 'CE2', d: 'ne_niveau_CE2' }, { t: 'CM1', d: 'ne_niveau_CM1' }, { t: 'CM2', d: 'ne_niveau_CM2' }],
+        [{ t: '6e', d: 'ne_niveau_6e' }, { t: '5e', d: 'ne_niveau_5e' }, { t: '4e', d: 'ne_niveau_4e' }],
+        [{ t: '3e', d: 'ne_niveau_3e' }, { t: '2de', d: 'ne_niveau_2de' }, { t: '1re', d: 'ne_niveau_1re' }],
+        [{ t: 'Term', d: 'ne_niveau_Term' }, { t: 'Sup', d: 'ne_niveau_Sup' }],
+      ]);
+      return;
+    }
+
+    if (session.etape === 'prel_nom') {
+      sessions[chatId] = { ...session, prel_nom: texte, etape: 'prel_montant' };
+      await send(chatId, `Prelevement *${texte}* - Quel montant?`);
+      return;
+    }
+    if (session.etape === 'prel_montant') {
+      const montant = parseFloat(texte.replace(',', '.'));
+      if (montant > 0) {
+        sessions[chatId] = { ...session, prel_montant: montant, etape: 'prel_jour' };
+        await send(chatId, `Montant *${montant}EUR* OK - Quel jour du mois? (1-31, ou "?" si inconnu)`);
+      } else { await send(chatId, 'Montant invalide'); }
+      return;
+    }
+    if (session.etape === 'prel_jour') {
+      const jour = texte === '?' ? null : parseInt(texte);
+      await supabase.from('prelevements').insert({ nom: session.prel_nom, montant: session.prel_montant, jour_mois: jour, frequence: 'mensuel', actif: true });
+      delete sessions[chatId];
+      await send(chatId, `Prelevement *${session.prel_nom}* ajoute! ${session.prel_montant}EUR${jour ? ' le ' + jour : ''}`);
+      return;
+    }
+
+    if (session.etape === 'attente_montant' && session.cat) {
+      const montant = trouverMontant(texte);
+      if (montant) {
+        await saveDepense(chatId, montant, session.cat, texte);
+        const newData = await getData();
+        const restant = BUDGETS[session.cat].max - newData.totaux[session.cat];
+        delete sessions[chatId];
+        await send(chatId, `${montant}EUR - ${BUDGETS[session.cat].label}\nRestant: ${restant.toFixed(0)}EUR / ${BUDGETS[session.cat].max}EUR`);
+      } else { await send(chatId, 'Envoie juste le montant ex: 45'); }
+      return;
+    }
+
+    if (texte === '/start') {
+      delete sessions[chatId];
+      await send(chatId,
+        `Salut Nour-Dine! Je suis L'Agent.\n\n` +
+        `/cours - signaler un cours\n` +
+        `/depense - saisir une depense\n` +
+        `/revenus - voir/ajouter revenus\n` +
+        `/prelevements - gerer prelevements\n` +
+        `/nouvel_eleve - ajouter un eleve\n` +
+        `/fiche - generer une fiche PDF\n` +
+        `/annuler - annuler une action\n` +
+        `/objectifs - progression epargne\n` +
+        `/bilan - depenses du mois\n` +
+        `/completude - revenus Completude\n` +
+        `/synthese - bilan complet\n\n` +
+        `Dashboard: https://budget-bot-production-eaaf.up.railway.app/dashboard\n\n` +
+        `Ou parle-moi naturellement!`
+      );
+      return;
+    }
+
+    if (texte === '/reset') { delete sessions[chatId]; await send(chatId, 'Conversation reinitialisee!'); return; }
+
+    if (texte === '/bilan') {
+      const data = await getData();
+      let msg = `Bilan ${new Date().toLocaleString('fr-FR', { month: 'long', year: 'numeric' })}\n\n`;
+      Object.entries(data.totaux).forEach(([k, v]) => {
+        const e = v > BUDGETS[k].max ? '[DEPASSE]' : v > BUDGETS[k].max * 0.8 ? '[Attention]' : '[OK]';
+        msg += `${e} ${BUDGETS[k].label}: ${v.toFixed(0)}/${BUDGETS[k].max}EUR\n`;
+      });
+      msg += `\nSolde: *${data.solde >= 0 ? '+' : ''}${data.solde.toFixed(0)}EUR*`;
+      await send(chatId, msg);
+      return;
+    }
+
+    if (texte === '/completude') {
+      const data = await getData();
+      const manque = Math.max(0, OBJECTIF_COMPLETUDE - data.completude);
+      const pct = Math.min(100, Math.round((data.completude / OBJECTIF_COMPLETUDE) * 100));
+      let msg = `Completude ${new Date().toLocaleString('fr-FR', { month: 'long', year: 'numeric' })}\n\n`;
+      msg += `*${data.completude.toFixed(2)}EUR* / ${OBJECTIF_COMPLETUDE}EUR (${pct}%)\n`;
+      msg += manque > 0 ? `Il manque: *${manque.toFixed(0)}EUR*\n` : `Objectif atteint!\n`;
+      if (data.cours.length > 0) {
+        msg += '\nDetail:\n';
+        data.cours.forEach(c => { msg += `- ${c.eleve}${c.rattrapage ? ' (rattrapage)' : ''}: +${c.gain.toFixed(2)}EUR\n`; });
+      }
+      if (data.coursManques.length > 0) {
+        msg += '\nManques:\n';
+        data.coursManques.forEach(c => { msg += `- ${c.eleve}: -${c.gain_manque.toFixed(2)}EUR\n`; });
+      }
+      await send(chatId, msg);
+      return;
+    }
+
+    if (texte === '/objectifs') {
+      const data = await getData();
+      let msg = `Objectifs epargne\n\nActuelle: *${data.epargneBase.toLocaleString()}EUR*\nProjection: *${data.epargneEstimee.toFixed(0)}EUR*\n\n`;
+      OBJECTIFS.forEach(o => {
+        const delta = data.epargneEstimee - o.montant;
+        const pct = Math.min(100, Math.round((data.epargneEstimee / o.montant) * 100));
+        msg += `${delta >= 0 ? 'OK' : 'PAS OK'} *${o.label}*: ${o.montant.toLocaleString()}EUR - ${pct}%\n`;
+      });
+      await send(chatId, msg);
+      return;
+    }
+
+    if (texte === '/synthese') { await envoyerSyntheseMensuelle(); return; }
+
+    if (texte === '/cours') {
+      const eleves = await getEleves();
+      const rows = [];
+      for (let i = 0; i < eleves.length; i += 3) rows.push(eleves.slice(i, i+3).map(e => ({ t: e.nom, d: `sel_eleve_${e.id}` })));
+      rows.push([{ t: 'Annuler', d: 'annuler' }]);
+      await sendBtns(chatId, 'Quel eleve?', rows);
+      return;
+    }
+
+    if (texte === '/depense') {
+      const cats = Object.entries(BUDGETS);
+      const rows = [];
+      for (let i = 0; i < cats.length; i += 3) rows.push(cats.slice(i, i+3).map(([k, b]) => ({ t: b.label, d: `cat_${k}` })));
+      rows.push([{ t: 'Annuler', d: 'annuler' }]);
+      sessions[chatId] = { etape: 'choix_cat' };
+      await sendBtns(chatId, 'Quelle categorie?', rows);
+      return;
+    }
+
+    if (texte === '/revenus') {
+      const data = await getData();
+      let msg = `Revenus - ${new Date().toLocaleString('fr-FR', { month: 'long', year: 'numeric' })}\n\n`;
+      msg += `- Salaire LGM: *${data.salaire}EUR*${data.salaire === SALAIRE_LGM_DEFAULT ? ' (par defaut)' : ''}\n`;
+      msg += `- Beau-frere: *${BEAU_FRERE}EUR*\n`;
+      msg += `- Completude: *${data.completude.toFixed(0)}EUR*\n`;
+      if (data.revenus.length > 0) {
+        msg += '\nAutres rentrees:\n';
+        data.revenus.forEach(r => { msg += `- ${r.libelle}: +${r.montant.toFixed(2)}EUR\n`; });
+      }
+      msg += `\n*Total: ${data.totalRevenus.toFixed(0)}EUR*\n\nPour ajouter: "Remboursement mutuelle 35EUR"`;
+      await send(chatId, msg);
+      return;
+    }
+
+    if (texte === '/annuler') {
+      await sendBtns(chatId, 'Que veux-tu annuler?', [
+        [{ t: 'Cours effectue', d: 'annul_type_cours' }],
+        [{ t: 'Cours manque', d: 'annul_type_manque' }],
+        [{ t: 'Depense', d: 'annul_type_depense' }],
+        [{ t: 'Fermer', d: 'annuler' }]
+      ]);
+      return;
+    }
+
+    if (texte === '/prelevements') {
+      const data = await getData();
+      const today = new Date().getDate();
+      let msg = `Prelevements - ${new Date().toLocaleString('fr-FR', { month: 'long', year: 'numeric' })}\n\n`;
+      const passes = data.prelevements.filter(p => p.jour_mois && p.jour_mois <= today);
+      const avenir = data.prelevements.filter(p => p.jour_mois && p.jour_mois > today);
+      const sansDate = data.prelevements.filter(p => !p.jour_mois);
+      if (passes.length > 0) { msg += 'Passes:\n'; passes.forEach(p => { msg += `- ${p.nom}: ${p.montant.toFixed(2)}EUR (le ${p.jour_mois})\n`; }); }
+      if (avenir.length > 0) { msg += '\nA venir:\n'; avenir.forEach(p => { msg += `- ${p.nom}: ${p.montant.toFixed(2)}EUR - le ${p.jour_mois}\n`; }); }
+      if (sansDate.length > 0) { msg += '\nDate inconnue:\n'; sansDate.forEach(p => { msg += `- ${p.nom}: ${p.montant.toFixed(2)}EUR\n`; }); }
+      const totalMensuel = data.prelevements.filter(p => p.frequence === 'mensuel').reduce((s, p) => s + p.montant, 0);
+      const montantAvenir = avenir.reduce((s, p) => s + p.montant, 0);
+      msg += `\n*Total mensuel: ${totalMensuel.toFixed(0)}EUR*`;
+      msg += `\nSolde apres prelevements a venir: *${(data.solde - montantAvenir).toFixed(0)}EUR*`;
+      await sendBtns(chatId, msg, [[{ t: 'Ajouter un prelevement', d: 'prel_ajouter' }, { t: 'Fermer', d: 'annuler' }]]);
+      return;
+    }
+
+    if (texte === '/nouvel_eleve') {
+      sessionsEleves[chatId] = { etape: 'nom' };
+      await send(chatId, 'Nouvel eleve\n\nQuel est son prenom?');
+      return;
+    }
+
+    if (texte === '/fiche') {
+      const eleves = await getEleves();
+      const elevesAvecFiche = eleves.filter(e => e.fiche);
+      const rows = [];
+      for (let i = 0; i < elevesAvecFiche.length; i += 3) rows.push(elevesAvecFiche.slice(i, i+3).map(e => ({ t: e.nom, d: `fiche_eleve_${e.id}` })));
+      rows.push([{ t: 'Annuler', d: 'fiche_annuler' }]);
+      await sendBtns(chatId, 'Fiche pour quel eleve?', rows);
+      return;
+    }
+
+    const elevesDetectes = await trouverEleves(texte);
+    const isCours = /cours|rattrapage|seance/i.test(texte);
+    const isPasFait = /pas fait|absent|annule|pas pu|rate|manque/i.test(texte);
+
+    if (elevesDetectes.length > 0 && isCours) {
+      const rattrapage = /rattrapage/i.test(texte);
+      const premier = elevesDetectes[0];
+      const fileAttente = elevesDetectes.slice(1);
+      if (isPasFait) {
+        for (const el of elevesDetectes) {
+          const gm = await saveCoursManque(chatId, el);
+          await send(chatId, `Cours ${el.nom} non effectue - Manque: -${gm.toFixed(2)}EUR`);
+        }
+        return;
+      }
+      sessions[chatId] = { eleve: premier, rattrapage, etape: 'confirmation', fileAttente };
+      await sendBtns(chatId, `Cours avec *${premier.nom}*${rattrapage ? ' (rattrapage)' : ''} - effectue?`, [[{ t: 'Oui', d: 'cours_oui' }, { t: 'Non', d: 'cours_non' }], [{ t: 'Annuler', d: 'annuler' }]]);
+      return;
+    }
+
+    const montant = trouverMontant(texte);
+    const cat = trouverCategorie(texte);
+
+    if (montant && montant > 0 && montant < 5000 && !isCours) {
+      if (cat) {
+        await saveDepense(chatId, montant, cat, texte);
+        const newData = await getData();
+        const restant = BUDGETS[cat].max - newData.totaux[cat];
+        await send(chatId, `${montant}EUR - ${BUDGETS[cat].label}\nRestant: ${restant.toFixed(0)}EUR / ${BUDGETS[cat].max}EUR`);
+      } else {
+        sessions[chatId] = { montant, libelle: texte, etape: 'choix_cat' };
+        const cats = Object.entries(BUDGETS);
+        const rows = [];
+        for (let i = 0; i < cats.length; i += 3) rows.push(cats.slice(i, i+3).map(([k, b]) => ({ t: b.label, d: `cat_${k}` })));
+        rows.push([{ t: 'Annuler', d: 'annuler' }]);
+        await sendBtns(chatId, `${montant}EUR - Quelle categorie?`, rows);
+      }
+      return;
+    }
+
+    if (/salaire|lgm|paie/i.test(texte) && montant && montant > 1000) { await saveSalaire(chatId, montant); await send(chatId, `Salaire LGM: *${montant}EUR*`); return; }
+    if (/epargne|economies/i.test(texte) && montant && montant > 100) { await saveEpargne(chatId, montant); await send(chatId, `Epargne mise a jour: *${montant.toLocaleString()}EUR*`); return; }
+    if (/recu|remboursement|rentree|virement|mutuelle|participation/i.test(texte) && montant) { await saveRevenu(chatId, montant, texte); await send(chatId, `Rentree *+${montant}EUR* enregistree!`); return; }
+
+    const data = await getData();
+    const model = genAI.getGenerativeModel({ model: MODELE });
+    const ctx = `Tu es L'Agent, assistant de Nour-Dine. Naturel, direct, 4 lignes max en francais.\nFinances: LGM ${data.salaire}EUR, Completude ${data.completude.toFixed(0)}EUR/${OBJECTIF_COMPLETUDE}EUR, Solde ${data.solde.toFixed(0)}EUR, Epargne ${data.epargneBase}EUR`;
+    const result = await model.generateContent(ctx + '\n\nMessage: ' + texte);
+    await send(chatId, result.response.text());
+
+  } catch (err) {
+    console.error('Webhook error:', err.message);
+    await send(chatId, 'Erreur technique, reessaie.');
+  }
 });
-
-async function envoyerRappelBiHebdo(){const data=await getData();const mois=new Date().toLocaleString('fr-FR',{month:'long',year:'numeric'});const aVenir=getPrelEvementsAVenir(5);let m=`\ud83d\udccb *Rappel bi-hebdo \u2014 ${mois}*\n\n\ud83d\udcb0 LGM: ${data.salaire}\u20ac | Compl\u00e9tude: ${data.completude.toFixed(0)}\u20ac/${OBJECTIF_COMPLETUDE}\u20ac\n\n\ud83d\udcb8 *D\u00e9penses:*\n`;Object.entries(data.totaux).forEach(([k,v])=>{if(v>0){const e=v>BUDGETS[k].max?'\ud83d\udd34':v>BUDGETS[k].max*0.8?'\ud83d\udfe1':'\ud83d\udfe2';m+=e+' '+BUDGETS[k].label+': '+v.toFixed(0)+'\u20ac/'+BUDGETS[k].max+'\u20ac\n';}});m+='\n\ud83d\udcca Solde: *'+(data.solde>=0?'+':'')+data.solde.toFixed(0)+'\u20ac*';if(data.totalManque>0)m+='\n\ud83d\udcb8 Manques: *-'+data.totalManque.toFixed(0)+'\u20ac*';if(aVenir.length>0){const ts=aVenir.reduce((s,p)=>s+p.montant,0);m+='\n\n\u26a0\ufe0f *Pr\u00e9l\u00e8vements dans 5j: -'+ts.toFixed(0)+'\u20ac*\n';aVenir.forEach(p=>m+='\u2022 '+p.nom+': '+p.montant.toFixed(0)+'\u20ac (le '+p.jourEffectif+')\n');}await send(CHAT_ID,m);}
-async function envoyerSyntheseMensuelle(){const data=await getData();const mois=new Date().toLocaleString('fr-FR',{month:'long',year:'numeric'}).toUpperCase();let m='\ud83d\uddd3\ufe0f *SYNTH\u00c8SE '+mois+'*\n\n\u2705 *REVENUS: '+data.totalRevenus.toFixed(0)+'\u20ac*\n\u2022 LGM: '+data.salaire+'\u20ac\n\u2022 Compl\u00e9tude: '+data.completude.toFixed(0)+'\u20ac\n';if(data.revenusSupp>0)m+='\u2022 Divers: '+data.revenusSupp.toFixed(0)+'\u20ac\n';m+='\n\ud83d\udd12 *CHARGES: -'+TOTAL_CHARGES_FIXES.toFixed(0)+'\u20ac*\n\n\ud83d\udcb8 *D\u00c9PENSES: -'+data.totalDep.toFixed(0)+'\u20ac*\n';Object.entries(data.totaux).forEach(([k,v])=>{const e=v>BUDGETS[k].max?'\ud83d\udd34':v>BUDGETS[k].max*0.8?'\ud83d\udfe1':'\ud83d\udfe2';m+=e+' '+BUDGETS[k].label+': '+v.toFixed(0)+'\u20ac/'+BUDGETS[k].max+'\u20ac\n';});m+='\n\ud83d\udcb0 *SOLDE: '+(data.solde>=0?'+':'')+data.solde.toFixed(0)+'\u20ac*\n\n\ud83c\udfaf *OBJECTIFS:*\n';OBJECTIFS.forEach(o=>{const delta=data.epargneEstimee-o.montant;m+=(delta>=0?'\u2705':'\u26a0\ufe0f')+' '+o.label+': '+o.montant.toLocaleString()+'\u20ac ('+(delta>=0?'+':'')+delta.toFixed(0)+'\u20ac)\n';});await send(CHAT_ID,m);}
-
-function estSemaineSerena(){const debut=new Date('2026-05-10');return Math.floor((new Date()-debut)/(7*24*60*60*1000))%2===0;}
-
-function demarrerScheduler(){
-  setInterval(()=>{fetch('https://budget-bot-production-eaaf.up.railway.app/').catch(()=>{});},4*60*1000);
-  setInterval(async()=>{
-    const now=new Date(new Date().toLocaleString('en-US',{timeZone:'Europe/Paris'}));
-    const jour=now.getDay(),heure=now.getHours(),minute=now.getMinutes();
-    if((jour===3||jour===0)&&heure===20&&minute===0)await envoyerRappelBiHebdo();
-    if(now.getDate()===30&&heure===20&&minute===0)await envoyerSyntheseMensuelle();
-    const demain=now.getDate()+1;
-    if(heure===9&&minute===0){const alertes=PRELEVEMENTS_DATES.filter(p=>p.jour===demain);if(alertes.length>0){const total=alertes.reduce((s,p)=>s+p.montant,0);let m='\u26a0\ufe0f *Pr\u00e9l\u00e8vements demain ('+demain+')*\n\n';alertes.forEach(p=>m+='\u2022 '+p.nom+': *'+p.montant.toFixed(2)+'\u20ac*\n');m+='\n\ud83d\udcb8 Total: *'+total.toFixed(2)+'\u20ac*';await send(CHAT_ID,m);}}
-    for(const[nomEleve,profil]of Object.entries(ELEVES)){if(profil.jour!==jour)continue;if(profil.uneSemaineSurDeux&&!estSemaineSerena())continue;const totalMin=profil.minute+Math.floor(profil.duree*60);const heureFin=profil.heure+Math.floor(totalMin/60);const minuteFin=totalMin%60;if(heure===heureFin&&minute===minuteFin){sessions[CHAT_ID]={eleve:nomEleve,rattrapage:false,etape:'confirmation'};await sendBtns(CHAT_ID,`\ud83d\udcda *Fin de cours !*\n\nAs-tu fait cours avec *${nomEleve}* ?`,[[{t:'\u2705 Oui',d:'cours_oui'},{t:'\u274c Non',d:'cours_non'}],[{t:'Annuler',d:'annuler'}]]);}}
-  },60000);
-}
-
-async function sendDocument(chatId,filePath,filename){const FormData=require('form-data');const form=new FormData();form.append('chat_id',String(chatId));form.append('document',fs.createReadStream(filePath),{filename});await fetch(`https://api.telegram.org/bot${TOKEN}/sendDocument`,{method:'POST',body:form,headers:form.getHeaders()});}
 
 app.get('/api/dashboard', async (req, res) => {
   try {
-    const moisOffset=parseInt(req.query.mois||'0');
-    const data=await getData(moisOffset);
-    const aVenir=getPrelEvementsAVenir(7);
-    const totalRestant=getTotalPrelevementsRestants();
-    const moisDisponibles=[];
-    for(let i=-5;i<=0;i++){const d=new Date();d.setUTCMonth(d.getUTCMonth()+i);moisDisponibles.push({offset:i,label:d.toLocaleString('fr-FR',{month:'long',year:'numeric'}),isCurrent:i===0});}
-    res.json({salaire:data.salaire,beau_frere:BEAU_FRERE,completude:data.completude,objectif_completude:OBJECTIF_COMPLETUDE,total_revenus:data.totalRevenus,charges_fixes:TOTAL_CHARGES_FIXES,total_dep:data.totalDep,solde:data.solde,epargne_base:data.epargneBase,epargne_estimee:data.epargneEstimee,total_manque:data.totalManque,nb_cours:data.cours.length,nb_cours_manques:data.coursManques.length,cours:data.cours,cours_manques:data.coursManques,totaux:data.totaux,detail:data.detail,budgets:BUDGETS,objectifs:OBJECTIFS,revenus_supp:data.revenus,prelevements_a_venir:aVenir,total_prelevements_restants:totalRestant,prelevements_tous:PRELEVEMENTS_DATES,mois_offset:moisOffset,mois_disponibles:moisDisponibles});
-  } catch(err){res.status(500).json({error:err.message});}
+    const mois = req.query.mois !== undefined ? parseInt(req.query.mois) : undefined;
+    const annee = req.query.annee !== undefined ? parseInt(req.query.annee) : undefined;
+    const data = await getData(mois, annee);
+    const eleves = await getEleves();
+    res.json({
+      salaire: data.salaire, beau_frere: BEAU_FRERE,
+      completude: data.completude, objectif_completude: OBJECTIF_COMPLETUDE,
+      total_revenus: data.totalRevenus, charges_fixes: data.totalCharges,
+      total_dep: data.totalDep, solde: data.solde,
+      epargne_base: data.epargneBase, epargne_estimee: data.epargneEstimee,
+      total_manque: data.totalManque, nb_cours: data.cours.length,
+      nb_cours_manques: data.coursManques.length,
+      cours: data.cours, cours_manques: data.coursManques,
+      totaux: data.totaux, budgets: BUDGETS, objectifs: OBJECTIFS,
+      prelevements: data.prelevements, revenus: data.revenus,
+      eleves, depenses: data.depenses, mois: data.mois, annee: data.annee
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ============================================================
@@ -916,11 +1530,11 @@ setInterval(charger,30000);
 </html>`);
 });
 
+app.get('/', (req, res) => res.send("L'Agent est en ligne!"));
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, async () => {
-  console.log(`L'Agent écoute sur le port ${PORT}`);
-  await chargerElevesCustom();
+app.listen(PORT, () => {
+  console.log(`L'Agent ecoute sur le port ${PORT}`);
   demarrerScheduler();
 });
 
