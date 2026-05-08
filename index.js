@@ -20,7 +20,7 @@ const MODELE = 'gemini-2.0-flash';
 const SALAIRE_LGM_DEFAULT = 2500;
 const BEAU_FRERE = 320;
 const OBJECTIF_COMPLETUDE = 1500;
-const EPARGNE_DEPART = 9000;
+const EPARGNE_DEPART = 6000;
 
 const CHARGES_FIXES = {
   'Loyer': 832.46, 'Tontine 1': 500, 'Tontine 2': 500,
@@ -33,7 +33,6 @@ const CHARGES_FIXES = {
 };
 const TOTAL_CHARGES_FIXES = Object.values(CHARGES_FIXES).reduce((a, b) => a + b, 0);
 
-// Prélèvements avec dates pour le suivi
 const PRELEVEMENTS_DATES = [
   { nom: 'Loyer',               montant: 832.46, jour: 1  },
   { nom: 'Tontine 1',           montant: 500.00, jour: 1  },
@@ -71,12 +70,11 @@ const BUDGETS = {
 };
 
 const OBJECTIFS = [
-  { label: 'Fin juin 2026', montant: 12500 },
-  { label: 'Fin août 2026', montant: 15000 },
+  { label: 'Fin juin 2026', montant: 10000 },
+  { label: 'Fin août 2026', montant: 13000 },
   { label: 'Janvier 2027',  montant: 20000 },
 ];
 
-// ELEVES chargés dynamiquement depuis Supabase
 let ELEVES = {
   'Amel':        { niveau: '5e',  taux: 21.04, duree: 1.5, tda: false, ficheHebdo: false, question2h: true,  fiche: true,  jour: 1, heure: 17, minute: 0  },
   'Benjamin':    { niveau: '5e',  taux: 24.30, duree: 1.5, tda: false, ficheHebdo: false, question2h: true,  fiche: true,  jour: 2, heure: 18, minute: 0  },
@@ -91,7 +89,6 @@ let ELEVES = {
   'Serena':      { niveau: '5e',  taux: 23.04, duree: 1.5, tda: false, ficheHebdo: false, question2h: true,  fiche: true,  jour: 0, heure: 13, minute: 0, uneSemaineSurDeux: true },
 };
 
-// Charger les élèves personnalisés depuis Supabase au démarrage
 async function chargerElevesCustom() {
   try {
     const { data } = await supabase.from('eleves_custom').select('*').eq('actif', true);
@@ -112,7 +109,6 @@ async function chargerElevesCustom() {
   }
 }
 
-// État conversations
 const sessions = {};
 const sessionsFiches = {};
 const sessionsAnnuler = {};
@@ -202,13 +198,14 @@ async function getData(moisOffset = 0) {
   const debut = getDebutMois(moisOffset);
   const fin = getFinMois(moisOffset);
 
+  // Pour l'épargne : on prend le dernier enregistrement <= fin du mois consulté
   const [d1, d2, d3, d4, d5, d6] = await Promise.all([
     supabase.from('depenses').select('*').gte('created_at', debut).lt('created_at', fin),
     supabase.from('cours').select('*').gte('created_at', debut).lt('created_at', fin),
     supabase.from('cours_manques').select('*').gte('created_at', debut).lt('created_at', fin),
     supabase.from('revenus').select('*').gte('created_at', debut).lt('created_at', fin),
     supabase.from('salaires').select('*').gte('created_at', debut).lt('created_at', fin).order('created_at', { ascending: false }).limit(1),
-    supabase.from('epargne').select('*').order('created_at', { ascending: false }).limit(1),
+    supabase.from('epargne').select('*').lt('created_at', fin).order('created_at', { ascending: false }).limit(1),
   ]);
 
   const depenses = d1.data || [];
@@ -222,7 +219,6 @@ async function getData(moisOffset = 0) {
   Object.keys(BUDGETS).forEach(k => totaux[k] = 0);
   depenses.forEach(d => { if (totaux[d.categorie] !== undefined) totaux[d.categorie] += d.montant; });
 
-  // Détail par catégorie
   const detail = {};
   Object.keys(BUDGETS).forEach(k => detail[k] = []);
   depenses.forEach(d => { if (detail[d.categorie] !== undefined) detail[d.categorie].push(d); });
@@ -292,7 +288,7 @@ async function saveEleveCustom(chatId, eleveData) {
 }
 
 // ============================================================
-// SUIVI PRÉLÈVEMENTS À VENIR
+// SUIVI PRÉLÈVEMENTS
 // ============================================================
 function getPrelEvementsAVenir(joursAvance = 7) {
   const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
@@ -302,7 +298,7 @@ function getPrelEvementsAVenir(joursAvance = 7) {
 
   const aVenir = [];
   PRELEVEMENTS_DATES.forEach(p => {
-    if (!p.jour) return; // trimestriel sans date fixe
+    if (!p.jour) return;
     let jourPrelevement = p.jour;
     if (jourPrelevement > dernierJour) jourPrelevement = dernierJour;
     if (jourPrelevement >= aujourdhui && jourPrelevement <= Math.min(finPeriode, dernierJour)) {
@@ -543,7 +539,6 @@ async function traiterCallback(cb) {
     else if (opt === 'hebdo') sess.options.ficheHebdo = true;
     else if (opt === '2sem') sess.options.uneSemaineSurDeux = true;
 
-    // Confirmer et sauvegarder
     const eleveData = {
       nom: sess.nom, niveau: sess.niveau, taux: sess.taux, duree: sess.duree,
       jour: sess.jour, heure: sess.heure, minute: sess.minute || 0,
@@ -706,6 +701,44 @@ async function traiterCallback(cb) {
     return;
   }
 
+  // ── Annuler un revenu ──────────────────────────────────
+  if (data === 'ann_revenu') {
+    const debut = new Date();
+    debut.setUTCDate(1); debut.setUTCHours(0, 0, 0, 0);
+    const { data: revenus } = await supabase
+      .from('revenus')
+      .select('id, montant, libelle, created_at')
+      .gte('created_at', debut.toISOString())
+      .order('created_at', { ascending: false })
+      .limit(8);
+
+    if (!revenus || revenus.length === 0) {
+      await send(chatId, '❌ Aucun revenu enregistré ce mois.');
+      return;
+    }
+
+    const rows = revenus.map(r => {
+      const date = new Date(r.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+      const label = `${r.montant}€ — ${(r.libelle || '?').slice(0, 20)} (${date})`;
+      return [{ t: label, d: `ann_rev_id_${r.id}` }];
+    });
+    rows.push([{ t: '↩️ Retour', d: 'annuler' }]);
+    await sendBtns(chatId, '💰 *Quel revenu annuler ?*\n_(revenus de ce mois)_', rows);
+    return;
+  }
+
+  if (data.startsWith('ann_rev_id_')) {
+    const id = data.replace('ann_rev_id_', '');
+    const { data: item } = await supabase.from('revenus').select('montant, libelle').eq('id', id).single();
+    const { error } = await supabase.from('revenus').delete().eq('id', id);
+    if (!error && item) {
+      await send(chatId, `✅ Revenu annulé : *+${item.montant}€* — ${item.libelle || '?'}`);
+    } else {
+      await send(chatId, '❌ Erreur lors de la suppression.');
+    }
+    return;
+  }
+
   if (data.startsWith('ann_cf_')) {
     const eleve = data.replace('ann_cf_', '');
     const ok = await annulerDernierCours(eleve);
@@ -797,7 +830,6 @@ app.post('/webhook', async (req, res) => {
   const session = sessions[chatId] || {};
 
   try {
-    // /start
     if (texte === '/start') {
       delete sessions[chatId];
       await send(chatId,
@@ -815,13 +847,11 @@ app.post('/webhook', async (req, res) => {
     if (texte === '/reset') { delete sessions[chatId]; await send(chatId, '🔄 Conversation réinitialisée !'); return; }
     if (texte === '/fiche') { await demarrerFiche(chatId); return; }
 
-    // /ajouteleve
     if (texte === '/ajouteleve' || texte === '/ajouter' || /ajouter?\s+[ée]l[eè]ve/i.test(texte)) {
       await demarrerAjoutEleve(chatId);
       return;
     }
 
-    // /revenu
     if (texte === '/revenu' || texte === '/revenus') {
       await sendBtns(chatId, '💰 *Quel type de rentrée d\'argent ?*', [
         [{ t: '💼 Vinted / vente', d: 'rev_type_Vente Vinted' }, { t: '🔄 Remboursement', d: 'rev_type_Remboursement' }],
@@ -831,7 +861,6 @@ app.post('/webhook', async (req, res) => {
       return;
     }
 
-    // /prelevements
     if (texte === '/prelevements' || texte === '/prélèvements') {
       const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
       const aujourd = now.getDate();
@@ -858,17 +887,15 @@ app.post('/webhook', async (req, res) => {
       return;
     }
 
-    // /annuler
     if (texte === '/annuler') {
       await sendBtns(chatId, '🔄 *Que veux-tu annuler ?*', [
         [{ t: '📚 Un cours effectué', d: 'ann_cours_fait' }, { t: '❌ Un cours manqué', d: 'ann_cours_manque' }],
-        [{ t: '💸 Une dépense', d: 'ann_depense' }],
+        [{ t: '💸 Une dépense', d: 'ann_depense' }, { t: '💰 Un revenu', d: 'ann_revenu' }],
         [{ t: '↩️ Annuler', d: 'annuler' }]
       ]);
       return;
     }
 
-    // /modifier
     if (texte === '/modifier') {
       await sendBtns(chatId, '✏️ *Que veux-tu modifier ?*', [
         [{ t: '📊 Un budget catégorie', d: 'mod_budget' }],
@@ -880,26 +907,24 @@ app.post('/webhook', async (req, res) => {
 
     // ── ÉTATS ACTIFS ───────────────────────────────────────
 
-    // Ajout élève en cours
     if (sessionsAjoutEleve[chatId]) {
       const handled = await traiterAjoutEleve(chatId, texte);
       if (handled) return;
     }
 
-    // Revenu en cours
     if (sessionsRevenu[chatId] && sessionsRevenu[chatId].etape === 'montant') {
       const montant = trouverMontant(texte);
       if (montant && montant > 0) {
-        await saveRevenu(chatId, montant, sessionsRevenu[chatId].type);
+        const type = sessionsRevenu[chatId].type;
+        await saveRevenu(chatId, montant, type);
         delete sessionsRevenu[chatId];
-        await send(chatId, `✅ Rentrée *+${montant}€* enregistrée ! (${sessionsRevenu[chatId]?.type || 'Revenu'})`);
+        await send(chatId, `✅ Rentrée *+${montant}€* enregistrée ! (${type})`);
       } else {
         await send(chatId, 'Envoie un montant valide, ex: *150*');
       }
       return;
     }
 
-    // Modifier budget
     if (sessionsModifier[chatId]?.etape === 'attente_montant_budget') {
       const cat = sessionsModifier[chatId].categorie;
       const montant = trouverMontant(texte);
@@ -913,7 +938,6 @@ app.post('/webhook', async (req, res) => {
       return;
     }
 
-    // Modifier dépense
     if (sessionsModifier[chatId]?.etape === 'attente_rectif_depense') {
       const cat = sessionsModifier[chatId].categorie;
       const montant = trouverMontant(texte);
@@ -933,7 +957,6 @@ app.post('/webhook', async (req, res) => {
       return;
     }
 
-    // Fiche en cours
     if (sessionsFiches[chatId]?.etape === 'attente_chapitre') {
       const eleve = sessionsFiches[chatId].eleve;
       delete sessionsFiches[chatId];
@@ -950,7 +973,6 @@ app.post('/webhook', async (req, res) => {
       return;
     }
 
-    // /bilan
     if (texte === '/bilan') {
       const data = await getData();
       let m = `📊 *Bilan ${new Date().toLocaleString('fr-FR', { month: 'long', year: 'numeric' })}*\n\n`;
@@ -1143,7 +1165,6 @@ function demarrerScheduler() {
     if ((jour === 3 || jour === 0) && heure === 20 && minute === 0) await envoyerRappelBiHebdo();
     if (now.getDate() === 30 && heure === 20 && minute === 0) await envoyerSyntheseMensuelle();
 
-    // Alerte prélèvement J-1
     const demain = now.getDate() + 1;
     if (heure === 9 && minute === 0) {
       const alertes = PRELEVEMENTS_DATES.filter(p => p.jour === demain);
@@ -1338,7 +1359,6 @@ app.get('/api/dashboard', async (req, res) => {
     const aVenir = getPrelEvementsAVenir(7);
     const totalRestant = getTotalPrelevementsRestants();
 
-    // Labels des mois disponibles (mois courant - 5 → mois courant)
     const moisDisponibles = [];
     for (let i = -5; i <= 0; i++) {
       const d = new Date();
@@ -1372,10 +1392,6 @@ app.get('/api/dashboard', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
-// ============================================================
-// DASHBOARD HTML
-// ============================================================
 
 app.get('/dashboard', (req, res) => {
   res.sendFile(path.join(__dirname, 'dashboard.html'));
