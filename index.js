@@ -1395,6 +1395,79 @@ async function demarrerFiche(chatId) {
 }
 
 // ============================================================
+// CALCUL POTENTIEL RESTANT (côté serveur)
+// ============================================================
+function calculerPotentielRestant(moisOffset, cours, coursManques) {
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
+  const refDate = new Date(now.getFullYear(), now.getMonth() + moisOffset, 1);
+  const annee = refDate.getFullYear();
+  const mois = refDate.getMonth();
+  const isCurrent = moisOffset === 0;
+  const todayNum = isCurrent ? now.getDate() : 0;
+  const dernierJour = new Date(annee, mois + 1, 0).getDate();
+
+  // Jours avec cours prévus
+  const joursAvecCours = {};
+  for (let d = 1; d <= dernierJour; d++) {
+    const date = new Date(annee, mois, d);
+    const jourSemaine = date.getDay();
+    const elevesJour = [];
+    for (const [nom, p] of Object.entries(ELEVES)) {
+      if (p.jour !== jourSemaine) continue;
+      if (p.uneSemaineSurDeux) {
+        const ref = new Date('2026-05-10');
+        const diff = Math.floor((date - ref) / (7 * 24 * 60 * 60 * 1000));
+        if (diff % 2 !== 0) continue;
+      }
+      elevesJour.push(nom);
+    }
+    if (elevesJour.length > 0) joursAvecCours[d] = elevesJour;
+  }
+
+  // Calcul potentiel futur
+  let montantRestant = 0;
+  let joursRestantsCount = 0;
+  const elevesRestants = {};
+  const jourDepart = isCurrent ? todayNum + 1 : 1;
+
+  for (let d = jourDepart; d <= dernierJour; d++) {
+    if (joursAvecCours[d]) {
+      joursAvecCours[d].forEach(nom => {
+        const p = ELEVES[nom];
+        if (p) {
+          montantRestant += p.taux * p.duree;
+          joursRestantsCount++;
+          if (!elevesRestants[nom]) elevesRestants[nom] = 0;
+          elevesRestants[nom]++;
+        }
+      });
+    }
+  }
+
+  // Calendrier enrichi pour le dashboard
+  const calendrier = {};
+  for (let d = 1; d <= dernierJour; d++) {
+    const estPasse = isCurrent ? d < todayNum : moisOffset < 0;
+    const estAujourdHui = isCurrent && d === todayNum;
+    const estFutur = isCurrent ? d > todayNum : false;
+    calendrier[d] = {
+      prevus: joursAvecCours[d] || [],
+      estPasse, estAujourdHui, estFutur,
+    };
+  }
+
+  return {
+    montantRestant,
+    joursRestantsCount,
+    elevesRestants,
+    calendrier,
+    dernierJour,
+    annee,
+    mois,
+  };
+}
+
+// ============================================================
 // API DASHBOARD
 // ============================================================
 app.get('/api/dashboard', async (req, res) => {
@@ -1415,6 +1488,19 @@ app.get('/api/dashboard', async (req, res) => {
       });
     }
 
+    // Planning élèves pour le dashboard (sans infos internes)
+    const planningDashboard = {};
+    Object.entries(ELEVES).forEach(([nom, p]) => {
+      planningDashboard[nom] = {
+        jour: p.jour, taux: p.taux, duree: p.duree,
+        uneSemaineSurDeux: p.uneSemaineSurDeux || false,
+        niveau: p.niveau,
+      };
+    });
+
+    // Potentiel restant calculé côté serveur
+    const potentiel = calculerPotentielRestant(moisOffset, data.cours, data.coursManques);
+
     res.json({
       salaire: data.salaire, beau_frere: BEAU_FRERE,
       completude: data.completude, objectif_completude: OBJECTIF_COMPLETUDE,
@@ -1432,6 +1518,13 @@ app.get('/api/dashboard', async (req, res) => {
       prelevements_tous: PRELEVEMENTS_DATES,
       mois_offset: moisOffset,
       mois_disponibles: moisDisponibles,
+      planning: planningDashboard,
+      potentiel_restant: potentiel.montantRestant,
+      jours_restants_count: potentiel.joursRestantsCount,
+      eleves_restants: potentiel.elevesRestants,
+      calendrier: potentiel.calendrier,
+      dernier_jour: potentiel.dernierJour,
+      annee_mois: { annee: potentiel.annee, mois: potentiel.mois },
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
