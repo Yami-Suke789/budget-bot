@@ -402,20 +402,36 @@ function trouverTousLesEleves(texte) {
 }
 
 function trouverMontant(texte) {
-  const m = texte.match(/(\d+([.,]\d{1,2})?)\s*€?/);
-  return m ? parseFloat(m[1].replace(',', '.')) : null;
+  const m = texte.match(/(\d+([.,]\d{1,2})?)\s*€/);
+  if (m) return parseFloat(m[1].replace(',', '.'));
+  const m2 = texte.match(/(\d+([.,]\d{1,2})?)/);
+  return m2 ? parseFloat(m2[1].replace(',', '.')) : null;
 }
 
 function trouverCategorie(texte) {
-  const t = texte.toLowerCase();
-  if (/essence|plein|carburant|station|total|esso/.test(t)) return 'essence';
-  if (/leclerc|courses|carrefour|lidl|cora|supermarche|aldi/.test(t)) return 'courses';
-  if (/resto|restaurant|mcdo|burger|pizza|kebab|sushi/.test(t)) return 'restos';
-  if (/medecin|pharmacie|docteur|sante|doctolib/.test(t)) return 'sante';
-  if (/ikea|maison|bricolage|castorama/.test(t)) return 'maison';
-  if (/garage|voiture|reparation|pneu|peage/.test(t)) return 'voiture';
-  if (/vetement|zara|shopping|coiffeur|hm/.test(t)) return 'shopping';
-  if (/cinema|loisir|concert|sport|sortie/.test(t)) return 'loisirs';
+  const t = texte.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+  // Détection directe des noms du raccourci (prioritaire)
+  if (/\bessence\b/.test(t)) return 'essence';
+  if (/\bcourses\b/.test(t)) return 'courses';
+  if (/\brestos?\b/.test(t)) return 'restos';
+  if (/\bvoiture\b/.test(t)) return 'voiture';
+  if (/\bsante\b/.test(t)) return 'sante';
+  if (/\bmaison\b/.test(t)) return 'maison';
+  if (/\bshopping\b/.test(t)) return 'shopping';
+  if (/\bdivers\b/.test(t)) return 'divers';
+  if (/\bloisirs?\b/.test(t)) return 'loisirs';
+
+  // Détection par mots-clés (fallback)
+  if (/plein|carburant|station|total|esso/.test(t)) return 'essence';
+  if (/leclerc|carrefour|lidl|cora|supermarche|aldi/.test(t)) return 'courses';
+  if (/restaurant|mcdo|burger|pizza|kebab|sushi/.test(t)) return 'restos';
+  if (/medecin|pharmacie|docteur|doctolib/.test(t)) return 'sante';
+  if (/ikea|bricolage|castorama/.test(t)) return 'maison';
+  if (/garage|reparation|pneu|peage/.test(t)) return 'voiture';
+  if (/vetement|zara|coiffeur|hm/.test(t)) return 'shopping';
+  if (/cinema|concert|sortie/.test(t)) return 'loisirs';
+
   return null;
 }
 
@@ -1512,7 +1528,47 @@ function calculerPotentielRestant(moisOffset, cours, coursManques) {
 // ============================================================
 // API DASHBOARD
 // ============================================================
-app.get('/api/dashboard', async (req, res) => {
+// ============================================================
+// ROUTE /depense — appelée depuis le raccourci iOS Apple Pay
+// ============================================================
+app.post('/depense', async (req, res) => {
+  res.sendStatus(200);
+  try {
+    const { chat_id, text } = req.body;
+    const chatId = chat_id || CHAT_ID;
+    const montant = trouverMontant(text);
+    const cat = trouverCategorie(text);
+
+    console.log(`/depense reçu — text: "${text}" | montant: ${montant} | cat: ${cat}`);
+
+    if (!montant || montant <= 0) {
+      await send(chatId, '❌ Montant invalide reçu depuis le raccourci.');
+      return;
+    }
+
+    if (cat) {
+      await saveDepense(chatId, montant, cat, text);
+      const newData = await getData();
+      const restant = BUDGETS[cat].max - newData.totaux[cat];
+      const emoji = restant < 0 ? '🔴' : restant < BUDGETS[cat].max * 0.2 ? '🟡' : '🟢';
+      await send(chatId, `🍎 *Apple Pay — ${montant}€*\n✅ ${BUDGETS[cat].label}\n${emoji} Restant: *${restant.toFixed(0)}€* / ${BUDGETS[cat].max}€`);
+    } else {
+      // Catégorie non détectée → demander via boutons Telegram
+      sessions[chatId] = { montant, libelle: text, etape: 'choix_cat' };
+      const cats = Object.entries(BUDGETS);
+      const rows = [];
+      for (let i = 0; i < cats.length; i += 3) {
+        rows.push(cats.slice(i, i + 3).map(([k, b]) => ({ t: b.label, d: `cat_${k}` })));
+      }
+      rows.push([{ t: '↩️ Annuler', d: 'annuler' }]);
+      await sendBtns(chatId, `🍎 *Apple Pay — ${montant}€*\n\nQuelle catégorie ?`, rows);
+    }
+  } catch (err) {
+    console.error('/depense error:', err.message);
+  }
+});
+
+
   try {
     const moisOffset = parseInt(req.query.mois || '0');
     const data = await getData(moisOffset);
