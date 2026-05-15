@@ -1568,7 +1568,10 @@ app.post('/depense', async (req, res) => {
   }
 });
 
-
+// ============================================================
+// API DASHBOARD
+// ============================================================
+app.get('/api/dashboard', async (req, res) => {
   try {
     const moisOffset = parseInt(req.query.mois || '0');
     const data = await getData(moisOffset);
