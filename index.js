@@ -273,18 +273,34 @@ async function saveRevenu(chatId, montant, libelle) {
   if (error) console.error('saveRevenu error:', error);
 }
 
+// ============================================================
+// SAVE ÉLÈVE CUSTOM — avec logs détaillés
+// ============================================================
 async function saveEleveCustom(chatId, eleveData) {
-  const { error } = await supabase.from('eleves_custom').insert({
-    nom: eleveData.nom, niveau: eleveData.niveau, taux: eleveData.taux,
-    duree: eleveData.duree, tda: eleveData.tda || false,
-    fiche_hebdo: eleveData.ficheHebdo || false, question_2h: eleveData.question2h !== false,
-    fiche: eleveData.fiche !== false, jour: eleveData.jour,
-    heure: eleveData.heure, minute: eleveData.minute || 0,
+  const payload = {
+    nom: eleveData.nom,
+    niveau: eleveData.niveau,
+    taux: eleveData.taux,
+    duree: eleveData.duree,
+    tda: eleveData.tda || false,
+    fiche_hebdo: eleveData.ficheHebdo || false,
+    question_2h: eleveData.question2h !== false,
+    fiche: eleveData.fiche !== false,
+    jour: eleveData.jour,
+    heure: eleveData.heure,
+    minute: eleveData.minute || 0,
     une_semaine_sur_deux: eleveData.uneSemaineSurDeux || false,
-    actif: true, chat_id: String(chatId)
-  });
-  if (error) console.error('saveEleveCustom error:', error);
-  return !error;
+    actif: true,
+    chat_id: String(chatId),
+  };
+  console.log('saveEleveCustom payload:', JSON.stringify(payload));
+  const { data, error } = await supabase.from('eleves_custom').insert(payload).select();
+  if (error) {
+    console.error('saveEleveCustom ERROR:', JSON.stringify(error));
+    return false;
+  }
+  console.log('saveEleveCustom OK:', JSON.stringify(data));
+  return true;
 }
 
 // ============================================================
@@ -485,11 +501,12 @@ async function traiterAjoutEleve(chatId, texte) {
       sess.heure = h;
       sess.minute = min;
       sess.etape = 'options';
+      // Affichage initial des options avec état coché/décoché
       await sendBtns(chatId,
-        `👤 *${sess.nom}* — ${JOURS_NOMS[sess.jour]} à ${h}h${min > 0 ? min.toString().padStart(2,'0') : '00'}\n\nÉtape 7/7 — Options spéciales ?`,
+        `👤 *${sess.nom}* — ${JOURS_NOMS[sess.jour]} à ${h}h${min > 0 ? min.toString().padStart(2,'0') : '00'}\n\nÉtape 7/7 — Options spéciales ?\n_Coche/décoche, puis valide_`,
         [
-          [{ t: 'TDA/TDAH', d: 'ae_opt_tda' }, { t: 'Fiche hebdo', d: 'ae_opt_hebdo' }],
-          [{ t: '1 semaine/2', d: 'ae_opt_2sem' }, { t: 'Aucune', d: 'ae_opt_none' }],
+          [{ t: '☐ TDA/TDAH', d: 'ae_opt_tda' }, { t: '☐ Fiche hebdo', d: 'ae_opt_hebdo' }],
+          [{ t: '☐ 1 semaine/2', d: 'ae_opt_2sem' }, { t: '✅ Valider', d: 'ae_opt_valider' }],
           [{ t: '↩️ Annuler', d: 'ae_annuler' }]
         ]
       );
@@ -548,40 +565,68 @@ async function traiterCallback(cb) {
     return;
   }
 
+  // ── OPTIONS ÉLÈVE — toggle + validation ───────────────
   if (data.startsWith('ae_opt_')) {
     const sess = sessionsAjoutEleve[chatId];
     if (!sess) return;
     const opt = data.replace('ae_opt_', '');
 
     if (!sess.options) sess.options = {};
-    if (opt === 'tda') sess.options.tda = true;
-    else if (opt === 'hebdo') sess.options.ficheHebdo = true;
-    else if (opt === '2sem') sess.options.uneSemaineSurDeux = true;
 
-    const eleveData = {
-      nom: sess.nom, niveau: sess.niveau, taux: sess.taux, duree: sess.duree,
-      jour: sess.jour, heure: sess.heure, minute: sess.minute || 0,
-      tda: sess.options?.tda || false, ficheHebdo: sess.options?.ficheHebdo || false,
-      uneSemaineSurDeux: sess.options?.uneSemaineSurDeux || false,
-      question2h: true, fiche: true,
-    };
+    // Validation finale
+    if (opt === 'valider') {
+      const eleveData = {
+        nom: sess.nom,
+        niveau: sess.niveau,
+        taux: sess.taux,
+        duree: sess.duree,
+        jour: sess.jour,
+        heure: sess.heure,
+        minute: sess.minute || 0,
+        tda: sess.options.tda || false,
+        ficheHebdo: sess.options.ficheHebdo || false,
+        uneSemaineSurDeux: sess.options.uneSemaineSurDeux || false,
+        question2h: true,
+        fiche: true,
+      };
 
-    const ok = await saveEleveCustom(chatId, eleveData);
-    if (ok) {
-      ELEVES[eleveData.nom] = eleveData;
-      const resume = [
-        `✅ *${eleveData.nom}* ajouté !`,
-        `📚 ${eleveData.niveau} — ${eleveData.taux}€/h — ${eleveData.duree}h`,
-        `📅 ${JOURS_NOMS[eleveData.jour]} à ${eleveData.heure}h${eleveData.minute > 0 ? eleveData.minute.toString().padStart(2,'0') : '00'}`,
-        eleveData.tda ? '🧠 TDA activé' : '',
-        eleveData.ficheHebdo ? '📋 Fiche hebdo' : '',
-        eleveData.uneSemaineSurDeux ? '🔄 1 semaine/2' : '',
-      ].filter(Boolean).join('\n');
-      await send(chatId, resume);
-    } else {
-      await send(chatId, '❌ Erreur lors de l\'ajout. Réessaie.');
+      const ok = await saveEleveCustom(chatId, eleveData);
+      if (ok) {
+        ELEVES[eleveData.nom] = eleveData;
+        const resume = [
+          `✅ *${eleveData.nom}* ajouté avec succès !`,
+          `📚 ${eleveData.niveau} — ${eleveData.taux}€/h — ${eleveData.duree}h/séance`,
+          `📅 ${JOURS_NOMS[eleveData.jour]} à ${eleveData.heure}h${eleveData.minute > 0 ? eleveData.minute.toString().padStart(2,'0') : '00'}`,
+          eleveData.tda ? '🧠 TDA activé' : null,
+          eleveData.ficheHebdo ? '📋 Fiche hebdo' : null,
+          eleveData.uneSemaineSurDeux ? '🔄 1 semaine/2' : null,
+        ].filter(Boolean).join('\n');
+        await send(chatId, resume);
+      } else {
+        await send(chatId, '❌ Erreur Supabase lors de l\'ajout. Vérifie les logs Railway.\n\nAssure-toi que la table *eleves\\_custom* existe avec toutes les colonnes nécessaires.');
+      }
+      delete sessionsAjoutEleve[chatId];
+      return;
     }
-    delete sessionsAjoutEleve[chatId];
+
+    // Toggle des options
+    if (opt === 'tda') sess.options.tda = !sess.options.tda;
+    else if (opt === 'hebdo') sess.options.ficheHebdo = !sess.options.ficheHebdo;
+    else if (opt === '2sem') sess.options.uneSemaineSurDeux = !sess.options.uneSemaineSurDeux;
+
+    // Réafficher les boutons avec état mis à jour
+    const tdaLabel   = `${sess.options.tda ? '✅' : '☐'} TDA/TDAH`;
+    const hebdoLabel = `${sess.options.ficheHebdo ? '✅' : '☐'} Fiche hebdo`;
+    const semLabel   = `${sess.options.uneSemaineSurDeux ? '✅' : '☐'} 1 semaine/2`;
+
+    await sendBtns(chatId,
+      `👤 *${sess.nom}* — Options spéciales\n_Coche/décoche, puis valide_`,
+      [
+        [{ t: tdaLabel, d: 'ae_opt_tda' }, { t: hebdoLabel, d: 'ae_opt_hebdo' }],
+        [{ t: semLabel, d: 'ae_opt_2sem' }, { t: '✅ Valider', d: 'ae_opt_valider' }],
+        [{ t: '↩️ Annuler', d: 'ae_annuler' }]
+      ]
+    );
     return;
   }
 
@@ -1406,7 +1451,6 @@ function calculerPotentielRestant(moisOffset, cours, coursManques) {
   const todayNum = isCurrent ? now.getDate() : 0;
   const dernierJour = new Date(annee, mois + 1, 0).getDate();
 
-  // Jours avec cours prévus
   const joursAvecCours = {};
   for (let d = 1; d <= dernierJour; d++) {
     const date = new Date(annee, mois, d);
@@ -1424,7 +1468,6 @@ function calculerPotentielRestant(moisOffset, cours, coursManques) {
     if (elevesJour.length > 0) joursAvecCours[d] = elevesJour;
   }
 
-  // Calcul potentiel futur
   let montantRestant = 0;
   let joursRestantsCount = 0;
   const elevesRestants = {};
@@ -1444,7 +1487,6 @@ function calculerPotentielRestant(moisOffset, cours, coursManques) {
     }
   }
 
-  // Calendrier enrichi pour le dashboard
   const calendrier = {};
   for (let d = 1; d <= dernierJour; d++) {
     const estPasse = isCurrent ? d < todayNum : moisOffset < 0;
@@ -1488,7 +1530,6 @@ app.get('/api/dashboard', async (req, res) => {
       });
     }
 
-    // Planning élèves pour le dashboard (sans infos internes)
     const planningDashboard = {};
     Object.entries(ELEVES).forEach(([nom, p]) => {
       planningDashboard[nom] = {
@@ -1498,7 +1539,6 @@ app.get('/api/dashboard', async (req, res) => {
       };
     });
 
-    // Potentiel restant calculé côté serveur
     const potentiel = calculerPotentielRestant(moisOffset, data.cours, data.coursManques);
 
     res.json({
