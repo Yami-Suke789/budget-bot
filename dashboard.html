@@ -233,7 +233,7 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
   <div class="grid">
 
 ```
-<!-- Charge totale -->
+<!-- 1. Charge totale -->
 <div class="charge-card">
   <div class="card-label" style="margin-bottom:.6rem">⚡ Charge totale du mois</div>
   <div class="charge-inner">
@@ -261,7 +261,31 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
   </div>
 </div>
 
-<!-- Forecast complétude -->
+<!-- 2. Épargne actuelle + Projection -->
+<div class="card"><div class="card-label">Épargne actuelle</div><div class="card-value green" id="a-ep">—</div></div>
+<div class="card"><div class="card-label">Projection</div><div class="card-value" id="a-pr">—</div></div>
+
+<!-- 3. Revenus + Solde -->
+<div class="card"><div class="card-label">Revenus totaux</div><div class="card-value green" id="a-rv">—</div><div class="card-sub" id="a-rv-det">—</div></div>
+<div class="card"><div class="card-label">Solde estimé</div><div class="card-value" id="a-sl">—</div><div class="bar"><div class="fill" id="a-sl-b" style="width:0%"></div></div></div>
+
+<!-- 4. Complétude -->
+<div class="card full">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <div>
+      <div class="card-label">Complétude</div>
+      <div class="card-value" id="a-co" style="font-size:1.2rem">—</div>
+      <div class="card-sub" id="a-co-s">—</div>
+    </div>
+    <div style="text-align:right">
+      <div id="a-co-pct" style="font-size:1.6rem;font-weight:700;font-family:var(--mono)">—%</div>
+      <div style="font-size:.6rem;color:var(--muted)">de l'objectif</div>
+    </div>
+  </div>
+  <div class="bar" style="height:5px;margin:.6rem 0 0"><div class="fill" id="a-co-b" style="width:0%"></div></div>
+</div>
+
+<!-- 5. Potentiel Complétude (déplacé en bas) -->
 <div class="forecast-card">
   <div class="forecast-title">📚 Potentiel Complétude</div>
   <div class="forecast-row">
@@ -285,25 +309,6 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
     <span id="fc-pct">0%</span>
     <span id="fc-obj">Objectif : 1 500 €</span>
   </div>
-</div>
-
-<div class="card"><div class="card-label">Épargne actuelle</div><div class="card-value green" id="a-ep">—</div></div>
-<div class="card"><div class="card-label">Projection</div><div class="card-value" id="a-pr">—</div></div>
-<div class="card"><div class="card-label">Revenus totaux</div><div class="card-value green" id="a-rv">—</div><div class="card-sub" id="a-rv-det">—</div></div>
-<div class="card"><div class="card-label">Solde estimé</div><div class="card-value" id="a-sl">—</div><div class="bar"><div class="fill" id="a-sl-b" style="width:0%"></div></div></div>
-<div class="card full">
-  <div style="display:flex;justify-content:space-between;align-items:center">
-    <div>
-      <div class="card-label">Complétude</div>
-      <div class="card-value" id="a-co" style="font-size:1.2rem">—</div>
-      <div class="card-sub" id="a-co-s">—</div>
-    </div>
-    <div style="text-align:right">
-      <div id="a-co-pct" style="font-size:1.6rem;font-weight:700;font-family:var(--mono)">—%</div>
-      <div style="font-size:.6rem;color:var(--muted)">de l'objectif</div>
-    </div>
-  </div>
-  <div class="bar" style="height:5px;margin:.6rem 0 0"><div class="fill" id="a-co-b" style="width:0%"></div></div>
 </div>
 ```
 
@@ -515,7 +520,7 @@ function renderCalendrier(d){
   const mois  = (d.annee_mois||{}).mois||new Date().getMonth();
 
   let pjs = new Date(annee,mois,1).getDay();
-  pjs = (pjs+6)%7; // lundi=0
+  pjs = (pjs+6)%7;
 
   const faitsByDay={}, manquesByDay={};
   (d.cours||[]).forEach(c=>{
@@ -539,7 +544,6 @@ function renderCalendrier(d){
     const prevus=info.prevus||[];
     const aPrevu=prevus.length>0;
 
-    // Calcul du gain prévu depuis le planning
     let gainPrevu=0;
     if(aPrevu&&info.estFutur&&d.planning){
       prevus.forEach(nom=>{
@@ -551,7 +555,6 @@ function renderCalendrier(d){
     const gainJour=faits.reduce((s,c)=>s+c.gain,0);
     const manqueJour=manques.reduce((s,c)=>s+c.gain_manque,0);
 
-    // Classe CSS
     let cls='cal-day';
     if(info.estAujourdHui) cls+=' today';
     if(faits.length>0) cls+=' done';
@@ -561,13 +564,11 @@ function renderCalendrier(d){
     else cls+=' future-empty';
     if(selectedDay===j) cls+=' selected';
 
-    // Montant affiché
     const amtStr = faits.length>0 ? '+'+gainJour.toFixed(0)+'€'
       : manques.length>0 ? '-'+manqueJour.toFixed(0)+'€'
       : gainPrevu>0 ? '~'+gainPrevu.toFixed(0)+'€'
       : '';
 
-    // Data pour le détail
     const dayData = JSON.stringify({
       faits:faits.map(c=>({nom:c.eleve,gain:c.gain})),
       manques:manques.map(c=>({nom:c.eleve,gain:c.gain_manque})),
@@ -581,7 +582,6 @@ function renderCalendrier(d){
   }
   document.getElementById('cal-grid').innerHTML=html;
 
-  // Potentiel
   const potEl=document.getElementById('pot-montant');
   const potMontant=d.potentiel_restant||0;
   potEl.textContent=fmt(potMontant);
@@ -597,7 +597,6 @@ function renderCalendrier(d){
   document.getElementById('streak-zone').innerHTML=d.nb_cours>0
     ?`<div class="streak-badge">🔥 ${d.nb_cours} cours ce mois</div>`:'';
 
-  // Prédiction
   const pb=document.getElementById('pred-box');
   if(isCurrent&&d.nb_cours>0){
     pb.style.display='block';
@@ -611,7 +610,6 @@ function renderCalendrier(d){
         :`<span style="color:var(--red)">(${Math.round(ecart)}€ sous l'objectif)</span>`);
   }else pb.style.display='none';
 
-  // Récap élèves
   const recap={};
   (d.cours||[]).forEach(c=>{
     if(!recap[c.eleve])recap[c.eleve]={gain:0,nb:0,manques:0};
@@ -811,12 +809,10 @@ async function charger(){
     const d=await r.json();
     globalData=d;
 
-    // Header
     const hs=document.getElementById('h-solde');
     hs.textContent=(d.solde>=0?'+':'')+Math.round(d.solde).toLocaleString('fr-FR')+' €';
     hs.style.color=cs(d.solde);
 
-    // Mois nav
     const mc=(d.mois_disponibles||[]).find(m=>m.offset===moisOffset);
     const lbl=mc?(mc.label.charAt(0).toUpperCase()+mc.label.slice(1)):'—';
     document.getElementById('mois-label').textContent=lbl;
