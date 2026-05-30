@@ -75,19 +75,7 @@ const OBJECTIFS = [
   { label: 'Janvier 2027',  montant: 20000 },
 ];
 
-let ELEVES = {
-  'Amel':        { niveau: '5e',  taux: 21.04, duree: 1.5, tda: false, ficheHebdo: false, question2h: true,  fiche: true,  jour: 1, heure: 17, minute: 0  },
-  'Benjamin':    { niveau: '5e',  taux: 24.30, duree: 1.5, tda: false, ficheHebdo: false, question2h: true,  fiche: true,  jour: 2, heure: 18, minute: 0  },
-  'Guillaume':   { niveau: '5e',  taux: 23.88, duree: 1.5, tda: true,  ficheHebdo: false, question2h: true,  fiche: true,  jour: 3, heure: 17, minute: 30 },
-  'Margaux':     { niveau: '3e',  taux: 26.60, duree: 1.5, tda: false, ficheHebdo: false, question2h: true,  fiche: true,  jour: 4, heure: 16, minute: 0  },
-  'Nélia':       { niveau: '3e',  taux: 26.60, duree: 1.5, tda: false, ficheHebdo: false, question2h: true,  fiche: true,  jour: 4, heure: 17, minute: 30 },
-  'Hélène':      { niveau: '5e',  taux: 24.30, duree: 1.5, tda: false, ficheHebdo: false, question2h: true,  fiche: true,  jour: 6, heure: 8,  minute: 0  },
-  'Noélie':      { niveau: 'CE2', taux: 25.78, duree: 1.0, tda: false, ficheHebdo: false, question2h: false, fiche: false, jour: 6, heure: 10, minute: 0  },
-  'Mathéo':      { niveau: '3e',  taux: 23.66, duree: 1.5, tda: false, ficheHebdo: true,  question2h: true,  fiche: true,  jour: 6, heure: 11, minute: 30 },
-  'Anne-Gaëlle': { niveau: '3e',  taux: 24.08, duree: 1.5, tda: false, ficheHebdo: false, question2h: true,  fiche: true,  jour: 6, heure: 13, minute: 0  },
-  'Saïda':       { niveau: '5e',  taux: 25.56, duree: 1.5, tda: false, ficheHebdo: false, question2h: true,  fiche: true,  jour: 6, heure: 15, minute: 0  },
-  'Serena':      { niveau: '5e',  taux: 23.04, duree: 1.5, tda: false, ficheHebdo: false, question2h: true,  fiche: true,  jour: 0, heure: 13, minute: 0, uneSemaineSurDeux: true },
-};
+let ELEVES = {};
 
 async function chargerElevesCustom() {
   try {
@@ -1208,47 +1196,84 @@ app.post('/webhook', async (req, res) => {
 // ============================================================
 // MESSAGES AUTOMATIQUES
 // ============================================================
-async function envoyerRappelBiHebdo() {
-  const data = await getData();
-  const mois = new Date().toLocaleString('fr-FR', { month: 'long', year: 'numeric' });
-  const aVenir = getPrelEvementsAVenir(5);
-  let msg = `📋 *Rappel bi-hebdo — ${mois}*\n\n`;
-  msg += `💰 LGM: ${data.salaire}€ | Beau-frère: ${BEAU_FRERE}€ | Complétude: ${data.completude.toFixed(0)}€/${OBJECTIF_COMPLETUDE}€\n\n`;
-  msg += `💸 *Dépenses:*\n`;
-  Object.entries(data.totaux).forEach(([k, v]) => {
-    if (v > 0) {
-      const e = v > BUDGETS[k].max ? '🔴' : v > BUDGETS[k].max * 0.8 ? '🟡' : '🟢';
-      msg += `${e} ${BUDGETS[k].label}: ${v.toFixed(0)}€/${BUDGETS[k].max}€\n`;
-    }
-  });
-  msg += `\n📊 Solde: *${data.solde >= 0 ? '+' : ''}${data.solde.toFixed(0)}€*`;
-  if (data.totalManque > 0) msg += `\n💸 Manques: *-${data.totalManque.toFixed(0)}€*`;
-  if (aVenir.length > 0) {
-    const totalSem = aVenir.reduce((s, p) => s + p.montant, 0);
-    msg += `\n\n⚠️ *Prélèvements dans 5j: -${totalSem.toFixed(0)}€*\n`;
-    aVenir.forEach(p => msg += `• ${p.nom}: ${p.montant.toFixed(0)}€ (le ${p.jourEffectif})\n`);
-  }
-  msg += `\n_Des dépenses à enregistrer ?_`;
-  await send(CHAT_ID, msg);
-}
 
-async function envoyerSyntheseMensuelle() {
-  const data = await getData();
-  const mois = new Date().toLocaleString('fr-FR', { month: 'long', year: 'numeric' }).toUpperCase();
-  let msg = `🗓️ *SYNTHÈSE ${mois}*\n\n`;
-  msg += `✅ *REVENUS: ${data.totalRevenus.toFixed(0)}€*\n• LGM: ${data.salaire}€\n• Beau-frère: ${BEAU_FRERE}€\n• Complétude: ${data.completude.toFixed(0)}€\n`;
-  if (data.revenusSupp > 0) msg += `• Divers: ${data.revenusSupp.toFixed(0)}€\n`;
-  msg += `\n🔒 *CHARGES: -${TOTAL_CHARGES_FIXES.toFixed(0)}€*\n\n💸 *DÉPENSES: -${data.totalDep.toFixed(0)}€*\n`;
-  Object.entries(data.totaux).forEach(([k, v]) => {
-    const e = v > BUDGETS[k].max ? '🔴' : v > BUDGETS[k].max * 0.8 ? '🟡' : '🟢';
-    msg += `${e} ${BUDGETS[k].label}: ${v.toFixed(0)}€/${BUDGETS[k].max}€\n`;
-  });
-  msg += `\n💰 *SOLDE: ${data.solde >= 0 ? '+' : ''}${data.solde.toFixed(0)}€*\n\n🎯 *OBJECTIFS:*\n`;
-  OBJECTIFS.forEach(o => {
-    const delta = data.epargneEstimee - o.montant;
-    msg += `${delta >= 0 ? '✅' : '⚠️'} ${o.label}: ${o.montant.toLocaleString()}€ (${delta >= 0 ? '+' : ''}${delta.toFixed(0)}€)\n`;
-  });
-  await send(CHAT_ID, msg);
+
+async function geminiParle(chatId, message, data) {
+  const model = genAI.getGenerativeModel({ model: MODELE });
+
+  const elevesInfo = Object.entries(ELEVES).map(([n, e]) =>
+    `${n} (${e.niveau}, ${e.taux}€/h, ${e.duree}h, ${JOURS_NOMS[e.jour]} à ${e.heure}h${e.minute > 0 ? e.minute.toString().padStart(2,'0') : '00'})`
+  ).join('\n');
+
+  const budgetsInfo = Object.entries(BUDGETS)
+    .map(([k, b]) => `${b.label}: ${data.totaux[k]?.toFixed(0) || 0}€ / ${b.max}€`)
+    .join('\n');
+
+  const objectifsInfo = OBJECTIFS.map(o => {
+    const delta = data.epargneBase - o.montant;
+    return `${o.label}: ${o.montant.toLocaleString()}€ (${delta >= 0 ? '+' : ''}${delta.toFixed(0)}€)`;
+  }).join('\n');
+
+  const prelevementsInfo = PRELEVEMENTS_DATES
+    .filter(p => p.jour)
+    .map(p => `${p.nom}: ${p.montant}€ (le ${p.jour})`)
+    .join('\n');
+
+  const ctx = `Tu es L'Agent, assistant personnel intelligent de Nour-Dine.
+Tu es direct, naturel, bienveillant et proactif.
+Tu réponds à TOUTES les questions naturellement, pas seulement les commandes.
+Tu analyses, tu conseilles, tu calcules si besoin.
+Tu parles français naturellement, jamais de JSON ni de balises techniques.
+Max 6 lignes sauf si on te demande un détail complet.
+
+=== SITUATION FINANCIÈRE ===
+Salaire LGM: ${data.salaire}€
+Beau-frère: ${BEAU_FRERE}€
+Complétude cours: ${data.completude.toFixed(0)}€ / ${OBJECTIF_COMPLETUDE}€
+Revenus supplémentaires: ${data.revenusSupp.toFixed(0)}€
+Total revenus: ${data.totalRevenus.toFixed(0)}€
+Charges fixes totales: ${TOTAL_CHARGES_FIXES.toFixed(0)}€
+Total dépenses: ${data.totalDep.toFixed(0)}€
+Solde du mois: ${data.solde.toFixed(0)}€
+Épargne actuelle: ${data.epargneBase.toLocaleString()}€
+Épargne estimée fin de mois: ${data.epargneEstimee.toFixed(0)}€
+
+=== BUDGETS CE MOIS ===
+${budgetsInfo}
+
+=== ÉLÈVES ACTIFS ===
+${elevesInfo || 'Aucun élève actif'}
+Cours effectués ce mois: ${data.cours.length}
+Cours manqués ce mois: ${data.coursManques.length}
+Manque à gagner: ${data.totalManque.toFixed(0)}€
+
+=== PRÉLÈVEMENTS ===
+${prelevementsInfo}
+Total charges fixes: ${TOTAL_CHARGES_FIXES.toFixed(0)}€/mois
+
+=== OBJECTIFS ÉPARGNE ===
+${objectifsInfo}
+
+=== COMMANDES DISPONIBLES ===
+/bilan - résumé dépenses du mois
+/completude - détail des cours
+/objectifs - progression épargne
+/prelevements - prélèvements à venir
+/ajouteleve - ajouter un élève
+/archiveleve - archiver un élève
+/annuler - annuler une action
+/modifier - modifier budget ou dépense
+/revenu - enregistrer une rentrée
+/epargne - mettre à jour l'épargne
+/fiche - générer une fiche PDF
+
+Tu peux aussi enregistrer directement :
+- Un cours : "cours avec Margaux"
+- Une dépense : "Leclerc 45€"
+- Un salaire : "salaire 2500€"`;
+
+  const result = await model.generateContent(ctx + '\n\nMessage de Nour-Dine: ' + message);
+  return result.response.text();
 }
 
 // ============================================================
