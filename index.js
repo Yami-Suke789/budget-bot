@@ -167,22 +167,25 @@ async function removeBtns(chatId, msgId) {
 // ============================================================
 // SUPABASE
 // ============================================================
+// Minuit Paris (heure locale) converti en UTC
+// Ex: 1er juin 00:00 Paris (UTC+2 été) → 31 mai 22:00 UTC
+function _minuitParisEnUTC(annee, mois) {
+  const dateParis = new Date(`${annee}-${String(mois).padStart(2, '0')}-01T00:00:00`);
+  const utcMs = new Date(dateParis.toLocaleString('en-US', { timeZone: 'UTC' }));
+  const parisMs = new Date(dateParis.toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
+  return new Date(dateParis.getTime() + (utcMs - parisMs)).toISOString();
+}
+
 function getDebutMois(moisOffset = 0) {
-  // Utiliser l'heure Paris pour déterminer le mois courant correct
   const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
   const d = new Date(now.getFullYear(), now.getMonth() + moisOffset, 1);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  return `${y}-${m}-01T00:00:00.000Z`;
+  return _minuitParisEnUTC(d.getFullYear(), d.getMonth() + 1);
 }
 
 function getFinMois(moisOffset = 0) {
-  // 1er du mois suivant = borne exclusive de fin
   const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
   const d = new Date(now.getFullYear(), now.getMonth() + moisOffset + 1, 1);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  return `${y}-${m}-01T00:00:00.000Z`;
+  return _minuitParisEnUTC(d.getFullYear(), d.getMonth() + 1);
 }
 
 async function getData(moisOffset = 0) {
