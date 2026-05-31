@@ -262,7 +262,7 @@ async function saveRevenu(chatId, montant, libelle) {
 }
 
 // ============================================================
-// SAVE ÉLÈVE CUSTOM — avec logs détaillés
+// SAVE ÉLÈVE CUSTOM
 // ============================================================
 async function saveEleveCustom(chatId, eleveData) {
   const payload = {
@@ -289,6 +289,113 @@ async function saveEleveCustom(chatId, eleveData) {
   }
   console.log('saveEleveCustom OK:', JSON.stringify(data));
   return true;
+}
+
+// ============================================================
+// SUSPENSION / RÉACTIVATION ÉLÈVE
+// ============================================================
+async function suspendreEleve(nom) {
+  const { error } = await supabase
+    .from('eleves_custom')
+    .update({ actif: false })
+    .eq('nom', nom);
+  if (!error) {
+    delete ELEVES[nom];
+    return true;
+  }
+  console.error('suspendreEleve error:', error.message);
+  return false;
+}
+
+async function reactiverEleve(nom) {
+  const { data, error } = await supabase
+    .from('eleves_custom')
+    .update({ actif: true })
+    .eq('nom', nom)
+    .select();
+  if (!error && data && data.length > 0) {
+    const e = data[0];
+    ELEVES[e.nom] = {
+      niveau: e.niveau, taux: e.taux, duree: e.duree,
+      tda: e.tda || false, ficheHebdo: e.fiche_hebdo || false,
+      question2h: e.question_2h !== false, fiche: e.fiche !== false,
+      jour: e.jour, heure: e.heure, minute: e.minute || 0,
+      uneSemaineSurDeux: e.une_semaine_sur_deux || false,
+    };
+    return true;
+  }
+  console.error('reactiverEleve error:', error?.message);
+  return false;
+}
+
+// ============================================================
+// SNAPSHOT MENSUEL
+// ============================================================
+async function sauvegarderSnapshotMensuel() {
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
+  const mois = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+  const { data: existing } = await supabase
+    .from('snapshots_mensuels')
+    .select('id')
+    .eq('mois', mois)
+    .limit(1);
+  if (existing && existing.length > 0) {
+    console.log(`Snapshot ${mois} déjà existant, skip.`);
+    return;
+  }
+
+  const data = await getData(0);
+  const snapshot = {
+    salaire: data.salaire,
+    completude: data.completude,
+    total_revenus: data.totalRevenus,
+    total_depenses: data.totalDep,
+    solde: data.solde,
+    epargne_base: data.epargneBase,
+    epargne_estimee: data.epargneEstimee,
+    nb_cours: data.cours.length,
+    nb_cours_manques: data.coursManques.length,
+    total_manque: data.totalManque,
+    totaux_budgets: data.totaux,
+    cours: data.cours,
+    cours_manques: data.coursManques,
+    revenus_supp: data.revenus,
+  };
+
+  const { error } = await supabase
+    .from('snapshots_mensuels')
+    .insert({ mois, donnees: snapshot });
+
+  if (error) console.error('Snapshot mensuel erreur:', error.message);
+  else {
+    console.log(`✅ Snapshot ${mois} sauvegardé`);
+    await send(CHAT_ID, `📦 *Snapshot de ${mois} sauvegardé !*\nSolde: *${data.solde >= 0 ? '+' : ''}${data.solde.toFixed(0)}€* — Épargne estimée: *${data.epargneEstimee.toFixed(0)}€*`);
+  }
+}
+
+async function envoyerBilanMensuel(chatId) {
+  const { data: snapshots } = await supabase
+    .from('snapshots_mensuels')
+    .select('*')
+    .order('mois', { ascending: false })
+    .limit(6);
+
+  if (!snapshots || snapshots.length === 0) {
+    await send(chatId, '❌ Aucun snapshot mensuel trouvé.\n_Le premier sera créé automatiquement le dernier jour du mois._');
+    return;
+  }
+
+  let msg = `📅 *Historique mensuel*\n\n`;
+  snapshots.forEach(s => {
+    const d = s.donnees;
+    const emoji = d.solde >= 0 ? '🟢' : '🔴';
+    msg += `*${s.mois}*\n`;
+    msg += `${emoji} Solde: *${d.solde >= 0 ? '+' : ''}${d.solde?.toFixed(0)}€*\n`;
+    msg += `📚 Complétude: ${d.completude?.toFixed(0)}€ — ${d.nb_cours} cours\n`;
+    msg += `💎 Épargne fin de mois: ${d.epargne_estimee?.toFixed(0)}€\n\n`;
+  });
+  await send(chatId, msg);
 }
 
 // ============================================================
@@ -346,28 +453,68 @@ function getTotalPrelevementsRestants() {
 }
 
 // ============================================================
-// GEMINI
+// GEMINI — RÉPONSE CONVERSATIONNELLE
 // ============================================================
 async function geminiParle(chatId, message, data) {
   const model = genAI.getGenerativeModel({ model: MODELE });
-  const ctx = `Tu es L'Agent, assistant personnel de Nour-Dine. Naturel, direct, bienveillant. Max 4 lignes.
-Finances: LGM ${data.salaire}€, Beau-frere ${BEAU_FRERE}€, Completude ${data.completude.toFixed(0)}€/${OBJECTIF_COMPLETUDE}€, Solde ${data.solde.toFixed(0)}€, Epargne ${data.epargneBase}€
-Eleves: ${Object.entries(ELEVES).map(([n,e]) => `${n} ${e.taux}€/h`).join(', ')}
-Reponds naturellement en francais. Jamais de JSON ni de balises.`;
-  const result = await model.generateContent(ctx + '\n\nMessage: ' + message);
-  return result.response.text();
-}
 
-async function geminiGenFiche(eleve, chapitre) {
-  const p = ELEVES[eleve];
-  const model = genAI.getGenerativeModel({ model: MODELE });
-  const base = `Texte brut uniquement. Fractions: "3/4". Puissances: "x^2". Max 600 mots. Corrige apres "=== CORRIGE ==="`;
-  let prompt = p.ficheHebdo
-    ? `Professeur maths. Fiche hebdo pour ${eleve} (${p.niveau}). Chapitre: ${chapitre}. ${base}. Lundi-Vendredi, 2 exos/jour.`
-    : p.tda
-    ? `Professeur TDA. Fiche pour ${eleve} (${p.niveau}). Chapitre: ${chapitre}. ${base}. Max 4 exos courts.`
-    : `Professeur maths. Fiche pour ${eleve} (${p.niveau}). Chapitre: ${chapitre}. ${base}. 4 exos progressifs.`;
-  const result = await model.generateContent(prompt);
+  const elevesInfo = Object.entries(ELEVES).map(([n, e]) =>
+    `${n} (${e.niveau}, ${e.taux}€/h, ${e.duree}h, ${JOURS_NOMS[e.jour]} à ${e.heure}h${e.minute > 0 ? e.minute.toString().padStart(2,'0') : '00'})`
+  ).join('\n');
+
+  const budgetsInfo = Object.entries(BUDGETS)
+    .map(([k, b]) => `${b.label}: ${data.totaux[k]?.toFixed(0) || 0}€ / ${b.max}€`)
+    .join('\n');
+
+  const objectifsInfo = OBJECTIFS.map(o => {
+    const delta = data.epargneBase - o.montant;
+    return `${o.label}: ${o.montant.toLocaleString()}€ (${delta >= 0 ? '+' : ''}${delta.toFixed(0)}€)`;
+  }).join('\n');
+
+  const prelevementsInfo = PRELEVEMENTS_DATES
+    .filter(p => p.jour)
+    .map(p => `${p.nom}: ${p.montant}€ (le ${p.jour})`)
+    .join('\n');
+
+  const ctx = `Tu es L'Agent, assistant personnel intelligent de Nour-Dine.
+Tu es direct, naturel, bienveillant et proactif.
+Tu réponds à TOUTES les questions naturellement, pas seulement les commandes.
+Tu analyses, tu conseilles, tu calcules si besoin.
+Tu parles français naturellement, jamais de JSON ni de balises techniques.
+Max 6 lignes sauf si on te demande un détail complet.
+
+=== SITUATION FINANCIÈRE ===
+Salaire LGM: ${data.salaire}€
+Beau-frère: ${BEAU_FRERE}€
+Complétude cours: ${data.completude.toFixed(0)}€ / ${OBJECTIF_COMPLETUDE}€
+Revenus supplémentaires: ${data.revenusSupp.toFixed(0)}€
+Total revenus: ${data.totalRevenus.toFixed(0)}€
+Charges fixes totales: ${TOTAL_CHARGES_FIXES.toFixed(0)}€
+Total dépenses: ${data.totalDep.toFixed(0)}€
+Solde du mois: ${data.solde.toFixed(0)}€
+Épargne actuelle: ${data.epargneBase.toLocaleString()}€
+Épargne estimée fin de mois: ${data.epargneEstimee.toFixed(0)}€
+
+=== BUDGETS CE MOIS ===
+${budgetsInfo}
+
+=== ÉLÈVES ACTIFS ===
+${elevesInfo || 'Aucun élève actif'}
+Cours effectués ce mois: ${data.cours.length}
+Cours manqués ce mois: ${data.coursManques.length}
+Manque à gagner: ${data.totalManque.toFixed(0)}€
+
+=== PRÉLÈVEMENTS ===
+${prelevementsInfo}
+Total charges fixes: ${TOTAL_CHARGES_FIXES.toFixed(0)}€/mois
+
+=== OBJECTIFS ÉPARGNE ===
+${objectifsInfo}
+
+=== COMMANDES DISPONIBLES ===
+/bilan /completude /objectifs /prelevements /ajouteleve /suspendre /reactiver /annuler /modifier /revenu /epargne /fiche /historique`;
+
+  const result = await model.generateContent(ctx + '\n\nMessage de Nour-Dine: ' + message);
   return result.response.text();
 }
 
@@ -398,8 +545,6 @@ function trouverMontant(texte) {
 
 function trouverCategorie(texte) {
   const t = texte.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-
-  // Détection directe des noms du raccourci (prioritaire)
   if (/\bessence\b/.test(t)) return 'essence';
   if (/\bcourses\b/.test(t)) return 'courses';
   if (/\brestos?\b/.test(t)) return 'restos';
@@ -409,8 +554,6 @@ function trouverCategorie(texte) {
   if (/\bshopping\b/.test(t)) return 'shopping';
   if (/\bdivers\b/.test(t)) return 'divers';
   if (/\bloisirs?\b/.test(t)) return 'loisirs';
-
-  // Détection par mots-clés (fallback)
   if (/plein|carburant|station|total|esso/.test(t)) return 'essence';
   if (/leclerc|carrefour|lidl|cora|supermarche|aldi/.test(t)) return 'courses';
   if (/restaurant|mcdo|burger|pizza|kebab|sushi/.test(t)) return 'restos';
@@ -419,7 +562,6 @@ function trouverCategorie(texte) {
   if (/garage|reparation|pneu|peage/.test(t)) return 'voiture';
   if (/vetement|zara|coiffeur|hm/.test(t)) return 'shopping';
   if (/cinema|concert|sortie/.test(t)) return 'loisirs';
-
   return null;
 }
 
@@ -505,7 +647,6 @@ async function traiterAjoutEleve(chatId, texte) {
       sess.heure = h;
       sess.minute = min;
       sess.etape = 'options';
-      // Affichage initial des options avec état coché/décoché
       await sendBtns(chatId,
         `👤 *${sess.nom}* — ${JOURS_NOMS[sess.jour]} à ${h}h${min > 0 ? min.toString().padStart(2,'0') : '00'}\n\nÉtape 7/7 — Options spéciales ?\n_Coche/décoche, puis valide_`,
         [
@@ -577,7 +718,6 @@ async function traiterCallback(cb) {
 
     if (!sess.options) sess.options = {};
 
-    // Validation finale
     if (opt === 'valider') {
       const eleveData = {
         nom: sess.nom,
@@ -607,18 +747,16 @@ async function traiterCallback(cb) {
         ].filter(Boolean).join('\n');
         await send(chatId, resume);
       } else {
-        await send(chatId, '❌ Erreur Supabase lors de l\'ajout. Vérifie les logs Railway.\n\nAssure-toi que la table *eleves\\_custom* existe avec toutes les colonnes nécessaires.');
+        await send(chatId, '❌ Erreur Supabase lors de l\'ajout. Vérifie les logs Railway.');
       }
       delete sessionsAjoutEleve[chatId];
       return;
     }
 
-    // Toggle des options
     if (opt === 'tda') sess.options.tda = !sess.options.tda;
     else if (opt === 'hebdo') sess.options.ficheHebdo = !sess.options.ficheHebdo;
     else if (opt === '2sem') sess.options.uneSemaineSurDeux = !sess.options.uneSemaineSurDeux;
 
-    // Réafficher les boutons avec état mis à jour
     const tdaLabel   = `${sess.options.tda ? '✅' : '☐'} TDA/TDAH`;
     const hebdoLabel = `${sess.options.ficheHebdo ? '✅' : '☐'} Fiche hebdo`;
     const semLabel   = `${sess.options.uneSemaineSurDeux ? '✅' : '☐'} 1 semaine/2`;
@@ -630,6 +768,27 @@ async function traiterCallback(cb) {
         [{ t: semLabel, d: 'ae_opt_2sem' }, { t: '✅ Valider', d: 'ae_opt_valider' }],
         [{ t: '↩️ Annuler', d: 'ae_annuler' }]
       ]
+    );
+    return;
+  }
+
+  // ── SUSPENSION / RÉACTIVATION ──────────────────────────
+  if (data.startsWith('susp_')) {
+    const nom = data.replace('susp_', '');
+    const ok = await suspendreEleve(nom);
+    await send(chatId, ok
+      ? `⏸️ *${nom}* suspendu.\nPlus de rappels automatiques, plus de cours enregistrés.\n_/reactiver pour le remettre quand tu reprends._`
+      : `❌ Erreur lors de la suspension de ${nom}.`
+    );
+    return;
+  }
+
+  if (data.startsWith('react_')) {
+    const nom = data.replace('react_', '');
+    const ok = await reactiverEleve(nom);
+    await send(chatId, ok
+      ? `▶️ *${nom}* réactivé ! Il est de retour dans ta liste d'élèves.`
+      : `❌ Erreur lors de la réactivation de ${nom}.`
     );
     return;
   }
@@ -902,12 +1061,15 @@ app.post('/webhook', async (req, res) => {
       delete sessions[chatId];
       await send(chatId,
         `👋 Salut Nour-Dine ! Je suis *L'Agent*.\n\n` +
-        `📚 _"cours avec Margaux"_ → signaler un cours\n` +
-        `💸 _"Leclerc 45€"_ → dépense\n` +
-        `💎 /epargne → mettre à jour mon épargne\n` +
+        `📚 _"j'ai fait cours avec Margaux"_ → signaler un cours\n` +
+        `💸 _"j'ai fait le plein pour 60€"_ → dépense\n` +
+        `💎 /epargne → mettre à jour ton épargne\n` +
         `👤 /ajouteleve → nouvel élève\n` +
+        `⏸️ /suspendre → mettre un élève en pause\n` +
+        `▶️ /reactiver → réactiver un élève suspendu\n` +
         `💰 /revenu → enregistrer une rentrée\n` +
         `📅 /prelevements → voir ce qui arrive\n` +
+        `📅 /historique → bilan des mois précédents\n` +
         `🌐 Dashboard: https://budget-bot-production-eaaf.up.railway.app/dashboard`
       );
       return;
@@ -918,6 +1080,49 @@ app.post('/webhook', async (req, res) => {
 
     if (texte === '/ajouteleve' || texte === '/ajouter' || /ajouter?\s+[ée]l[eè]ve/i.test(texte)) {
       await demarrerAjoutEleve(chatId);
+      return;
+    }
+
+    // ── COMMANDE /suspendre ────────────────────────────────
+    if (texte === '/suspendre' || texte === '/archiveleve') {
+      const actifs = Object.keys(ELEVES);
+      if (actifs.length === 0) { await send(chatId, '❌ Aucun élève actif.'); return; }
+      const rows = [];
+      for (let i = 0; i < actifs.length; i += 3)
+        rows.push(actifs.slice(i, i+3).map(n => ({ t: n, d: `susp_${n}` })));
+      rows.push([{ t: '↩️ Annuler', d: 'annuler' }]);
+      await sendBtns(chatId, '⏸️ *Quel élève suspendre ?*\n_Il pourra être réactivé avec /reactiver._', rows);
+      return;
+    }
+
+    // ── COMMANDE /reactiver ────────────────────────────────
+    if (texte === '/reactiver') {
+      const { data: suspendus } = await supabase
+        .from('eleves_custom')
+        .select('nom')
+        .eq('actif', false);
+      if (!suspendus || suspendus.length === 0) {
+        await send(chatId, '✅ Aucun élève suspendu en ce moment.');
+        return;
+      }
+      const rows = [];
+      for (let i = 0; i < suspendus.length; i += 3)
+        rows.push(suspendus.slice(i, i+3).map(e => ({ t: e.nom, d: `react_${e.nom}` })));
+      rows.push([{ t: '↩️ Annuler', d: 'annuler' }]);
+      await sendBtns(chatId, '▶️ *Quel élève réactiver ?*', rows);
+      return;
+    }
+
+    // ── COMMANDE /historique ───────────────────────────────
+    if (texte === '/historique') {
+      await envoyerBilanMensuel(chatId);
+      return;
+    }
+
+    // ── COMMANDE /snapshot (forcé manuellement) ────────────
+    if (texte === '/snapshot') {
+      await send(chatId, '📦 Sauvegarde du snapshot en cours...');
+      await sauvegarderSnapshotMensuel();
       return;
     }
 
@@ -988,7 +1193,6 @@ app.post('/webhook', async (req, res) => {
 
     // ── ÉTATS ACTIFS ───────────────────────────────────────
 
-    // Saisie épargne via /epargne
     if (sessionsEpargne[chatId]?.etape === 'saisie') {
       const montantEp = parseFloat(texte.replace(',', '.').replace(/\s/g, ''));
       if (isNaN(montantEp) || montantEp < 100) {
@@ -1108,7 +1312,7 @@ app.post('/webhook', async (req, res) => {
       return;
     }
 
-    // ── DÉTECTION COURS ────────────────────────────────────
+    // ── DÉTECTION COURS (syntaxe exacte — rapide) ──────────
     const tousEleves = trouverTousLesEleves(texte);
     const eleve = tousEleves[0] || null;
     const isCours = /cours|rattrapage|seance/i.test(texte);
@@ -1137,7 +1341,7 @@ app.post('/webhook', async (req, res) => {
       return;
     }
 
-    // ── DÉTECTION DÉPENSE ──────────────────────────────────
+    // ── DÉTECTION DÉPENSE (syntaxe exacte — rapide) ────────
     const montant = trouverMontant(texte);
     const cat = trouverCategorie(texte);
 
@@ -1148,44 +1352,139 @@ app.post('/webhook', async (req, res) => {
         const restant = BUDGETS[cat].max - newData.totaux[cat];
         const emoji = restant < 0 ? '🔴' : restant < BUDGETS[cat].max * 0.2 ? '🟡' : '🟢';
         await send(chatId, `✅ *${montant}€* — ${BUDGETS[cat].label}\n${emoji} Restant: *${restant.toFixed(0)}€* / ${BUDGETS[cat].max}€`);
-      } else {
-        sessions[chatId] = { montant, libelle: texte, etape: 'choix_cat' };
-        const cats = Object.entries(BUDGETS);
-        const rows = [];
-        for (let i = 0; i < cats.length; i += 3) {
-          rows.push(cats.slice(i, i + 3).map(([k, b]) => ({ t: b.label, d: `cat_${k}` })));
-        }
-        rows.push([{ t: '↩️ Annuler', d: 'annuler' }]);
-        await sendBtns(chatId, `💸 *${montant}€* — Quelle catégorie ?`, rows);
+        return;
       }
-      return;
     }
 
-    // ── SALAIRE ────────────────────────────────────────────
+    // ── SALAIRE (syntaxe exacte — rapide) ─────────────────
     if (/salaire|lgm|paie/i.test(texte) && montant && montant > 1000) {
       await saveSalaire(chatId, montant);
       await send(chatId, `✅ Salaire LGM enregistré: *${montant}€* 📊`);
       return;
     }
 
-    // ── ÉPARGNE (langage naturel via Gemini) ───────────────
+    // ── ÉPARGNE (syntaxe exacte — rapide) ─────────────────
     if (/epargne|épargne|economies|économies|capital|livret|compte epargne/i.test(texte) && montant && montant > 100) {
       await saveEpargne(chatId, montant);
       await afficherProgressionEpargne(chatId, montant);
       return;
     }
 
-    // ── REVENU ─────────────────────────────────────────────
+    // ── REVENU (syntaxe exacte — rapide) ──────────────────
     if (/recu|vinted|remboursement|rentree|participation/i.test(texte) && montant) {
       await saveRevenu(chatId, montant, texte);
       await send(chatId, `✅ Rentrée *+${montant}€* enregistrée !`);
       return;
     }
 
-    // ── GEMINI ─────────────────────────────────────────────
+    // ── GEMINI NLP — analyse intention en langage libre ────
     const data = await getData();
-    const reponse = await geminiParle(chatId, texte, data);
-    await send(chatId, reponse);
+
+    const intentPrompt = `Tu es L'Agent, assistant de Nour-Dine.
+Analyse ce message et réponds en JSON UNIQUEMENT, sans texte avant ni après, sans backticks :
+{
+  "intention": "cours_fait" | "cours_manque" | "depense" | "salaire" | "epargne" | "revenu" | "question" | "inconnu",
+  "eleve": "nom exact de l'élève si cours" | null,
+  "montant": nombre | null,
+  "categorie": "essence" | "courses" | "restos" | "sante" | "maison" | "voiture" | "shopping" | "loisirs" | "divers" | null,
+  "libelle": "description courte" | null,
+  "reponse": "ta réponse naturelle en français si intention=question ou inconnu, sinon null"
+}
+
+Contexte finances: salaire ${data.salaire}€, complétude ${data.completude.toFixed(0)}€/${OBJECTIF_COMPLETUDE}€, solde ${data.solde.toFixed(0)}€, épargne ${data.epargneBase}€
+Élèves actifs (noms exacts): ${Object.keys(ELEVES).join(', ') || 'aucun'}
+Catégories dépenses:
+- essence = carburant, plein, station
+- courses = supermarché, Leclerc, Lidl, Carrefour, alimentation
+- restos = restaurant, kebab, pizza, fast-food, café, burger
+- sante = médecin, pharmacie, docteur
+- maison = IKEA, bricolage, déco
+- voiture = garage, péage, amende, réparation auto
+- shopping = vêtements, coiffeur, beauté, H&M, Zara
+- loisirs = cinéma, concert, sortie, loisir
+- divers = tout le reste
+
+Message: "${texte}"`;
+
+    try {
+      const model = genAI.getGenerativeModel({ model: MODELE });
+      const result = await model.generateContent(intentPrompt);
+      let raw = result.response.text().trim().replace(/```json|```/g, '').trim();
+      const intent = JSON.parse(raw);
+
+      if (intent.intention === 'cours_fait' && intent.eleve && ELEVES[intent.eleve]) {
+        sessions[chatId] = { eleve: intent.eleve, rattrapage: false, etape: 'confirmation', fileAttente: [] };
+        await sendBtns(chatId,
+          `📚 Cours avec *${intent.eleve}* — effectué ?`,
+          [[{ t: '✅ Oui', d: 'cours_oui' }, { t: '❌ Non', d: 'cours_non' }], [{ t: '↩️ Annuler', d: 'annuler' }]]
+        );
+        return;
+      }
+
+      if (intent.intention === 'cours_manque' && intent.eleve && ELEVES[intent.eleve]) {
+        const gain_manque = await saveCoursManque(chatId, intent.eleve);
+        await send(chatId, `❌ Cours ${intent.eleve} non effectué\n💸 Manque: *-${gain_manque.toFixed(2)}€*`);
+        return;
+      }
+
+      if (intent.intention === 'depense' && intent.montant && intent.montant > 0) {
+        const depCat = intent.categorie;
+        if (depCat && BUDGETS[depCat]) {
+          await saveDepense(chatId, intent.montant, depCat, intent.libelle || texte);
+          const newData = await getData();
+          const restant = BUDGETS[depCat].max - newData.totaux[depCat];
+          const emoji = restant < 0 ? '🔴' : restant < BUDGETS[depCat].max * 0.2 ? '🟡' : '🟢';
+          await send(chatId, `✅ *${intent.montant}€* — ${BUDGETS[depCat].label}\n${emoji} Restant: *${restant.toFixed(0)}€* / ${BUDGETS[depCat].max}€`);
+        } else {
+          sessions[chatId] = { montant: intent.montant, libelle: intent.libelle || texte, etape: 'choix_cat' };
+          const cats = Object.entries(BUDGETS);
+          const rows = [];
+          for (let i = 0; i < cats.length; i += 3)
+            rows.push(cats.slice(i, i+3).map(([k, b]) => ({ t: b.label, d: `cat_${k}` })));
+          rows.push([{ t: '↩️ Annuler', d: 'annuler' }]);
+          await sendBtns(chatId, `💸 *${intent.montant}€* — Quelle catégorie ?`, rows);
+        }
+        return;
+      }
+
+      if (intent.intention === 'salaire' && intent.montant && intent.montant > 1000) {
+        await saveSalaire(chatId, intent.montant);
+        await send(chatId, `✅ Salaire LGM enregistré: *${intent.montant}€* 📊`);
+        return;
+      }
+
+      if (intent.intention === 'epargne' && intent.montant && intent.montant > 100) {
+        await saveEpargne(chatId, intent.montant);
+        await afficherProgressionEpargne(chatId, intent.montant);
+        return;
+      }
+
+      if (intent.intention === 'revenu' && intent.montant && intent.montant > 0) {
+        await saveRevenu(chatId, intent.montant, intent.libelle || texte);
+        await send(chatId, `✅ Rentrée *+${intent.montant}€* enregistrée !`);
+        return;
+      }
+
+      // Question ou inconnu → Gemini répond librement
+      if (intent.reponse) {
+        await send(chatId, intent.reponse);
+        return;
+      }
+
+      // Dernier fallback : geminiParle complet
+      const reponse = await geminiParle(chatId, texte, data);
+      await send(chatId, reponse);
+
+    } catch (err) {
+      console.error('Gemini NLP error:', err.message);
+      // Si le JSON parse échoue, on fait répondre Gemini normalement
+      try {
+        const reponse = await geminiParle(chatId, texte, data);
+        await send(chatId, reponse);
+      } catch (err2) {
+        await send(chatId, 'Je n\'ai pas bien compris. Réessaie ou utilise une commande.');
+      }
+    }
 
   } catch (err) {
     console.error('Erreur webhook:', err.message);
@@ -1194,86 +1493,145 @@ app.post('/webhook', async (req, res) => {
 });
 
 // ============================================================
+// ROUTE /depense — raccourci iOS Apple Pay
+// ============================================================
+app.post('/depense', async (req, res) => {
+  res.sendStatus(200);
+  try {
+    const { chat_id, text } = req.body;
+    const chatId = chat_id || CHAT_ID;
+    const montant = trouverMontant(text);
+    const cat = trouverCategorie(text);
+
+    console.log(`/depense reçu — text: "${text}" | montant: ${montant} | cat: ${cat}`);
+
+    if (!montant || montant <= 0) {
+      await send(chatId, '❌ Montant invalide reçu depuis le raccourci.');
+      return;
+    }
+
+    if (cat) {
+      await saveDepense(chatId, montant, cat, text);
+      const newData = await getData();
+      const restant = BUDGETS[cat].max - newData.totaux[cat];
+      const emoji = restant < 0 ? '🔴' : restant < BUDGETS[cat].max * 0.2 ? '🟡' : '🟢';
+      await send(chatId, `🍎 *Apple Pay — ${montant}€*\n✅ ${BUDGETS[cat].label}\n${emoji} Restant: *${restant.toFixed(0)}€* / ${BUDGETS[cat].max}€`);
+    } else {
+      sessions[chatId] = { montant, libelle: text, etape: 'choix_cat' };
+      const cats = Object.entries(BUDGETS);
+      const rows = [];
+      for (let i = 0; i < cats.length; i += 3) {
+        rows.push(cats.slice(i, i + 3).map(([k, b]) => ({ t: b.label, d: `cat_${k}` })));
+      }
+      rows.push([{ t: '↩️ Annuler', d: 'annuler' }]);
+      await sendBtns(chatId, `🍎 *Apple Pay — ${montant}€*\n\nQuelle catégorie ?`, rows);
+    }
+  } catch (err) {
+    console.error('/depense error:', err.message);
+  }
+});
+
+// ============================================================
+// API DASHBOARD
+// ============================================================
+app.get('/api/dashboard', async (req, res) => {
+  try {
+    const moisOffset = parseInt(req.query.mois || '0');
+    const data = await getData(moisOffset);
+    const aVenir = getPrelEvementsAVenir(7);
+    const totalRestant = getTotalPrelevementsRestants();
+
+    const moisDisponibles = [];
+    for (let i = -5; i <= 0; i++) {
+      const d = new Date();
+      d.setUTCMonth(d.getUTCMonth() + i);
+      moisDisponibles.push({
+        offset: i,
+        label: d.toLocaleString('fr-FR', { month: 'long', year: 'numeric' }),
+        isCurrent: i === 0
+      });
+    }
+
+    const planningDashboard = {};
+    Object.entries(ELEVES).forEach(([nom, p]) => {
+      planningDashboard[nom] = {
+        jour: p.jour, taux: p.taux, duree: p.duree,
+        uneSemaineSurDeux: p.uneSemaineSurDeux || false,
+        niveau: p.niveau,
+      };
+    });
+
+    const potentiel = calculerPotentielRestant(moisOffset, data.cours, data.coursManques);
+
+    // Snapshots mensuels pour le dashboard
+    const { data: snapshots } = await supabase
+      .from('snapshots_mensuels')
+      .select('mois, donnees')
+      .order('mois', { ascending: false })
+      .limit(12);
+
+    res.json({
+      salaire: data.salaire, beau_frere: BEAU_FRERE,
+      completude: data.completude, objectif_completude: OBJECTIF_COMPLETUDE,
+      total_revenus: data.totalRevenus, charges_fixes: TOTAL_CHARGES_FIXES,
+      total_dep: data.totalDep, solde: data.solde,
+      epargne_base: data.epargneBase, epargne_estimee: data.epargneEstimee,
+      total_manque: data.totalManque, nb_cours: data.cours.length,
+      nb_cours_manques: data.coursManques.length,
+      cours: data.cours, cours_manques: data.coursManques,
+      totaux: data.totaux, detail: data.detail,
+      budgets: BUDGETS, objectifs: OBJECTIFS,
+      revenus_supp: data.revenus,
+      prelevements_a_venir: aVenir,
+      total_prelevements_restants: totalRestant,
+      prelevements_tous: PRELEVEMENTS_DATES,
+      mois_offset: moisOffset,
+      mois_disponibles: moisDisponibles,
+      planning: planningDashboard,
+      potentiel_restant: potentiel.montantRestant,
+      jours_restants_count: potentiel.joursRestantsCount,
+      eleves_restants: potentiel.elevesRestants,
+      calendrier: potentiel.calendrier,
+      dernier_jour: potentiel.dernierJour,
+      annee_mois: { annee: potentiel.annee, mois: potentiel.mois },
+      snapshots_mensuels: snapshots || [],
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/dashboard', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dashboard.html'));
+});
+app.get('/', (req, res) => res.send("L'Agent est en ligne ! 🤖"));
+
+// ============================================================
 // MESSAGES AUTOMATIQUES
 // ============================================================
+async function envoyerRappelBiHebdo() {
+  const data = await getData();
+  const manque = Math.max(0, OBJECTIF_COMPLETUDE - data.completude);
+  const pct = Math.min(100, Math.round((data.completude / OBJECTIF_COMPLETUDE) * 100));
+  const emoji = data.completude >= OBJECTIF_COMPLETUDE ? '🟢' : data.completude >= 1000 ? '🟡' : '🔴';
+  let msg = `📊 *Point bi-hebdo*\n\n`;
+  msg += `${emoji} Complétude: *${data.completude.toFixed(0)}€* / ${OBJECTIF_COMPLETUDE}€ (${pct}%)\n`;
+  if (manque > 0) msg += `⚠️ Il manque: *${manque.toFixed(0)}€*\n`;
+  msg += `💰 Solde estimé: *${data.solde.toFixed(0)}€*\n`;
+  msg += `💎 Épargne projetée: *${data.epargneEstimee.toFixed(0)}€*`;
+  await send(CHAT_ID, msg);
+}
 
-
-async function geminiParle(chatId, message, data) {
-  const model = genAI.getGenerativeModel({ model: MODELE });
-
-  const elevesInfo = Object.entries(ELEVES).map(([n, e]) =>
-    `${n} (${e.niveau}, ${e.taux}€/h, ${e.duree}h, ${JOURS_NOMS[e.jour]} à ${e.heure}h${e.minute > 0 ? e.minute.toString().padStart(2,'0') : '00'})`
-  ).join('\n');
-
-  const budgetsInfo = Object.entries(BUDGETS)
-    .map(([k, b]) => `${b.label}: ${data.totaux[k]?.toFixed(0) || 0}€ / ${b.max}€`)
-    .join('\n');
-
-  const objectifsInfo = OBJECTIFS.map(o => {
-    const delta = data.epargneBase - o.montant;
-    return `${o.label}: ${o.montant.toLocaleString()}€ (${delta >= 0 ? '+' : ''}${delta.toFixed(0)}€)`;
-  }).join('\n');
-
-  const prelevementsInfo = PRELEVEMENTS_DATES
-    .filter(p => p.jour)
-    .map(p => `${p.nom}: ${p.montant}€ (le ${p.jour})`)
-    .join('\n');
-
-  const ctx = `Tu es L'Agent, assistant personnel intelligent de Nour-Dine.
-Tu es direct, naturel, bienveillant et proactif.
-Tu réponds à TOUTES les questions naturellement, pas seulement les commandes.
-Tu analyses, tu conseilles, tu calcules si besoin.
-Tu parles français naturellement, jamais de JSON ni de balises techniques.
-Max 6 lignes sauf si on te demande un détail complet.
-
-=== SITUATION FINANCIÈRE ===
-Salaire LGM: ${data.salaire}€
-Beau-frère: ${BEAU_FRERE}€
-Complétude cours: ${data.completude.toFixed(0)}€ / ${OBJECTIF_COMPLETUDE}€
-Revenus supplémentaires: ${data.revenusSupp.toFixed(0)}€
-Total revenus: ${data.totalRevenus.toFixed(0)}€
-Charges fixes totales: ${TOTAL_CHARGES_FIXES.toFixed(0)}€
-Total dépenses: ${data.totalDep.toFixed(0)}€
-Solde du mois: ${data.solde.toFixed(0)}€
-Épargne actuelle: ${data.epargneBase.toLocaleString()}€
-Épargne estimée fin de mois: ${data.epargneEstimee.toFixed(0)}€
-
-=== BUDGETS CE MOIS ===
-${budgetsInfo}
-
-=== ÉLÈVES ACTIFS ===
-${elevesInfo || 'Aucun élève actif'}
-Cours effectués ce mois: ${data.cours.length}
-Cours manqués ce mois: ${data.coursManques.length}
-Manque à gagner: ${data.totalManque.toFixed(0)}€
-
-=== PRÉLÈVEMENTS ===
-${prelevementsInfo}
-Total charges fixes: ${TOTAL_CHARGES_FIXES.toFixed(0)}€/mois
-
-=== OBJECTIFS ÉPARGNE ===
-${objectifsInfo}
-
-=== COMMANDES DISPONIBLES ===
-/bilan - résumé dépenses du mois
-/completude - détail des cours
-/objectifs - progression épargne
-/prelevements - prélèvements à venir
-/ajouteleve - ajouter un élève
-/archiveleve - archiver un élève
-/annuler - annuler une action
-/modifier - modifier budget ou dépense
-/revenu - enregistrer une rentrée
-/epargne - mettre à jour l'épargne
-/fiche - générer une fiche PDF
-
-Tu peux aussi enregistrer directement :
-- Un cours : "cours avec Margaux"
-- Une dépense : "Leclerc 45€"
-- Un salaire : "salaire 2500€"`;
-
-  const result = await model.generateContent(ctx + '\n\nMessage de Nour-Dine: ' + message);
-  return result.response.text();
+async function envoyerSyntheseMensuelle() {
+  const data = await getData();
+  let msg = `🗓️ *Synthèse de fin de mois*\n\n`;
+  msg += `💰 Revenus totaux: *${data.totalRevenus.toFixed(0)}€*\n`;
+  msg += `📚 Complétude: *${data.completude.toFixed(0)}€* / ${OBJECTIF_COMPLETUDE}€\n`;
+  msg += `💸 Dépenses: *${data.totalDep.toFixed(0)}€*\n`;
+  msg += `📊 Solde: *${data.solde >= 0 ? '+' : ''}${data.solde.toFixed(0)}€*\n`;
+  msg += `💎 Épargne estimée: *${data.epargneEstimee.toFixed(0)}€*\n\n`;
+  msg += `_Bilan sauvegardé. Nouveau mois qui commence !_`;
+  await send(CHAT_ID, msg);
 }
 
 // ============================================================
@@ -1293,9 +1651,21 @@ function demarrerScheduler() {
     const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
     const jour = now.getDay(), heure = now.getHours(), minute = now.getMinutes();
 
-    if ((jour === 3 || jour === 0) && heure === 20 && minute === 0) await envoyerRappelBiHebdo();
-    if (now.getDate() === 30 && heure === 20 && minute === 0) await envoyerSyntheseMensuelle();
+    // Rappel bi-hebdo (mercredi et dimanche à 20h)
+    if ((jour === 3 || jour === 0) && heure === 20 && minute === 0) {
+      await envoyerRappelBiHebdo();
+    }
 
+    // Dernier jour du mois à 20h → snapshot + synthèse
+    if (heure === 20 && minute === 0) {
+      const dernierJourDuMois = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      if (now.getDate() === dernierJourDuMois) {
+        await sauvegarderSnapshotMensuel();
+        await envoyerSyntheseMensuelle();
+      }
+    }
+
+    // Alertes prélèvements J-1 à 9h
     const demain = now.getDate() + 1;
     if (heure === 9 && minute === 0) {
       const alertes = PRELEVEMENTS_DATES.filter(p => p.jour === demain);
@@ -1308,6 +1678,7 @@ function demarrerScheduler() {
       }
     }
 
+    // Rappels de fin de cours
     for (const [nomEleve, profil] of Object.entries(ELEVES)) {
       if (profil.jour !== jour) continue;
       if (profil.uneSemaineSurDeux && !estSemaineSerena()) continue;
@@ -1481,7 +1852,7 @@ async function demarrerFiche(chatId) {
 }
 
 // ============================================================
-// CALCUL POTENTIEL RESTANT (côté serveur)
+// CALCUL POTENTIEL RESTANT
 // ============================================================
 function calculerPotentielRestant(moisOffset, cours, coursManques) {
   const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
@@ -1549,116 +1920,6 @@ function calculerPotentielRestant(moisOffset, cours, coursManques) {
     mois,
   };
 }
-
-// ============================================================
-// API DASHBOARD
-// ============================================================
-// ============================================================
-// ROUTE /depense — appelée depuis le raccourci iOS Apple Pay
-// ============================================================
-app.post('/depense', async (req, res) => {
-  res.sendStatus(200);
-  try {
-    const { chat_id, text } = req.body;
-    const chatId = chat_id || CHAT_ID;
-    const montant = trouverMontant(text);
-    const cat = trouverCategorie(text);
-
-    console.log(`/depense reçu — text: "${text}" | montant: ${montant} | cat: ${cat}`);
-
-    if (!montant || montant <= 0) {
-      await send(chatId, '❌ Montant invalide reçu depuis le raccourci.');
-      return;
-    }
-
-    if (cat) {
-      await saveDepense(chatId, montant, cat, text);
-      const newData = await getData();
-      const restant = BUDGETS[cat].max - newData.totaux[cat];
-      const emoji = restant < 0 ? '🔴' : restant < BUDGETS[cat].max * 0.2 ? '🟡' : '🟢';
-      await send(chatId, `🍎 *Apple Pay — ${montant}€*\n✅ ${BUDGETS[cat].label}\n${emoji} Restant: *${restant.toFixed(0)}€* / ${BUDGETS[cat].max}€`);
-    } else {
-      // Catégorie non détectée → demander via boutons Telegram
-      sessions[chatId] = { montant, libelle: text, etape: 'choix_cat' };
-      const cats = Object.entries(BUDGETS);
-      const rows = [];
-      for (let i = 0; i < cats.length; i += 3) {
-        rows.push(cats.slice(i, i + 3).map(([k, b]) => ({ t: b.label, d: `cat_${k}` })));
-      }
-      rows.push([{ t: '↩️ Annuler', d: 'annuler' }]);
-      await sendBtns(chatId, `🍎 *Apple Pay — ${montant}€*\n\nQuelle catégorie ?`, rows);
-    }
-  } catch (err) {
-    console.error('/depense error:', err.message);
-  }
-});
-
-// ============================================================
-// API DASHBOARD
-// ============================================================
-app.get('/api/dashboard', async (req, res) => {
-  try {
-    const moisOffset = parseInt(req.query.mois || '0');
-    const data = await getData(moisOffset);
-    const aVenir = getPrelEvementsAVenir(7);
-    const totalRestant = getTotalPrelevementsRestants();
-
-    const moisDisponibles = [];
-    for (let i = -5; i <= 0; i++) {
-      const d = new Date();
-      d.setUTCMonth(d.getUTCMonth() + i);
-      moisDisponibles.push({
-        offset: i,
-        label: d.toLocaleString('fr-FR', { month: 'long', year: 'numeric' }),
-        isCurrent: i === 0
-      });
-    }
-
-    const planningDashboard = {};
-    Object.entries(ELEVES).forEach(([nom, p]) => {
-      planningDashboard[nom] = {
-        jour: p.jour, taux: p.taux, duree: p.duree,
-        uneSemaineSurDeux: p.uneSemaineSurDeux || false,
-        niveau: p.niveau,
-      };
-    });
-
-    const potentiel = calculerPotentielRestant(moisOffset, data.cours, data.coursManques);
-
-    res.json({
-      salaire: data.salaire, beau_frere: BEAU_FRERE,
-      completude: data.completude, objectif_completude: OBJECTIF_COMPLETUDE,
-      total_revenus: data.totalRevenus, charges_fixes: TOTAL_CHARGES_FIXES,
-      total_dep: data.totalDep, solde: data.solde,
-      epargne_base: data.epargneBase, epargne_estimee: data.epargneEstimee,
-      total_manque: data.totalManque, nb_cours: data.cours.length,
-      nb_cours_manques: data.coursManques.length,
-      cours: data.cours, cours_manques: data.coursManques,
-      totaux: data.totaux, detail: data.detail,
-      budgets: BUDGETS, objectifs: OBJECTIFS,
-      revenus_supp: data.revenus,
-      prelevements_a_venir: aVenir,
-      total_prelevements_restants: totalRestant,
-      prelevements_tous: PRELEVEMENTS_DATES,
-      mois_offset: moisOffset,
-      mois_disponibles: moisDisponibles,
-      planning: planningDashboard,
-      potentiel_restant: potentiel.montantRestant,
-      jours_restants_count: potentiel.joursRestantsCount,
-      eleves_restants: potentiel.elevesRestants,
-      calendrier: potentiel.calendrier,
-      dernier_jour: potentiel.dernierJour,
-      annee_mois: { annee: potentiel.annee, mois: potentiel.mois },
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.get('/dashboard', (req, res) => {
-  res.sendFile(path.join(__dirname, 'dashboard.html'));
-});
-app.get('/', (req, res) => res.send("L'Agent est en ligne ! 🤖"));
 
 // ============================================================
 // DÉMARRAGE
