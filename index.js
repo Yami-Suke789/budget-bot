@@ -168,19 +168,21 @@ async function removeBtns(chatId, msgId) {
 // SUPABASE
 // ============================================================
 function getDebutMois(moisOffset = 0) {
-  const d = new Date();
-  d.setUTCDate(1);
-  d.setUTCHours(0, 0, 0, 0);
-  if (moisOffset !== 0) d.setUTCMonth(d.getUTCMonth() + moisOffset);
-  return d.toISOString();
+  // Utiliser l'heure Paris pour déterminer le mois courant correct
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
+  const d = new Date(now.getFullYear(), now.getMonth() + moisOffset, 1);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  return `${y}-${m}-01T00:00:00.000Z`;
 }
 
 function getFinMois(moisOffset = 0) {
-  const d = new Date();
-  d.setUTCDate(1);
-  d.setUTCHours(0, 0, 0, 0);
-  d.setUTCMonth(d.getUTCMonth() + moisOffset + 1);
-  return d.toISOString();
+  // 1er du mois suivant = borne exclusive de fin
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
+  const d = new Date(now.getFullYear(), now.getMonth() + moisOffset + 1, 1);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  return `${y}-${m}-01T00:00:00.000Z`;
 }
 
 async function getData(moisOffset = 0) {
