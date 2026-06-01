@@ -1382,113 +1382,104 @@ app.post('/webhook', async (req, res) => {
       return;
     }
 
-    // ── GEMINI NLP — analyse intention en langage libre ────
+    // ── NLP ÉTENDU — détection langage naturel ────────────
     const data = await getData();
 
-    const intentPrompt = `Tu es L'Agent, assistant de Nour-Dine.
-Analyse ce message et réponds en JSON UNIQUEMENT, sans texte avant ni après, sans backticks :
-{
-  "intention": "cours_fait" | "cours_manque" | "depense" | "salaire" | "epargne" | "revenu" | "question" | "inconnu",
-  "eleve": "nom exact de l'élève si cours" | null,
-  "montant": nombre | null,
-  "categorie": "essence" | "courses" | "restos" | "sante" | "maison" | "voiture" | "shopping" | "loisirs" | "divers" | null,
-  "libelle": "description courte" | null,
-  "reponse": "ta réponse naturelle en français si intention=question ou inconnu, sinon null"
-}
+    // Détection étendue cours (langage naturel)
+    const elevesNLP = trouverTousLesEleves(texte);
+    const eleveNLP = elevesNLP[0] || null;
+    const txtN = texte.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
-Contexte finances: salaire ${data.salaire}€, complétude ${data.completude.toFixed(0)}€/${OBJECTIF_COMPLETUDE}€, solde ${data.solde.toFixed(0)}€, épargne ${data.epargneBase}€
-Élèves actifs (noms exacts): ${Object.keys(ELEVES).join(', ') || 'aucun'}
-Catégories dépenses:
-- essence = carburant, plein, station
-- courses = supermarché, Leclerc, Lidl, Carrefour, alimentation
-- restos = restaurant, kebab, pizza, fast-food, café, burger
-- sante = médecin, pharmacie, docteur
-- maison = IKEA, bricolage, déco
-- voiture = garage, péage, amende, réparation auto
-- shopping = vêtements, coiffeur, beauté, H&M, Zara
-- loisirs = cinéma, concert, sortie, loisir
-- divers = tout le reste
+    if (eleveNLP) {
+      const signesCours = /\bcours\b|\bseance\b|\brattrapage\b|\bfait cours\b|\bvu\b|\btermin|\bfini\b|j.ai fait|on a fait|effectu/i.test(texte);
+      const signesAbsence = /absent|pas (l[aà]|venu|v[eè]nu|pu|fait|venir)|annul|pr[eé]venu|cancel|s.est d[eé]sist|pa(s)? (eu|pu)|a pas|na pas/i.test(texte);
 
-Message: "${texte}"`;
-
-    try {
-      const model = genAI.getGenerativeModel({ model: MODELE });
-      const result = await model.generateContent(intentPrompt);
-      let raw = result.response.text().trim().replace(/```json|```/g, '').trim();
-      const intent = JSON.parse(raw);
-
-      if (intent.intention === 'cours_fait' && intent.eleve && ELEVES[intent.eleve]) {
-        sessions[chatId] = { eleve: intent.eleve, rattrapage: false, etape: 'confirmation', fileAttente: [] };
-        await sendBtns(chatId,
-          `📚 Cours avec *${intent.eleve}* — effectué ?`,
-          [[{ t: '✅ Oui', d: 'cours_oui' }, { t: '❌ Non', d: 'cours_non' }], [{ t: '↩️ Annuler', d: 'annuler' }]]
-        );
-        return;
-      }
-
-      if (intent.intention === 'cours_manque' && intent.eleve && ELEVES[intent.eleve]) {
-        const gain_manque = await saveCoursManque(chatId, intent.eleve);
-        await send(chatId, `❌ Cours ${intent.eleve} non effectué\n💸 Manque: *-${gain_manque.toFixed(2)}€*`);
-        return;
-      }
-
-      if (intent.intention === 'depense' && intent.montant && intent.montant > 0) {
-        const depCat = intent.categorie;
-        if (depCat && BUDGETS[depCat]) {
-          await saveDepense(chatId, intent.montant, depCat, intent.libelle || texte);
-          const newData = await getData();
-          const restant = BUDGETS[depCat].max - newData.totaux[depCat];
-          const emoji = restant < 0 ? '🔴' : restant < BUDGETS[depCat].max * 0.2 ? '🟡' : '🟢';
-          await send(chatId, `✅ *${intent.montant}€* — ${BUDGETS[depCat].label}\n${emoji} Restant: *${restant.toFixed(0)}€* / ${BUDGETS[depCat].max}€`);
-        } else {
-          sessions[chatId] = { montant: intent.montant, libelle: intent.libelle || texte, etape: 'choix_cat' };
-          const cats = Object.entries(BUDGETS);
-          const rows = [];
-          for (let i = 0; i < cats.length; i += 3)
-            rows.push(cats.slice(i, i+3).map(([k, b]) => ({ t: b.label, d: `cat_${k}` })));
-          rows.push([{ t: '↩️ Annuler', d: 'annuler' }]);
-          await sendBtns(chatId, `💸 *${intent.montant}€* — Quelle catégorie ?`, rows);
+      if (signesAbsence) {
+        for (const el of elevesNLP) {
+          const gain_manque = await saveCoursManque(chatId, el);
+          await send(chatId, `❌ Cours ${el} non effectué\n💸 Manque: *-${gain_manque.toFixed(2)}€*`);
         }
         return;
       }
 
-      if (intent.intention === 'salaire' && intent.montant && intent.montant > 1000) {
-        await saveSalaire(chatId, intent.montant);
-        await send(chatId, `✅ Salaire LGM enregistré: *${intent.montant}€* 📊`);
+      if (signesCours) {
+        const rattrapage = /rattrapage/i.test(texte);
+        const fileAttente = elevesNLP.slice(1);
+        sessions[chatId] = { eleve: eleveNLP, rattrapage, etape: 'confirmation', fileAttente };
+        await sendBtns(chatId,
+          `📚 Cours avec *${eleveNLP}*${rattrapage ? ' _(rattrapage)_' : ''} — effectué ?`,
+          [[{ t: '✅ Oui', d: 'cours_oui' }, { t: '❌ Non', d: 'cours_non' }], [{ t: '↩️ Annuler', d: 'annuler' }]]
+        );
+        return;
+      }
+    }
+
+    // Détection étendue dépense (langage naturel)
+    const montantNLP = trouverMontant(texte);
+    if (montantNLP && montantNLP > 0 && montantNLP < 5000) {
+      // Catégorie étendue avec plus de mots-clés
+      let catNLP = trouverCategorie(texte);
+
+      // Patterns supplémentaires non couverts par trouverCategorie
+      if (!catNLP) {
+        if (/plein|carburant|essence|gasoil|sans.plomb|bp |total |esso|shell/i.test(texte)) catNLP = 'essence';
+        else if (/mang|d[eé]jeuner|d[iî]ner|midi|resto|brasserie|boulang|vienno|sandwich|snack|fast.?food|mcdonald|kfc|burger|pizza|kebab|sushi|japonais|chinois|thaï|caf[eé]|boba/i.test(texte)) catNLP = 'restos';
+        else if (/leclerc|carrefour|lidl|aldi|monop|intermarché|casino|franprix|g20|simply|super|hyper|marché|primeur|épicerie|alimentation|courses|commissions/i.test(texte)) catNLP = 'courses';
+        else if (/médecin|docteur|pharmac|infirm|kiné|ostéo|dentiste|opticien|clinique|hôpital|urgence|doctolib|ordonnance|médicament|doliprane|smur/i.test(texte)) catNLP = 'sante';
+        else if (/coiffeur|coif|ongle|nail|lash|brow|maquillage|sephora|zara|h&m|hm|primark|vêtement|habit|fringue|chaussure|sac|accessoire|bijou|montre|parfum/i.test(texte)) catNLP = 'shopping';
+        else if (/cinéma|concert|spectacle|théâtre|musée|sortie|bowling|karting|escape|parc|zoo|aquarium|netflix|amazon|spotify|jeu|jeux/i.test(texte)) catNLP = 'loisirs';
+        else if (/ikea|leroy|castorama|brico|déco|meuble|rideau|ampoule|outil|plomberie|électricité|peinture|rénovation/i.test(texte)) catNLP = 'maison';
+        else if (/garage|mécanicien|pneu|vidange|révision|contrôle.technique|péage|autoroute|parking|horodateur|pv |amende|stationnement|lavage.voiture/i.test(texte)) catNLP = 'voiture';
+      }
+
+      if (catNLP) {
+        await saveDepense(chatId, montantNLP, catNLP, texte);
+        const newData = await getData();
+        const restant = BUDGETS[catNLP].max - newData.totaux[catNLP];
+        const emoji = restant < 0 ? '🔴' : restant < BUDGETS[catNLP].max * 0.2 ? '🟡' : '🟢';
+        await send(chatId, `✅ *${montantNLP}€* — ${BUDGETS[catNLP].label}\n${emoji} Restant: *${restant.toFixed(0)}€* / ${BUDGETS[catNLP].max}€`);
         return;
       }
 
-      if (intent.intention === 'epargne' && intent.montant && intent.montant > 100) {
-        await saveEpargne(chatId, intent.montant);
-        await afficherProgressionEpargne(chatId, intent.montant);
-        return;
-      }
+      // Montant détecté mais catégorie inconnue → demander
+      sessions[chatId] = { montant: montantNLP, libelle: texte, etape: 'choix_cat' };
+      const cats = Object.entries(BUDGETS);
+      const rows = [];
+      for (let i = 0; i < cats.length; i += 3)
+        rows.push(cats.slice(i, i+3).map(([k, b]) => ({ t: b.label, d: `cat_${k}` })));
+      rows.push([{ t: '↩️ Annuler', d: 'annuler' }]);
+      await sendBtns(chatId, `💸 *${montantNLP}€* — Quelle catégorie ?`, rows);
+      return;
+    }
 
-      if (intent.intention === 'revenu' && intent.montant && intent.montant > 0) {
-        await saveRevenu(chatId, intent.montant, intent.libelle || texte);
-        await send(chatId, `✅ Rentrée *+${intent.montant}€* enregistrée !`);
-        return;
-      }
+    // Détection salaire étendue
+    if (/salaire|lgm|paie|virement.*lgm|lgm.*virement/i.test(texte) && montantNLP && montantNLP > 1000) {
+      await saveSalaire(chatId, montantNLP);
+      await send(chatId, `✅ Salaire LGM enregistré: *${montantNLP}€* 📊`);
+      return;
+    }
 
-      // Question ou inconnu → Gemini répond librement
-      if (intent.reponse) {
-        await send(chatId, intent.reponse);
-        return;
-      }
+    // Détection épargne étendue
+    if (/epargne|épargne|économie|économies|livret|capital|j.ai mis|j.ai économisé|mis de c[oô]t[eé]/i.test(texte) && montantNLP && montantNLP > 100) {
+      await saveEpargne(chatId, montantNLP);
+      await afficherProgressionEpargne(chatId, montantNLP);
+      return;
+    }
 
-      // Dernier fallback : geminiParle complet
+    // Détection revenu étendu
+    if (/reçu|vinted|remboursement|rentrée|rentr[eé]e|participation|prime|bonus|cash|gagné|vendu/i.test(texte) && montantNLP && montantNLP > 0) {
+      await saveRevenu(chatId, montantNLP, texte);
+      await send(chatId, `✅ Rentrée *+${montantNLP}€* enregistrée !`);
+      return;
+    }
+
+    // Fallback : Gemini répond librement (questions, conversations)
+    try {
       const reponse = await geminiParle(chatId, texte, data);
       await send(chatId, reponse);
-
     } catch (err) {
-      console.error('Gemini NLP error:', err.message);
-      // Si le JSON parse échoue, on fait répondre Gemini normalement
-      try {
-        const reponse = await geminiParle(chatId, texte, data);
-        await send(chatId, reponse);
-      } catch (err2) {
-        await send(chatId, 'Je n\'ai pas bien compris. Réessaie ou utilise une commande.');
-      }
+      console.error('geminiParle error:', err.message);
+      await send(chatId, `Je n'ai pas compris. Essaie:\n• _"cours avec [prénom]"_\n• _"[montant]€ [lieu/type]"_\n• /bilan /completude /prelevements`);
     }
 
   } catch (err) {
@@ -1496,444 +1487,3 @@ Message: "${texte}"`;
     await send(chatId, 'Erreur technique, réessaie.');
   }
 });
-
-// ============================================================
-// ROUTE /depense — raccourci iOS Apple Pay
-// ============================================================
-app.post('/depense', async (req, res) => {
-  res.sendStatus(200);
-  try {
-    const { chat_id, text } = req.body;
-    const chatId = chat_id || CHAT_ID;
-    const montant = trouverMontant(text);
-    const cat = trouverCategorie(text);
-
-    console.log(`/depense reçu — text: "${text}" | montant: ${montant} | cat: ${cat}`);
-
-    if (!montant || montant <= 0) {
-      await send(chatId, '❌ Montant invalide reçu depuis le raccourci.');
-      return;
-    }
-
-    if (cat) {
-      await saveDepense(chatId, montant, cat, text);
-      const newData = await getData();
-      const restant = BUDGETS[cat].max - newData.totaux[cat];
-      const emoji = restant < 0 ? '🔴' : restant < BUDGETS[cat].max * 0.2 ? '🟡' : '🟢';
-      await send(chatId, `🍎 *Apple Pay — ${montant}€*\n✅ ${BUDGETS[cat].label}\n${emoji} Restant: *${restant.toFixed(0)}€* / ${BUDGETS[cat].max}€`);
-    } else {
-      sessions[chatId] = { montant, libelle: text, etape: 'choix_cat' };
-      const cats = Object.entries(BUDGETS);
-      const rows = [];
-      for (let i = 0; i < cats.length; i += 3) {
-        rows.push(cats.slice(i, i + 3).map(([k, b]) => ({ t: b.label, d: `cat_${k}` })));
-      }
-      rows.push([{ t: '↩️ Annuler', d: 'annuler' }]);
-      await sendBtns(chatId, `🍎 *Apple Pay — ${montant}€*\n\nQuelle catégorie ?`, rows);
-    }
-  } catch (err) {
-    console.error('/depense error:', err.message);
-  }
-});
-
-// ============================================================
-// API DASHBOARD
-// ============================================================
-app.get('/api/dashboard', async (req, res) => {
-  try {
-    const moisOffset = parseInt(req.query.mois || '0');
-    const data = await getData(moisOffset);
-    const aVenir = getPrelEvementsAVenir(7);
-    const totalRestant = getTotalPrelevementsRestants();
-
-    const moisDisponibles = [];
-    for (let i = -5; i <= 0; i++) {
-      const d = new Date();
-      d.setUTCMonth(d.getUTCMonth() + i);
-      moisDisponibles.push({
-        offset: i,
-        label: d.toLocaleString('fr-FR', { month: 'long', year: 'numeric' }),
-        isCurrent: i === 0
-      });
-    }
-
-    const planningDashboard = {};
-    Object.entries(ELEVES).forEach(([nom, p]) => {
-      planningDashboard[nom] = {
-        jour: p.jour, taux: p.taux, duree: p.duree,
-        uneSemaineSurDeux: p.uneSemaineSurDeux || false,
-        niveau: p.niveau,
-      };
-    });
-
-    const potentiel = calculerPotentielRestant(moisOffset, data.cours, data.coursManques);
-
-    // Snapshots mensuels pour le dashboard
-    const { data: snapshots } = await supabase
-      .from('snapshots_mensuels')
-      .select('mois, donnees')
-      .order('mois', { ascending: false })
-      .limit(12);
-
-    res.json({
-      salaire: data.salaire, beau_frere: BEAU_FRERE,
-      completude: data.completude, objectif_completude: OBJECTIF_COMPLETUDE,
-      total_revenus: data.totalRevenus, charges_fixes: TOTAL_CHARGES_FIXES,
-      total_dep: data.totalDep, solde: data.solde,
-      epargne_base: data.epargneBase, epargne_estimee: data.epargneEstimee,
-      total_manque: data.totalManque, nb_cours: data.cours.length,
-      nb_cours_manques: data.coursManques.length,
-      cours: data.cours, cours_manques: data.coursManques,
-      totaux: data.totaux, detail: data.detail,
-      budgets: BUDGETS, objectifs: OBJECTIFS,
-      revenus_supp: data.revenus,
-      prelevements_a_venir: aVenir,
-      total_prelevements_restants: totalRestant,
-      prelevements_tous: PRELEVEMENTS_DATES,
-      mois_offset: moisOffset,
-      mois_disponibles: moisDisponibles,
-      planning: planningDashboard,
-      potentiel_restant: potentiel.montantRestant,
-      jours_restants_count: potentiel.joursRestantsCount,
-      eleves_restants: potentiel.elevesRestants,
-      calendrier: potentiel.calendrier,
-      dernier_jour: potentiel.dernierJour,
-      annee_mois: { annee: potentiel.annee, mois: potentiel.mois },
-      snapshots_mensuels: snapshots || [],
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.get('/dashboard', (req, res) => {
-  res.sendFile(path.join(__dirname, 'dashboard.html'));
-});
-app.get('/', (req, res) => res.send("L'Agent est en ligne ! 🤖"));
-
-// ============================================================
-// MESSAGES AUTOMATIQUES
-// ============================================================
-async function envoyerRappelBiHebdo() {
-  const data = await getData();
-  const manque = Math.max(0, OBJECTIF_COMPLETUDE - data.completude);
-  const pct = Math.min(100, Math.round((data.completude / OBJECTIF_COMPLETUDE) * 100));
-  const emoji = data.completude >= OBJECTIF_COMPLETUDE ? '🟢' : data.completude >= 1000 ? '🟡' : '🔴';
-  let msg = `📊 *Point bi-hebdo*\n\n`;
-  msg += `${emoji} Complétude: *${data.completude.toFixed(0)}€* / ${OBJECTIF_COMPLETUDE}€ (${pct}%)\n`;
-  if (manque > 0) msg += `⚠️ Il manque: *${manque.toFixed(0)}€*\n`;
-  msg += `💰 Solde estimé: *${data.solde.toFixed(0)}€*\n`;
-  msg += `💎 Épargne projetée: *${data.epargneEstimee.toFixed(0)}€*`;
-  await send(CHAT_ID, msg);
-}
-
-async function envoyerSyntheseMensuelle() {
-  const data = await getData();
-  let msg = `🗓️ *Synthèse de fin de mois*\n\n`;
-  msg += `💰 Revenus totaux: *${data.totalRevenus.toFixed(0)}€*\n`;
-  msg += `📚 Complétude: *${data.completude.toFixed(0)}€* / ${OBJECTIF_COMPLETUDE}€\n`;
-  msg += `💸 Dépenses: *${data.totalDep.toFixed(0)}€*\n`;
-  msg += `📊 Solde: *${data.solde >= 0 ? '+' : ''}${data.solde.toFixed(0)}€*\n`;
-  msg += `💎 Épargne estimée: *${data.epargneEstimee.toFixed(0)}€*\n\n`;
-  msg += `_Bilan sauvegardé. Nouveau mois qui commence !_`;
-  await send(CHAT_ID, msg);
-}
-
-// ============================================================
-// SCHEDULER
-// ============================================================
-function estSemaineSerena() {
-  const debut = new Date('2026-05-10');
-  return Math.floor((new Date() - debut) / (7 * 24 * 60 * 60 * 1000)) % 2 === 0;
-}
-
-function demarrerScheduler() {
-  setInterval(() => {
-    fetch(`https://budget-bot-production-eaaf.up.railway.app/`).catch(() => {});
-  }, 4 * 60 * 1000);
-
-  setInterval(async () => {
-    const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
-    const jour = now.getDay(), heure = now.getHours(), minute = now.getMinutes();
-
-    // Rappel bi-hebdo (mercredi et dimanche à 20h)
-    if ((jour === 3 || jour === 0) && heure === 20 && minute === 0) {
-      await envoyerRappelBiHebdo();
-    }
-
-    // Dernier jour du mois à 20h → snapshot + synthèse
-    if (heure === 20 && minute === 0) {
-      const dernierJourDuMois = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-      if (now.getDate() === dernierJourDuMois) {
-        await sauvegarderSnapshotMensuel();
-        await envoyerSyntheseMensuelle();
-      }
-    }
-
-    // Alertes prélèvements J-1 à 9h
-    const demain = now.getDate() + 1;
-    if (heure === 9 && minute === 0) {
-      const alertes = PRELEVEMENTS_DATES.filter(p => p.jour === demain);
-      if (alertes.length > 0) {
-        const total = alertes.reduce((s, p) => s + p.montant, 0);
-        let msg = `⚠️ *Prélèvements demain (${demain})*\n\n`;
-        alertes.forEach(p => msg += `• ${p.nom}: *${p.montant.toFixed(2)}€*\n`);
-        msg += `\n💸 Total: *${total.toFixed(2)}€*\n_Vérifie que ton compte est alimenté !_`;
-        await send(CHAT_ID, msg);
-      }
-    }
-
-    // Rappels de fin de cours
-    for (const [nomEleve, profil] of Object.entries(ELEVES)) {
-      if (profil.jour !== jour) continue;
-      if (profil.uneSemaineSurDeux && !estSemaineSerena()) continue;
-      const totalMin = profil.minute + Math.floor(profil.duree * 60);
-      const heureFin = profil.heure + Math.floor(totalMin / 60);
-      const minuteFin = totalMin % 60;
-      if (heure === heureFin && minute === minuteFin) {
-        sessions[CHAT_ID] = { eleve: nomEleve, rattrapage: false, etape: 'confirmation' };
-        await sendBtns(CHAT_ID,
-          `📚 *Fin de cours !*\n\nAs-tu fait cours avec *${nomEleve}* ?`,
-          [
-            [{ t: '✅ Oui', d: 'cours_oui' }, { t: '❌ Non', d: 'cours_non' }],
-            [{ t: '↩️ Annuler', d: 'annuler' }]
-          ]
-        );
-      }
-    }
-  }, 60000);
-}
-
-// ============================================================
-// ENVOI DOCUMENT
-// ============================================================
-async function sendDocument(chatId, filePath, filename) {
-  const FormData = require('form-data');
-  const form = new FormData();
-  form.append('chat_id', String(chatId));
-  form.append('document', fs.createReadStream(filePath), { filename });
-  await fetch(`https://api.telegram.org/bot${TOKEN}/sendDocument`, {
-    method: 'POST', body: form, headers: form.getHeaders()
-  });
-}
-
-// ============================================================
-// GÉNÉRATION FICHE PDF
-// ============================================================
-const PROFILS_FICHES = {
-  'Amel':        { niveau: '5e',  format: 'standard' },
-  'Benjamin':    { niveau: '5e',  format: 'standard', note: 'Impatient, erreurs attention — inclure exercices de vérification' },
-  'Guillaume':   { niveau: '5e',  format: 'tda',      note: 'TDA — consignes ultra courtes, max 4 exos, beaucoup espace' },
-  'Margaux':     { niveau: '3e',  format: 'standard' },
-  'Nélia':       { niveau: '3e',  format: 'standard' },
-  'Hélène':      { niveau: '5e',  format: 'standard' },
-  'Mathéo':      { niveau: '3e',  format: 'hebdo',    note: 'Fiche lundi-vendredi, 2 exos courts par jour' },
-  'Anne-Gaëlle': { niveau: '3e',  format: 'standard' },
-  'Saïda':       { niveau: '5e',  format: 'standard' },
-  'Serena':      { niveau: '5e',  format: 'standard' },
-};
-
-async function genererContenuFiche(eleve, chapitre) {
-  const profil = PROFILS_FICHES[eleve] || { niveau: ELEVES[eleve]?.niveau || '5e', format: 'standard' };
-  const model = genAI.getGenerativeModel({ model: MODELE });
-  const regles = `REGLES ABSOLUES:
-- Texte brut uniquement, ZERO LaTeX
-- Fractions: ecrire "3/4", puissances: "x^2", racines: "racine(9)"
-- Exercices numerotes clairement
-- Corrige complet apres "=== CORRIGE ==="
-- Adapte au programme officiel de ${profil.niveau} en France`;
-
-  let prompt = '';
-  if (profil.format === 'hebdo') {
-    prompt = `Tu es professeur de mathematiques experimente. Cree une fiche hebdomadaire pour ${eleve}, eleve de ${profil.niveau}.
-Chapitre: ${chapitre}
-${regles}
-${profil.note ? 'Note pedagogique: ' + profil.note : ''}
-FORMAT STRICT: LUNDI/MARDI/MERCREDI/JEUDI/VENDREDI avec 2 exercices chacun.
-=== CORRIGE ===
-[Corrige complet]`;
-  } else if (profil.format === 'tda') {
-    prompt = `Tu es professeur specialise TDA/TDAH. Cree une fiche pour ${eleve}, eleve de ${profil.niveau}.
-Chapitre: ${chapitre}
-${regles}
-${profil.note ? 'Note pedagogique: ' + profil.note : ''}
-CONSIGNES: Maximum 4 exercices, 1 phrase par consigne.
-=== CORRIGE ===
-[Corrige complet]`;
-  } else {
-    prompt = `Tu es professeur de mathematiques experimente. Cree une fiche pour ${eleve}, eleve de ${profil.niveau}.
-Chapitre: ${chapitre}
-${regles}
-${profil.note ? 'Note pedagogique: ' + profil.note : ''}
-4 a 5 exercices de difficulte progressive.
-=== CORRIGE ===
-[Corrige detaille]`;
-  }
-
-  const result = await model.generateContent(prompt);
-  return result.response.text();
-}
-
-async function creerPDF(eleve, chapitre, contenu) {
-  const profil = PROFILS_FICHES[eleve] || { niveau: ELEVES[eleve]?.niveau || '5e' };
-  const tmpPath = path.join('/tmp', `fiche_${eleve}_${Date.now()}.pdf`);
-  return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ margin: 40, size: 'A4' });
-    const stream = fs.createWriteStream(tmpPath);
-    doc.pipe(stream);
-    doc.rect(0, 0, doc.page.width, 80).fill('#0D1B2A');
-    doc.fillColor('white').fontSize(18).font('Helvetica-Bold').text("L'Agent — Fiche d'exercices", 40, 20);
-    doc.fontSize(11).font('Helvetica').text(`${eleve} — ${profil.niveau} — ${chapitre}`, 40, 48);
-    doc.text(new Date().toLocaleDateString('fr-FR'), 40, 62);
-    doc.fillColor('#333333').moveDown(3);
-    const lignes = contenu.split('\n');
-    let dansCorrige = false;
-    for (const ligne of lignes) {
-      if (ligne.trim() === '') { doc.moveDown(0.4); continue; }
-      if (ligne.startsWith('=== CORRIGE ===')) {
-        doc.moveDown(1).rect(40, doc.y, doc.page.width - 80, 1).fill('#F26419').moveDown(0.5);
-        doc.fillColor('#F26419').fontSize(13).font('Helvetica-Bold').text('CORRIGÉ', 40, doc.y);
-        doc.fillColor('#333333'); dansCorrige = true; doc.moveDown(0.5); continue;
-      }
-      if (/^(LUNDI|MARDI|MERCREDI|JEUDI|VENDREDI)$/i.test(ligne.trim())) {
-        doc.moveDown(0.5).fillColor('#0D1B2A').fontSize(12).font('Helvetica-Bold').text(ligne.trim(), 40, doc.y);
-        doc.fillColor('#333333'); continue;
-      }
-      if (/^exercice\s*\d+/i.test(ligne.trim())) {
-        doc.moveDown(0.3);
-        doc.fillColor(dansCorrige ? '#2E7D32' : '#0D1B2A').fontSize(11).font('Helvetica-Bold').text(ligne.trim(), 40, doc.y, { width: doc.page.width - 80 });
-        doc.fillColor('#333333'); continue;
-      }
-      doc.fontSize(10).font('Helvetica').text(ligne, 40, doc.y, { width: doc.page.width - 80 });
-    }
-    const pageBottom = doc.page.height - 30;
-    doc.rect(0, pageBottom - 10, doc.page.width, 40).fill('#0D1B2A');
-    doc.fillColor('white').fontSize(8).font('Helvetica').text("Généré par L'Agent • Complétude", 40, pageBottom, { align: 'center', width: doc.page.width - 80 });
-    doc.end();
-    stream.on('finish', () => resolve(tmpPath));
-    stream.on('error', reject);
-  });
-}
-
-// ============================================================
-// ANNULATION
-// ============================================================
-async function annulerDernierCours(eleve) {
-  const debut = new Date(); debut.setUTCDate(1); debut.setUTCHours(0,0,0,0);
-  const { data } = await supabase.from('cours').select('id').eq('eleve', eleve).gte('created_at', debut.toISOString()).order('created_at', { ascending: false }).limit(1);
-  if (!data || data.length === 0) return false;
-  const { error } = await supabase.from('cours').delete().eq('id', data[0].id);
-  return !error;
-}
-
-async function annulerDernierCoursManque(eleve) {
-  const debut = new Date(); debut.setUTCDate(1); debut.setUTCHours(0,0,0,0);
-  const { data } = await supabase.from('cours_manques').select('id').eq('eleve', eleve).gte('created_at', debut.toISOString()).order('created_at', { ascending: false }).limit(1);
-  if (!data || data.length === 0) return false;
-  const { error } = await supabase.from('cours_manques').delete().eq('id', data[0].id);
-  return !error;
-}
-
-async function annulerDerniereDepense(categorie) {
-  const debut = new Date(); debut.setUTCDate(1); debut.setUTCHours(0,0,0,0);
-  const { data } = await supabase.from('depenses').select('id,montant,libelle').eq('categorie', categorie).gte('created_at', debut.toISOString()).order('created_at', { ascending: false }).limit(1);
-  if (!data || data.length === 0) return null;
-  const item = data[0];
-  await supabase.from('depenses').delete().eq('id', item.id);
-  return item;
-}
-
-// ============================================================
-// FICHE — SESSION DÉDIÉE
-// ============================================================
-async function demarrerFiche(chatId) {
-  const elevesDispo = Object.keys(ELEVES);
-  const rows = [];
-  for (let i = 0; i < elevesDispo.length; i += 3) {
-    rows.push(elevesDispo.slice(i, i + 3).map(n => ({ t: n, d: `fiche_eleve_${n}` })));
-  }
-  rows.push([{ t: '↩️ Annuler', d: 'fiche_annuler' }]);
-  await sendBtns(chatId, '📚 *Génération de fiche*\n\nPour quel élève ?', rows);
-}
-
-// ============================================================
-// CALCUL POTENTIEL RESTANT
-// ============================================================
-function calculerPotentielRestant(moisOffset, cours, coursManques) {
-  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
-  const refDate = new Date(now.getFullYear(), now.getMonth() + moisOffset, 1);
-  const annee = refDate.getFullYear();
-  const mois = refDate.getMonth();
-  const isCurrent = moisOffset === 0;
-  const todayNum = isCurrent ? now.getDate() : 0;
-  const dernierJour = new Date(annee, mois + 1, 0).getDate();
-
-  const joursAvecCours = {};
-  for (let d = 1; d <= dernierJour; d++) {
-    const date = new Date(annee, mois, d);
-    const jourSemaine = date.getDay();
-    const elevesJour = [];
-    for (const [nom, p] of Object.entries(ELEVES)) {
-      if (p.jour !== jourSemaine) continue;
-      if (p.uneSemaineSurDeux) {
-        const ref = new Date('2026-05-10');
-        const diff = Math.floor((date - ref) / (7 * 24 * 60 * 60 * 1000));
-        if (diff % 2 !== 0) continue;
-      }
-      elevesJour.push(nom);
-    }
-    if (elevesJour.length > 0) joursAvecCours[d] = elevesJour;
-  }
-
-  let montantRestant = 0;
-  let joursRestantsCount = 0;
-  const elevesRestants = {};
-  const jourDepart = isCurrent ? todayNum + 1 : 1;
-
-  for (let d = jourDepart; d <= dernierJour; d++) {
-    if (joursAvecCours[d]) {
-      joursAvecCours[d].forEach(nom => {
-        const p = ELEVES[nom];
-        if (p) {
-          montantRestant += p.taux * p.duree;
-          joursRestantsCount++;
-          if (!elevesRestants[nom]) elevesRestants[nom] = 0;
-          elevesRestants[nom]++;
-        }
-      });
-    }
-  }
-
-  const calendrier = {};
-  for (let d = 1; d <= dernierJour; d++) {
-    const estPasse = isCurrent ? d < todayNum : moisOffset < 0;
-    const estAujourdHui = isCurrent && d === todayNum;
-    const estFutur = isCurrent ? d > todayNum : false;
-    calendrier[d] = {
-      prevus: joursAvecCours[d] || [],
-      estPasse, estAujourdHui, estFutur,
-    };
-  }
-
-  return {
-    montantRestant,
-    joursRestantsCount,
-    elevesRestants,
-    calendrier,
-    dernierJour,
-    annee,
-    mois,
-  };
-}
-
-// ============================================================
-// DÉMARRAGE
-// ============================================================
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, async () => {
-  console.log(`L'Agent écoute sur le port ${PORT}`);
-  await chargerElevesCustom();
-  demarrerScheduler();
-});
-
-module.exports = app;
