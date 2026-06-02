@@ -1075,7 +1075,7 @@ app.post('/webhook', async (req, res) => {
         `💰 /revenu → enregistrer une rentrée\n` +
         `📅 /prelevements → voir ce qui arrive\n` +
         `📅 /historique → bilan des mois précédents\n` +
-        `🌐 Dashboard: https://budget-bot-production-eaaf.up.railway.app/dashboard`
+        `🌐 Dashboard: https://budget-bot-1ohb.onrender.com`
       );
       return;
     }
