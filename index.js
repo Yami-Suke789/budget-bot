@@ -1638,8 +1638,8 @@ function estSemaineSerena() {
 
 function demarrerScheduler() {
   setInterval(() => {
-    fetch(`https://budget-bot-production-eaaf.up.railway.app/`).catch(() => {});
-  }, 4 * 60 * 1000);
+   fetch(`https://budget-bot-1ohb.onrender.com/health`).catch(() => {});
+}, 4 * 60 * 1000);
 
   setInterval(async () => {
     const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
