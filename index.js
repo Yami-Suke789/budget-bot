@@ -1595,10 +1595,13 @@ app.get('/api/dashboard', async (req, res) => {
   }
 });
 
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dashboard.html'));
+});
+
 app.get('/dashboard', (req, res) => {
   res.sendFile(path.join(__dirname, 'dashboard.html'));
 });
-app.get('/', (req, res) => res.send("L'Agent est en ligne ! 🤖"));
 
 // ============================================================
 // MESSAGES AUTOMATIQUES
