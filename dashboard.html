@@ -618,27 +618,60 @@ function encodeId(s){ return s.replace(/[^a-zA-Z0-9]/g,'-'); }
 // ── INVESTISSEMENTS ──
 function renderInvest(d){
   const cont = document.getElementById('invest-content');
-  const invs = d.investissements||[];
-  
-  if(!invs || invs.length === 0){
-    cont.innerHTML = `
-      <div class="invest-card">
-        <div class="invest-title">📈 Portefeuille</div>
-        <div style="color:var(--muted);font-size:.78rem;padding:.5rem 0">Aucun investissement enregistré.</div>
-        <div style="font-size:.72rem;color:var(--muted);margin-top:.5rem">Utilise <strong style="color:var(--blue)">/investir</strong> sur Telegram pour enregistrer ton premier achat.</div>
-      </div>
-      <div class="card full">
-        <div class="card-label">💡 Comment démarrer</div>
-        <div style="font-size:.74rem;color:var(--muted);line-height:1.6">
-          <div style="padding:5px 0;border-bottom:1px solid var(--border)">1. Ouvre un CTO sur <strong style="color:var(--text)">Trade Republic</strong></div>
-          <div style="padding:5px 0;border-bottom:1px solid var(--border)">2. Achète l'ETF <strong style="color:var(--blue)">ISWD</strong> (Islamic World)</div>
-          <div style="padding:5px 0">3. Enregistre ton achat via <strong style="color:var(--orange)">/investir</strong></div>
+  const invs = d.investissements || [];
+  const prix = d.prix_actuels || {};
+  const watchlist = d.market_watchlist || ['ISWD','SGLD','NVDA','MSFT'];
+
+  const labels = { ISWD:'ETF Islamic World', SGLD:'Or physique (ETC)', NVDA:'Nvidia', MSFT:'Microsoft', AAPL:'Apple' };
+  const halal  = { ISWD:true, SGLD:true, NVDA:false, MSFT:false, AAPL:false };
+
+  // ── Watchlist ──
+  let html = `<div class="card full" style="margin-bottom:.55rem">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem">
+      <div class="card-label" style="margin:0">📊 Marché en direct</div>
+      <div style="font-size:.58rem;color:var(--muted)">Yahoo Finance</div>
+    </div>`;
+
+  watchlist.forEach(ticker => {
+    const p = prix[ticker];
+    const label = labels[ticker] || ticker;
+    const isHalal = halal[ticker];
+    if(p){
+      const varPct = p.variation;
+      const varColor = varPct === null ? 'var(--muted)' : varPct >= 0 ? 'var(--green)' : 'var(--red)';
+      const varStr = varPct === null ? '—' : (varPct >= 0 ? '+' : '') + varPct.toFixed(2) + '%';
+      const arrow = varPct === null ? '' : varPct >= 0 ? ' ▲' : ' ▼';
+      const stateColor = p.marketState === 'REGULAR' ? 'var(--green)' : 'var(--muted)';
+      html += `<div class="row">
+        <div>
+          <div style="font-size:.78rem;font-weight:600">${ticker} <span style="font-size:.58rem;color:var(--muted);font-weight:400">${label}</span></div>
+          <div style="display:flex;gap:6px;margin-top:2px">
+            ${isHalal ? '<span style="font-size:.55rem;background:rgba(74,222,128,0.1);color:var(--green);border:1px solid rgba(74,222,128,0.25);padding:1px 6px;border-radius:4px">Halal ✓</span>' : ''}
+            <span style="font-size:.55rem;color:${stateColor}">${p.marketState === 'REGULAR' ? '● Live' : '● Fermé'}</span>
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-family:var(--mono);font-size:.88rem;font-weight:600">${p.prix.toLocaleString('fr-FR')} <span style="font-size:.65rem;color:var(--muted)">${p.currency}</span></div>
+          <div style="font-size:.72rem;color:${varColor};font-weight:600">${varStr}${arrow}</div>
         </div>
       </div>`;
+    } else {
+      html += `<div class="row"><div><div style="font-size:.78rem">${ticker} — ${label}</div></div><div style="color:var(--muted);font-size:.7rem">Indisponible</div></div>`;
+    }
+  });
+  html += `<div style="font-size:.6rem;color:var(--muted);margin-top:.5rem;text-align:right">Actualisé à ${new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</div></div>`;
+
+  // ── Portefeuille ──
+  if(!invs || invs.length === 0){
+    html += `<div class="invest-card">
+      <div class="invest-title">💼 Mon portefeuille</div>
+      <div style="color:var(--muted);font-size:.78rem;padding:.4rem 0">Aucun achat enregistré.</div>
+      <div style="font-size:.72rem;color:var(--muted);margin-top:.4rem">Utilise <strong style="color:var(--orange)">/investir</strong> sur Telegram pour ton premier achat.</div>
+    </div>`;
+    cont.innerHTML = html;
     return;
   }
 
-  // Grouper par ticker
   const parTicker = {};
   invs.forEach(inv=>{
     if(!parTicker[inv.ticker]) parTicker[inv.ticker]={montant_investi:0,nb_parts:0,achats:[]};
@@ -647,50 +680,65 @@ function renderInvest(d){
     parTicker[inv.ticker].achats.push(inv);
   });
 
-  let html = '';
-  let totalInvesti = 0;
+  let totalInvesti = 0, totalActuel = 0;
+  let portfolioHtml = `<div class="invest-card">
+    <div class="invest-title">💼 Mon portefeuille</div>`;
+
   Object.entries(parTicker).forEach(([ticker, data])=>{
-    totalInvesti += data.montant_investi;
     const prixMoyen = data.montant_investi / data.nb_parts;
-    const prixActuel = (d.prix_actuels||{})[ticker];
+    const marche = prix[ticker];
+    totalInvesti += data.montant_investi;
     let pvHtml = '';
-    if(prixActuel){
-      const valeur = prixActuel * data.nb_parts;
+    if(marche){
+      const valeur = marche.prix * data.nb_parts;
       const pv = valeur - data.montant_investi;
       const pvPct = (pv / data.montant_investi * 100);
-      const pvClass = pv >= 0 ? 'invest-pv-pos' : 'invest-pv-neg';
-      pvHtml = `<div class="row"><span style="color:var(--muted)">Valeur actuelle</span><span style="font-family:var(--mono);color:var(--green)">${Math.round(valeur).toLocaleString('fr-FR')} €</span></div>
-        <div class="row"><span style="color:var(--muted)">+/- value</span><span class="${pvClass}" style="font-family:var(--mono)">${pv>=0?'+':''}${pv.toFixed(0)} € (${pvPct>=0?'+':''}${pvPct.toFixed(1)}%)</span></div>
-        <div class="row"><span style="color:var(--muted)">Prix actuel</span><span style="font-family:var(--mono)">${prixActuel.toFixed(2)}</span></div>`;
+      totalActuel += valeur;
+      const pvColor = pv >= 0 ? 'var(--green)' : 'var(--red)';
+      pvHtml = `<div style="font-size:.7rem;color:${pvColor};font-family:var(--mono);margin-top:2px">${pv>=0?'▲ +':'▼ '}${pv.toFixed(0)}€ (${pvPct>=0?'+':''}${pvPct.toFixed(1)}%)</div>`;
+    } else {
+      totalActuel += data.montant_investi;
     }
-    html += `<div class="invest-card">
-      <div class="invest-title">📈 ${ticker}</div>
-      <div class="row"><span style="color:var(--muted)">Investi total</span><span style="font-family:var(--mono)">${data.montant_investi.toFixed(0)} €</span></div>
-      <div class="row"><span style="color:var(--muted)">Nb parts</span><span style="font-family:var(--mono)">${data.nb_parts.toFixed(4)}</span></div>
-      <div class="row"><span style="color:var(--muted)">Prix moyen</span><span style="font-family:var(--mono)">${prixMoyen.toFixed(2)}</span></div>
-      ${pvHtml}
-      <div style="margin-top:.6rem">
-        <div class="card-label" style="margin-bottom:.3rem">Historique achats</div>
-        ${data.achats.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).map(a=>{
-          const date = new Date(a.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit'});
-          return `<div class="row"><span style="font-size:.68rem;color:var(--muted)">${date}</span><div style="text-align:right"><div style="font-size:.7rem;font-family:var(--mono)">${a.montant.toFixed(0)} € · ${a.nb_parts.toFixed(4)} parts</div><div style="font-size:.58rem;color:var(--muted)">@ ${a.prix_unitaire.toFixed(2)}</div></div></div>`;
-        }).join('')}
+    portfolioHtml += `<div class="row">
+      <div>
+        <div style="font-size:.78rem;font-weight:600">${ticker}</div>
+        <div style="font-size:.62rem;color:var(--muted)">${data.nb_parts.toFixed(4)} parts · P.moy ${prixMoyen.toFixed(2)}</div>
+        ${pvHtml}
+      </div>
+      <div style="text-align:right">
+        <div style="font-family:var(--mono);font-size:.82rem">${data.montant_investi.toFixed(0)} €</div>
+        ${marche?`<div style="font-size:.68rem;color:var(--green);font-family:var(--mono)">${(marche.prix * data.nb_parts).toFixed(0)} €</div>`:''}
       </div>
     </div>`;
   });
 
   if(Object.keys(parTicker).length > 1){
-    html = `<div class="card full" style="margin-bottom:.55rem">
-      <div class="card-label">Total portefeuille</div>
-      <div class="card-value blue">${totalInvesti.toFixed(0)} €</div>
-    </div>` + html;
+    const pv = totalActuel - totalInvesti;
+    const pvColor = pv >= 0 ? 'var(--green)' : 'var(--red)';
+    portfolioHtml += `<div style="border-top:1px solid var(--border);margin-top:.5rem;padding-top:.5rem;display:flex;justify-content:space-between;align-items:center">
+      <div style="font-size:.75rem;font-weight:700">Total</div>
+      <div style="text-align:right">
+        <div style="font-family:var(--mono);font-size:.82rem">${totalInvesti.toFixed(0)} € investi</div>
+        <div style="font-family:var(--mono);font-size:.75rem;color:${pvColor}">${pv>=0?'+':''}${pv.toFixed(0)} € (${((pv/totalInvesti)*100).toFixed(1)}%)</div>
+      </div>
+    </div>`;
   }
 
-  html += `<div class="card full" style="margin-top:.3rem">
-    <div style="font-size:.72rem;color:var(--muted)">📅 Rappel DCA le 1er de chaque mois via Telegram · <strong style="color:var(--orange)">/investir</strong> pour ajouter un achat</div>
-  </div>`;
+  portfolioHtml += `<div style="font-size:.65rem;color:var(--muted);margin-top:.6rem">📅 Rappel DCA le 1er du mois · <strong style="color:var(--orange)">/investir</strong> pour ajouter un achat</div></div>`;
 
-  cont.innerHTML = html;
+  // Historique achats détaillé
+  let histHtml = `<div class="card full" style="margin-top:.3rem">
+    <div class="card-label" style="margin-bottom:.4rem">Historique achats</div>`;
+  invs.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).forEach(inv=>{
+    const date = new Date(inv.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit'});
+    histHtml += `<div class="row">
+      <div><div style="font-size:.72rem;font-weight:600">${inv.ticker}</div><div style="font-size:.6rem;color:var(--muted)">${date} · @ ${inv.prix_unitaire.toFixed(2)} ${(prix[inv.ticker]||{}).currency||''}</div></div>
+      <div style="text-align:right"><div style="font-family:var(--mono);font-size:.72rem">${inv.montant.toFixed(0)} €</div><div style="font-size:.6rem;color:var(--muted)">${inv.nb_parts.toFixed(4)} parts</div></div>
+    </div>`;
+  });
+  histHtml += `</div>`;
+
+  cont.innerHTML = html + portfolioHtml + histHtml;
 }
 
 // ── ALERTES SEUIL ──
