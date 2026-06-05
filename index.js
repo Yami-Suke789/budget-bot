@@ -187,15 +187,37 @@ async function getInvestissements() {
   return data || [];
 }
 
+// Mapping tickers → symboles Yahoo Finance
+const TICKER_MAP = {
+  'ISWD': 'ISWD.L',   // ETF Islamic World (London)
+  'SGLD': 'SGLD.L',   // Or physique (London)
+  'NVDA': 'NVDA',     // Nvidia (NASDAQ)
+  'MSFT': 'MSFT',     // Microsoft (NASDAQ)
+  'AAPL': 'AAPL',     // Apple (NASDAQ)
+};
+
+// Watchlist marché — toujours affichée dans le dashboard
+const MARKET_WATCHLIST = ['ISWD', 'SGLD', 'NVDA', 'MSFT'];
+
 async function getPrixActuelETF(ticker) {
   try {
-    // Yahoo Finance — pas de clé API nécessaire
-    const symbol = ticker === 'ISWD' ? 'ISWD.L' : ticker === 'SGLD' ? 'SGLD.L' : ticker;
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`;
+    const symbol = TICKER_MAP[ticker] || ticker;
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=5d`;
     const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
     const j = await r.json();
-    const prix = j?.chart?.result?.[0]?.meta?.regularMarketPrice;
-    return prix ? parseFloat(prix) : null;
+    const meta = j?.chart?.result?.[0]?.meta;
+    if (!meta) return null;
+    const prix = meta.regularMarketPrice;
+    const ouverture = meta.chartPreviousClose || meta.previousClose;
+    const variation = ouverture ? ((prix - ouverture) / ouverture * 100) : null;
+    const currency = meta.currency || '';
+    return prix ? {
+      prix: parseFloat(prix.toFixed(4)),
+      variation: variation ? parseFloat(variation.toFixed(2)) : null,
+      currency,
+      previousClose: ouverture ? parseFloat(ouverture.toFixed(4)) : null,
+      marketState: meta.marketState || 'CLOSED',
+    } : null;
   } catch (err) {
     console.error('getPrixActuelETF error:', err.message);
     return null;
@@ -204,64 +226,59 @@ async function getPrixActuelETF(ticker) {
 
 async function afficherPortefeuille(chatId) {
   const investissements = await getInvestissements();
+
+  // Récupérer les prix de la watchlist complète
+  let msg = `📈 *Marché — Watchlist*\n\n`;
+  for (const ticker of MARKET_WATCHLIST) {
+    const data = await getPrixActuelETF(ticker);
+    if (data) {
+      const varEmoji = data.variation === null ? '—' : data.variation >= 0 ? `🟢 +${data.variation}%` : `🔴 ${data.variation}%`;
+      const labels = { ISWD: 'ETF Islamic World', SGLD: 'Or physique', NVDA: 'Nvidia', MSFT: 'Microsoft' };
+      msg += `*${ticker}* — ${labels[ticker] || ticker}\n`;
+      msg += `Prix: *${data.prix} ${data.currency}* | ${varEmoji}\n\n`;
+    }
+  }
+
   if (investissements.length === 0) {
-    await send(chatId,
-      `📈 *Portefeuille vide*\n\nTu n'as pas encore enregistré d'investissement.\n\n` +
-      `Utilise /investir pour ajouter un achat.`
-    );
+    msg += `_Portefeuille vide — /investir pour enregistrer un achat_`;
+    await send(chatId, msg);
     return;
   }
 
-  // Grouper par ticker
+  msg += `━━━━━━━━━━━━━━\n💼 *Mon portefeuille*\n\n`;
   const parTicker = {};
   investissements.forEach(inv => {
-    if (!parTicker[inv.ticker]) parTicker[inv.ticker] = { montant_investi: 0, nb_parts: 0, achats: [] };
+    if (!parTicker[inv.ticker]) parTicker[inv.ticker] = { montant_investi: 0, nb_parts: 0 };
     parTicker[inv.ticker].montant_investi += inv.montant;
-    parTicker[inv.ticker].nb_parts       += inv.nb_parts;
-    parTicker[inv.ticker].achats.push(inv);
+    parTicker[inv.ticker].nb_parts += inv.nb_parts;
   });
 
-  let msg = `📈 *Portefeuille investissements*\n\n`;
-  let totalInvesti = 0;
-  let totalActuel  = 0;
-
+  let totalInvesti = 0, totalActuel = 0;
   for (const [ticker, data] of Object.entries(parTicker)) {
-    const prixActuel = await getPrixActuelETF(ticker);
-    const prixMoyen  = data.montant_investi / data.nb_parts;
-    totalInvesti    += data.montant_investi;
-
-    if (prixActuel) {
-      const valeurActuelle = prixActuel * data.nb_parts;
-      const plusvalue      = valeurActuelle - data.montant_investi;
-      const pct            = (plusvalue / data.montant_investi * 100);
-      totalActuel         += valeurActuelle;
-      const emoji = plusvalue >= 0 ? '🟢' : '🔴';
+    const marche = await getPrixActuelETF(ticker);
+    const prixMoyen = data.montant_investi / data.nb_parts;
+    totalInvesti += data.montant_investi;
+    if (marche) {
+      const valeur = marche.prix * data.nb_parts;
+      const pv = valeur - data.montant_investi;
+      const pvPct = (pv / data.montant_investi * 100);
+      totalActuel += valeur;
+      const emoji = pv >= 0 ? '🟢' : '🔴';
       msg += `*${ticker}*\n`;
-      msg += `${emoji} Valeur actuelle: *${valeurActuelle.toFixed(0)}€*\n`;
-      msg += `💶 Investi: ${data.montant_investi.toFixed(0)}€ | Parts: ${data.nb_parts.toFixed(4)}\n`;
-      msg += `📊 Prix moyen: ${prixMoyen.toFixed(2)} | Actuel: ${prixActuel.toFixed(2)}\n`;
-      msg += `${plusvalue >= 0 ? '📈' : '📉'} +/-value: *${plusvalue >= 0 ? '+' : ''}${plusvalue.toFixed(0)}€* (${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%)\n\n`;
+      msg += `${emoji} Valeur: *${valeur.toFixed(0)}€* (${pv >= 0 ? '+' : ''}${pv.toFixed(0)}€ / ${pvPct >= 0 ? '+' : ''}${pvPct.toFixed(1)}%)\n`;
+      msg += `Parts: ${data.nb_parts.toFixed(4)} | P. moyen: ${prixMoyen.toFixed(2)} | Actuel: ${marche.prix}\n\n`;
     } else {
       totalActuel += data.montant_investi;
-      msg += `*${ticker}*\n`;
-      msg += `💶 Investi: ${data.montant_investi.toFixed(0)}€ | Parts: ${data.nb_parts.toFixed(4)}\n`;
-      msg += `⚠️ Cours non disponible actuellement\n\n`;
+      msg += `*${ticker}*: ${data.montant_investi.toFixed(0)}€ investi ⚠️ cours indisponible\n\n`;
     }
   }
 
   if (Object.keys(parTicker).length > 1) {
-    const plusvalue = totalActuel - totalInvesti;
-    const pct = (plusvalue / totalInvesti * 100);
-    msg += `━━━━━━━━━━━━━━\n`;
-    msg += `💼 *Total investi: ${totalInvesti.toFixed(0)}€*\n`;
-    msg += `💎 *Valeur actuelle: ${totalActuel.toFixed(0)}€*\n`;
-    msg += `${plusvalue >= 0 ? '📈' : '📉'} *+/-value: ${plusvalue >= 0 ? '+' : ''}${plusvalue.toFixed(0)}€ (${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%)*\n`;
+    const pv = totalActuel - totalInvesti;
+    msg += `━━━━━━━━━━━━━━\n💼 Total investi: *${totalInvesti.toFixed(0)}€*\n`;
+    msg += `📊 Valeur actuelle: *${totalActuel.toFixed(0)}€*\n`;
+    msg += `${pv >= 0 ? '📈' : '📉'} +/-value: *${pv >= 0 ? '+' : ''}${pv.toFixed(0)}€*`;
   }
-
-  const prochainDCA = new Date();
-  prochainDCA.setMonth(prochainDCA.getMonth() + 1);
-  prochainDCA.setDate(1);
-  msg += `\n📅 Prochain DCA: *${prochainDCA.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long' })}*`;
 
   await send(chatId, msg);
 }
@@ -1804,13 +1821,11 @@ app.get('/api/dashboard', async (req, res) => {
     const potentiel = calculerPotentielRestant(moisOffset, data.cours, data.coursManques);
     const { data: snapshots } = await supabase.from('snapshots_mensuels').select('mois, donnees').order('mois', { ascending: false }).limit(12);
 
-    // Récupérer investissements
+    // Récupérer investissements + prix watchlist complète
     const investissements = await getInvestissements();
-
-    // Prix actuels via Yahoo Finance (cache simple)
     const prixActuels = {};
-    const tickers = [...new Set(investissements.map(i => i.ticker))];
-    await Promise.all(tickers.map(async t => {
+    const watchlistTickers = [...new Set([...MARKET_WATCHLIST, ...investissements.map(i => i.ticker)])];
+    await Promise.all(watchlistTickers.map(async t => {
       const p = await getPrixActuelETF(t);
       if (p) prixActuels[t] = p;
     }));
@@ -1834,6 +1849,7 @@ app.get('/api/dashboard', async (req, res) => {
       seuil_alerte_variable: SEUIL_ALERTE_VARIABLE,
       investissements,
       prix_actuels: prixActuels,
+      market_watchlist: MARKET_WATCHLIST,
     });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -1990,6 +2006,7 @@ function demarrerScheduler() {
     }
 
     for (const [nomEleve, profil] of Object.entries(ELEVES)) {
+      if (profil.jour !== jour) continue;                              // ← filtre jour critique
       if (profil.uneSemaineSurDeux && !estSemaineSerena()) continue;
       const totalMin = profil.minute + Math.floor(profil.duree * 60);
       const heureFin = profil.heure + Math.floor(totalMin / 60);
