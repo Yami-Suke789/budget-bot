@@ -1804,6 +1804,17 @@ app.get('/api/dashboard', async (req, res) => {
     const potentiel = calculerPotentielRestant(moisOffset, data.cours, data.coursManques);
     const { data: snapshots } = await supabase.from('snapshots_mensuels').select('mois, donnees').order('mois', { ascending: false }).limit(12);
 
+    // Récupérer investissements
+    const investissements = await getInvestissements();
+
+    // Prix actuels via Yahoo Finance (cache simple)
+    const prixActuels = {};
+    const tickers = [...new Set(investissements.map(i => i.ticker))];
+    await Promise.all(tickers.map(async t => {
+      const p = await getPrixActuelETF(t);
+      if (p) prixActuels[t] = p;
+    }));
+
     res.json({
       salaire: data.salaire, beau_frere: BEAU_FRERE, completude: data.completude,
       objectif_completude: OBJECTIF_COMPLETUDE, total_revenus: data.totalRevenus,
@@ -1821,8 +1832,74 @@ app.get('/api/dashboard', async (req, res) => {
       snapshots_mensuels: snapshots || [],
       seuil_alerte_total: SEUIL_ALERTE_TOTAL,
       seuil_alerte_variable: SEUIL_ALERTE_VARIABLE,
+      investissements,
+      prix_actuels: prixActuels,
     });
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── API CONFIG (dashboard interactif) ──────────────────────
+app.post('/api/config', async (req, res) => {
+  try {
+    const { cle, valeur } = req.body;
+    if (!cle || valeur === undefined) return res.json({ ok: false, error: 'Paramètres manquants' });
+    const v = parseFloat(valeur);
+    if (isNaN(v) || v <= 0) return res.json({ ok: false, error: 'Valeur invalide' });
+
+    if (cle === 'salaire_lgm')        SALAIRE_LGM_DEFAULT = v;
+    else if (cle === 'beau_frere')     BEAU_FRERE = v;
+    else if (cle === 'objectif_completude') OBJECTIF_COMPLETUDE = v;
+
+    await sauvegarderConfig(cle, v);
+    res.json({ ok: true });
+  } catch (err) { res.json({ ok: false, error: err.message }); }
+});
+
+// ── API BUDGET (dashboard interactif) ──────────────────────
+app.post('/api/budget', async (req, res) => {
+  try {
+    const { categorie, max } = req.body;
+    if (!categorie || !max) return res.json({ ok: false, error: 'Paramètres manquants' });
+    const v = parseFloat(max);
+    if (isNaN(v) || v <= 0) return res.json({ ok: false, error: 'Valeur invalide' });
+    if (!BUDGETS[categorie]) return res.json({ ok: false, error: 'Catégorie inconnue' });
+
+    BUDGETS[categorie].max = v;
+    await sauvegarderConfig(`budget_${categorie}`, v);
+    res.json({ ok: true });
+  } catch (err) { res.json({ ok: false, error: err.message }); }
+});
+
+// ── API PRÉLÈVEMENT (dashboard interactif) ─────────────────
+app.post('/api/prel', async (req, res) => {
+  try {
+    const { nom, champ, valeur } = req.body;
+    if (!nom || !champ) return res.json({ ok: false, error: 'Paramètres manquants' });
+    const p = PRELEVEMENTS_DATES.find(p => p.nom === nom);
+    if (!p) return res.json({ ok: false, error: 'Prélèvement introuvable' });
+
+    if (champ === 'montant') {
+      const v = parseFloat(valeur);
+      if (isNaN(v) || v <= 0) return res.json({ ok: false, error: 'Montant invalide' });
+      p.montant = v; CHARGES_FIXES[nom] = v;
+      await sauvegarderConfig(`prel_montant_${nom}`, v);
+    } else if (champ === 'jour') {
+      const v = parseInt(valeur);
+      if (isNaN(v) || v < 1 || v > 31) return res.json({ ok: false, error: 'Jour invalide' });
+      p.jour = v;
+      await sauvegarderConfig(`prel_jour_${nom}`, v);
+    } else if (champ === 'suspendu') {
+      const v = parseInt(valeur);
+      p.suspendu = v === 1;
+      if (p.suspendu) CHARGES_FIXES[nom] = 0;
+      else CHARGES_FIXES[nom] = p.montant;
+      await sauvegarderConfig(`prel_suspendu_${nom}`, v);
+    } else {
+      return res.json({ ok: false, error: 'Champ inconnu' });
+    }
+
+    res.json({ ok: true });
+  } catch (err) { res.json({ ok: false, error: err.message }); }
 });
 
 app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'dashboard.html')); });
