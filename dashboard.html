@@ -135,6 +135,21 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
 .tag-hebdo{background:rgba(96,165,250,0.12);color:var(--blue);border:1px solid rgba(96,165,250,0.25)}
 .tag-alt{background:rgba(255,170,68,0.12);color:var(--amber);border:1px solid rgba(255,170,68,0.25)}
 
+/* MODAL CONFIRM / EDIT */
+.modal-center{align-items:center}
+.modal-box{background:#0a1422;border-radius:16px;border:1px solid var(--border);width:calc(100% - 2rem);max-width:380px;padding:1.4rem;animation:popIn .2s ease}
+@keyframes popIn{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}
+.modal-box-title{font-size:.92rem;font-weight:700;margin-bottom:.5rem}
+.modal-box-body{font-size:.75rem;color:var(--muted);margin-bottom:1.1rem;line-height:1.5}
+.modal-box-actions{display:flex;gap:8px}
+.btn-confirm-del{flex:1;background:rgba(248,113,113,0.15);color:var(--red);border:1px solid rgba(248,113,113,0.3);border-radius:8px;padding:9px;font-size:.75rem;font-weight:700;cursor:pointer;transition:.15s;font-family:'Sora',sans-serif}
+.btn-confirm-del:hover{background:rgba(248,113,113,0.25)}
+.btn-confirm-cancel{flex:1;background:rgba(255,255,255,0.06);color:var(--muted);border:1px solid var(--border);border-radius:8px;padding:9px;font-size:.75rem;cursor:pointer;font-family:'Sora',sans-serif}
+.modal-edit-input{background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text);font-size:.88rem;padding:8px 12px;border-radius:8px;width:100%;font-family:var(--mono);outline:none;transition:.2s;margin-bottom:.8rem}
+.modal-edit-input:focus{border-color:var(--orange)}
+.btn-save-edit{flex:1;background:var(--orange);color:#fff;border:none;border-radius:8px;padding:9px;font-size:.75rem;font-weight:700;cursor:pointer;transition:.15s;font-family:'Sora',sans-serif}
+.btn-save-edit:hover{opacity:.88}
+
 /* DEPENSES */
 .cat-btn{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer;font-size:.76rem;transition:opacity .15s}
 .cat-btn:hover{opacity:.75}
@@ -142,12 +157,20 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
 .cat-btn.open .chevron{transform:rotate(90deg)}
 .cat-detail{display:none;background:rgba(4,8,18,0.85);border-radius:9px;padding:6px 10px;margin:3px 0 6px}
 .cat-detail.open{display:block}
-.dep-item{display:flex;justify-content:space-between;font-size:.68rem;padding:3px 0;border-bottom:1px solid var(--border);color:#8a9ab0}
+.dep-item{display:flex;justify-content:space-between;align-items:center;font-size:.68rem;padding:4px 0;border-bottom:1px solid var(--border);color:#8a9ab0}
 .dep-item:last-child{border-bottom:none}
+.dep-item-left{flex:1}
+.dep-item-right{display:flex;align-items:center;gap:6px;flex-shrink:0}
 .dep-date{color:var(--muted);font-size:.62rem}
 .dep-total-bar{display:flex;justify-content:space-between;align-items:center;background:var(--navy3);border:1px solid var(--border);border-radius:10px;padding:.65rem .8rem;margin-top:.6rem}
 .mini-bar{width:44px;height:3px;background:var(--border);border-radius:2px;overflow:hidden}
 .mini-fill{height:100%;border-radius:2px}
+
+/* ACTION BTNS */
+.action-btn{background:none;border:none;cursor:pointer;padding:3px 5px;border-radius:5px;font-size:.75rem;transition:.15s;line-height:1;flex-shrink:0}
+.action-btn:hover{background:rgba(255,255,255,0.08)}
+.action-btn.del:hover{background:rgba(248,113,113,0.12)}
+.action-btn.edit:hover{background:rgba(255,170,68,0.12)}
 
 /* PRELEVEMENTS */
 .alert-box{background:#160e06;border:1px solid rgba(255,170,68,.25);border-radius:11px;padding:.75rem .85rem;margin-bottom:.55rem;font-size:.74rem}
@@ -171,11 +194,8 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
 /* INVESTISSEMENTS */
 .invest-card{background:linear-gradient(135deg,rgba(96,165,250,0.08),rgba(167,139,250,0.05));border:1px solid rgba(96,165,250,0.2);border-radius:14px;padding:.85rem;margin-bottom:.55rem}
 .invest-title{font-size:.6rem;text-transform:uppercase;letter-spacing:.08em;color:var(--blue);margin-bottom:.6rem;font-weight:700}
-.invest-ticker{font-size:1rem;font-weight:700;font-family:var(--mono);color:var(--text)}
-.invest-pv-pos{color:var(--green)}
-.invest-pv-neg{color:var(--red)}
 
-/* BOUTONS EDIT */
+/* BOUTONS EDIT CONFIG */
 .edit-btn{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:var(--muted);font-size:.6rem;padding:3px 9px;border-radius:6px;cursor:pointer;transition:.15s;font-family:'Sora',sans-serif}
 .edit-btn:hover{background:rgba(255,255,255,0.1);color:var(--text)}
 .edit-btn.danger{border-color:rgba(248,113,113,0.25);color:var(--red)}
@@ -202,6 +222,9 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
 .refresh:active{transform:scale(.92) rotate(30deg)}
 .updated{text-align:center;font-size:.6rem;color:#2a3545;padding:.8rem 0 3rem;position:relative;z-index:1}
 .green{color:var(--green)}.amber{color:var(--amber)}.red{color:var(--red)}.orange{color:var(--orange)}
+
+/* TAG ANNULABLE */
+.item-actions{display:flex;gap:4px;align-items:center}
 </style>
 </head>
 <body>
@@ -223,12 +246,37 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
   </div>
 </div>
 
-<!-- MODAL EDIT GENERIQUE -->
+<!-- MODAL EDIT GENERIQUE (config) -->
 <div class="modal" id="modal-edit" onclick="closeModalEdit(event)">
   <div class="modal-sheet" id="modal-edit-sheet">
     <div class="modal-handle"></div>
     <div class="modal-title" id="modal-edit-title"></div>
     <div id="modal-edit-content"></div>
+  </div>
+</div>
+
+<!-- MODAL CONFIRMATION SUPPRESSION -->
+<div class="modal modal-center" id="modal-confirm" onclick="closeModalConfirm(event)">
+  <div class="modal-box">
+    <div class="modal-box-title" id="mc-title">Confirmer la suppression</div>
+    <div class="modal-box-body" id="mc-body">Cette action est irréversible.</div>
+    <div class="modal-box-actions">
+      <button class="btn-confirm-cancel" onclick="closeModalConfirm()">Annuler</button>
+      <button class="btn-confirm-del" id="mc-btn-confirm">🗑️ Supprimer</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL MODIFICATION MONTANT -->
+<div class="modal modal-center" id="modal-modif" onclick="closeModalModif(event)">
+  <div class="modal-box">
+    <div class="modal-box-title" id="mm-title">Modifier le montant</div>
+    <div class="modal-box-body" id="mm-body"></div>
+    <input type="number" step="0.01" class="modal-edit-input" id="mm-input" placeholder="Nouveau montant">
+    <div class="modal-box-actions">
+      <button class="btn-confirm-cancel" onclick="closeModalModif()">Annuler</button>
+      <button class="btn-save-edit" id="mm-btn-save">✅ Enregistrer</button>
+    </div>
   </div>
 </div>
 
@@ -384,14 +432,12 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
 <!-- CONFIG -->
 <div class="section" id="tab-config">
   <div class="grid">
-    <!-- Revenus fixes -->
     <div class="card full">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem">
         <div class="card-label" style="margin:0">💼 Revenus fixes</div>
       </div>
       <div id="cfg-revenus-list"></div>
     </div>
-    <!-- Budgets variables -->
     <div class="card full">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem">
         <div class="card-label" style="margin:0">📊 Plafonds budgets</div>
@@ -399,7 +445,6 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
       </div>
       <div id="cfg-budgets-list"></div>
     </div>
-    <!-- Prélèvements -->
     <div class="card full">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem">
         <div class="card-label" style="margin:0">📅 Prélèvements</div>
@@ -482,7 +527,137 @@ async function apiPost(path, body){
   return r.json();
 }
 
-// ── SAVE CONFIG (salaire, beau-frère, objectif) ──
+// ── MODAL CONFIRM ──
+let _confirmCallback = null;
+function showConfirm(title, body, onConfirm){
+  document.getElementById('mc-title').textContent = title;
+  document.getElementById('mc-body').textContent = body;
+  _confirmCallback = onConfirm;
+  document.getElementById('mc-btn-confirm').onclick = ()=>{ closeModalConfirm(); onConfirm(); };
+  document.getElementById('modal-confirm').classList.add('open');
+}
+function closeModalConfirm(e){
+  if(e && e.target !== document.getElementById('modal-confirm')) return;
+  document.getElementById('modal-confirm').classList.remove('open');
+}
+
+// ── MODAL MODIF MONTANT ──
+let _modifCallback = null;
+function showModif(title, currentVal, onSave){
+  document.getElementById('mm-title').textContent = title;
+  document.getElementById('mm-body').textContent = `Valeur actuelle : ${currentVal} €`;
+  document.getElementById('mm-input').value = currentVal;
+  _modifCallback = onSave;
+  document.getElementById('mm-btn-save').onclick = ()=>{
+    const val = parseFloat(document.getElementById('mm-input').value);
+    if(isNaN(val)||val<=0){ toast('❌ Valeur invalide', true); return; }
+    closeModalModif(); onSave(val);
+  };
+  document.getElementById('modal-modif').classList.add('open');
+  setTimeout(()=>document.getElementById('mm-input').focus(), 80);
+}
+function closeModalModif(e){
+  if(e && e.target !== document.getElementById('modal-modif')) return;
+  document.getElementById('modal-modif').classList.remove('open');
+}
+
+// ── SUPPRESSION DÉPENSE ──
+async function supprimerDepense(id, libelle, montant){
+  showConfirm(
+    '🗑️ Supprimer cette dépense ?',
+    `"${libelle || '—'}" — ${montant.toFixed(2)} €`,
+    async ()=>{
+      try{
+        const r = await fetch(`/api/depense/${id}`, { method:'DELETE' });
+        const j = await r.json();
+        if(j.ok){ toast('✅ Dépense supprimée'); charger(); }
+        else toast('❌ '+j.error, true);
+      }catch{ toast('❌ Erreur réseau', true); }
+    }
+  );
+}
+
+// ── MODIFICATION DÉPENSE ──
+async function modifierDepense(id, libelle, montantActuel){
+  showModif(`✏️ Modifier "${libelle || 'dépense'}"`, montantActuel, async(val)=>{
+    try{
+      const r = await fetch(`/api/depense/${id}`, {
+        method:'PATCH',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ montant: val })
+      });
+      const j = await r.json();
+      if(j.ok){ toast('✅ Dépense modifiée'); charger(); }
+      else toast('❌ '+j.error, true);
+    }catch{ toast('❌ Erreur réseau', true); }
+  });
+}
+
+// ── SUPPRESSION REVENU ──
+async function supprimerRevenu(id, libelle, montant){
+  showConfirm(
+    '🗑️ Supprimer ce revenu ?',
+    `"${libelle || '—'}" — +${montant.toFixed(2)} €`,
+    async ()=>{
+      try{
+        const r = await fetch(`/api/revenu/${id}`, { method:'DELETE' });
+        const j = await r.json();
+        if(j.ok){ toast('✅ Revenu supprimé'); charger(); }
+        else toast('❌ '+j.error, true);
+      }catch{ toast('❌ Erreur réseau', true); }
+    }
+  );
+}
+
+// ── MODIFICATION REVENU ──
+async function modifierRevenu(id, libelle, montantActuel){
+  showModif(`✏️ Modifier "${libelle || 'revenu'}"`, montantActuel, async(val)=>{
+    try{
+      const r = await fetch(`/api/revenu/${id}`, {
+        method:'PATCH',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ montant: val })
+      });
+      const j = await r.json();
+      if(j.ok){ toast('✅ Revenu modifié'); charger(); }
+      else toast('❌ '+j.error, true);
+    }catch{ toast('❌ Erreur réseau', true); }
+  });
+}
+
+// ── SUPPRESSION INVESTISSEMENT ──
+async function supprimerInvestissement(id, ticker, montant){
+  showConfirm(
+    '🗑️ Supprimer cet achat ?',
+    `${ticker} — ${montant.toFixed(0)} €\nCette action est irréversible.`,
+    async ()=>{
+      try{
+        const r = await fetch(`/api/investissement/${id}`, { method:'DELETE' });
+        const j = await r.json();
+        if(j.ok){ toast('✅ Achat supprimé'); charger(); }
+        else toast('❌ '+j.error, true);
+      }catch{ toast('❌ Erreur réseau', true); }
+    }
+  );
+}
+
+// ── MODIFICATION INVESTISSEMENT ──
+async function modifierInvestissement(id, ticker, montantActuel){
+  showModif(`✏️ Modifier achat ${ticker}`, montantActuel, async(val)=>{
+    try{
+      const r = await fetch(`/api/investissement/${id}`, {
+        method:'PATCH',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ montant: val })
+      });
+      const j = await r.json();
+      if(j.ok){ toast('✅ Achat modifié'); charger(); }
+      else toast('❌ '+j.error, true);
+    }catch{ toast('❌ Erreur réseau', true); }
+  });
+}
+
+// ── SAVE CONFIG ──
 async function saveConfig(cle, valeur){
   try{
     const r = await fetch('/api/config', {
@@ -493,10 +668,9 @@ async function saveConfig(cle, valeur){
     const j = await r.json();
     if(j.ok){ toast('✅ Sauvegardé'); charger(); }
     else toast('❌ Erreur: '+j.error, true);
-  }catch(e){ toast('❌ Erreur réseau', true); }
+  }catch{ toast('❌ Erreur réseau', true); }
 }
 
-// ── SAVE PRÉLÈVEMENT ──
 async function savePrel(nom, champ, valeur){
   try{
     const r = await fetch('/api/prel', {
@@ -507,10 +681,9 @@ async function savePrel(nom, champ, valeur){
     const j = await r.json();
     if(j.ok){ toast('✅ Sauvegardé'); charger(); }
     else toast('❌ Erreur: '+j.error, true);
-  }catch(e){ toast('❌ Erreur réseau', true); }
+  }catch{ toast('❌ Erreur réseau', true); }
 }
 
-// ── SAVE BUDGET ──
 async function saveBudget(cat, valeur){
   try{
     const r = await fetch('/api/budget', {
@@ -521,10 +694,10 @@ async function saveBudget(cat, valeur){
     const j = await r.json();
     if(j.ok){ toast('✅ Budget mis à jour'); charger(); }
     else toast('❌ Erreur: '+j.error, true);
-  }catch(e){ toast('❌ Erreur réseau', true); }
+  }catch{ toast('❌ Erreur réseau', true); }
 }
 
-// ── INLINE EDIT COMPONENT ──
+// ── INLINE EDIT (config) ──
 function showInlineEdit(containerId, label, currentVal, onSave){
   const existing = document.getElementById('inline-'+containerId);
   if(existing){ existing.remove(); editingField = null; return; }
@@ -561,7 +734,6 @@ function cancelInlineEdit(id){
 
 // ── CONFIG TAB ──
 function renderConfig(d){
-  // Revenus fixes
   const cfgRev = document.getElementById('cfg-revenus-list');
   const revenusConfig = [
     {cle:'salaire_lgm', label:'💼 Salaire LGM', val: d.salaire, unit:'€/mois'},
@@ -579,7 +751,6 @@ function renderConfig(d){
       </div>
     </div>`).join('');
 
-  // Budgets
   const cfgBud = document.getElementById('cfg-budgets-list');
   cfgBud.innerHTML = Object.entries(d.budgets||{}).map(([k,b])=>`
     <div>
@@ -592,7 +763,6 @@ function renderConfig(d){
       </div>
     </div>`).join('');
 
-  // Prélèvements
   const cfgPrel = document.getElementById('cfg-prel-list');
   const prels = d.prelevements_tous||[];
   cfgPrel.innerHTML = prels.map(p=>{
@@ -621,11 +791,9 @@ function renderInvest(d){
   const invs = d.investissements || [];
   const prix = d.prix_actuels || {};
   const watchlist = d.market_watchlist || ['ISWD','SGLD','NVDA','MSFT'];
-
   const labels = { ISWD:'ETF Islamic World', SGLD:'Or physique (ETC)', NVDA:'Nvidia', MSFT:'Microsoft', AAPL:'Apple' };
   const halal  = { ISWD:true, SGLD:true, NVDA:false, MSFT:false, AAPL:false };
 
-  // ── Watchlist ──
   let html = `<div class="card full" style="margin-bottom:.55rem">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem">
       <div class="card-label" style="margin:0">📊 Marché en direct</div>
@@ -661,7 +829,6 @@ function renderInvest(d){
   });
   html += `<div style="font-size:.6rem;color:var(--muted);margin-top:.5rem;text-align:right">Actualisé à ${new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</div></div>`;
 
-  // ── Portefeuille ──
   if(!invs || invs.length === 0){
     html += `<div class="invest-card">
       <div class="invest-title">💼 Mon portefeuille</div>
@@ -723,17 +890,30 @@ function renderInvest(d){
       </div>
     </div>`;
   }
-
   portfolioHtml += `<div style="font-size:.65rem;color:var(--muted);margin-top:.6rem">📅 Rappel DCA le 1er du mois · <strong style="color:var(--orange)">/investir</strong> pour ajouter un achat</div></div>`;
 
-  // Historique achats détaillé
+  // Historique achats avec actions
   let histHtml = `<div class="card full" style="margin-top:.3rem">
-    <div class="card-label" style="margin-bottom:.4rem">Historique achats</div>`;
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem">
+      <div class="card-label" style="margin:0">Historique achats</div>
+      <div style="font-size:.58rem;color:var(--muted)">✏️ modifier · 🗑️ supprimer</div>
+    </div>`;
+
   invs.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).forEach(inv=>{
     const date = new Date(inv.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit'});
-    histHtml += `<div class="row">
-      <div><div style="font-size:.72rem;font-weight:600">${inv.ticker}</div><div style="font-size:.6rem;color:var(--muted)">${date} · @ ${inv.prix_unitaire.toFixed(2)} ${(prix[inv.ticker]||{}).currency||''}</div></div>
-      <div style="text-align:right"><div style="font-family:var(--mono);font-size:.72rem">${inv.montant.toFixed(0)} €</div><div style="font-size:.6rem;color:var(--muted)">${inv.nb_parts.toFixed(4)} parts</div></div>
+    histHtml += `<div class="row" style="align-items:flex-start">
+      <div style="flex:1">
+        <div style="font-size:.72rem;font-weight:600">${inv.ticker}</div>
+        <div style="font-size:.6rem;color:var(--muted)">${date} · @ ${inv.prix_unitaire.toFixed(2)} ${(prix[inv.ticker]||{}).currency||''}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:4px">
+        <div style="text-align:right;margin-right:4px">
+          <div style="font-family:var(--mono);font-size:.72rem">${inv.montant.toFixed(0)} €</div>
+          <div style="font-size:.6rem;color:var(--muted)">${inv.nb_parts.toFixed(4)} parts</div>
+        </div>
+        <button class="action-btn edit" onclick="modifierInvestissement('${inv.id}','${inv.ticker}',${inv.montant})" title="Modifier">✏️</button>
+        <button class="action-btn del" onclick="supprimerInvestissement('${inv.id}','${inv.ticker}',${inv.montant})" title="Supprimer">🗑️</button>
+      </div>
     </div>`;
   });
   histHtml += `</div>`;
@@ -872,20 +1052,43 @@ function showDay(jour,data){
   det.innerHTML=html; det.style.display='block';
 }
 
-// ── BUDGETS ──
+// ── BUDGETS avec actions par item ──
 function renderBudgets(d){
   const bl=document.getElementById('b-ls');
   const isCurrent=d.mois_offset===0;
   const totalDep=d.total_dep||0, totalMax=Object.values(d.budgets).reduce((s,b)=>s+b.max,0);
   const totalPct=pct(totalDep,totalMax), totalCol=col(totalPct);
-  bl.innerHTML=`<div class="card-label" style="margin-bottom:.6rem">Dépenses variables${isCurrent?'':' <span class="badge-hist">Archivé</span>'}</div>`;
+  bl.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem">
+    <div class="card-label" style="margin:0">Dépenses variables${isCurrent?'':' <span class="badge-hist">Archivé</span>'}</div>
+    <div style="font-size:.58rem;color:var(--muted)">✏️ modifier · 🗑️ supprimer</div>
+  </div>`;
+
   Object.entries(d.totaux).forEach(([k,v])=>{
     const b=d.budgets[k], p2=pct(v,b.max), c=col(p2);
     const items=(d.detail||{})[k]||[], hasItems=items.length>0;
     bl.innerHTML+=`<div class="cat-btn${hasItems?' ':'noc'}" id="cat-btn-${k}" onclick="${hasItems?`toggleDetail('${k}')`:''}"><span>${b.label}</span><div style="display:flex;align-items:center;gap:8px"><div class="mini-bar"><div class="mini-fill" style="width:${p2}%;background:${c}"></div></div><span style="color:${c};min-width:82px;text-align:right;font-family:var(--mono);font-size:.7rem">${v.toFixed(0)}€ / ${b.max}€</span><span class="chevron">${hasItems?'›':''}</span></div></div>`;
-    const depHTML=items.length===0?'<div style="color:var(--muted);font-size:.68rem;padding:4px 0">Aucune dépense</div>':items.sort((a,b2)=>new Date(b2.created_at)-new Date(a.created_at)).map(dep=>{ const date=new Date(dep.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}); return `<div class="dep-item"><span>${dep.libelle||'—'}</span><div style="text-align:right"><span style="color:var(--text)">${dep.montant.toFixed(2)} €</span><br><span class="dep-date">${date}</span></div></div>`; }).join('');
+
+    // Items avec boutons d'action
+    const depHTML = items.length === 0
+      ? '<div style="color:var(--muted);font-size:.68rem;padding:4px 0">Aucune dépense</div>'
+      : items.sort((a,b2)=>new Date(b2.created_at)-new Date(a.created_at)).map(dep=>{
+          const date=new Date(dep.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
+          return `<div class="dep-item">
+            <div class="dep-item-left">
+              <div style="color:var(--text)">${dep.libelle||'—'}</div>
+              <div class="dep-date">${date}</div>
+            </div>
+            <div class="dep-item-right">
+              <span style="color:var(--text);font-family:var(--mono)">${dep.montant.toFixed(2)} €</span>
+              <button class="action-btn edit" onclick="modifierDepense('${dep.id}','${(dep.libelle||'').replace(/'/g,"\\'")}',${dep.montant})" title="Modifier">✏️</button>
+              <button class="action-btn del" onclick="supprimerDepense('${dep.id}','${(dep.libelle||'').replace(/'/g,"\\'")}',${dep.montant})" title="Supprimer">🗑️</button>
+            </div>
+          </div>`;
+        }).join('');
+
     bl.innerHTML+=`<div class="cat-detail" id="cat-det-${k}">${depHTML}</div>`;
   });
+
   bl.innerHTML+=`<div class="dep-total-bar"><div><div style="font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Total dépenses</div><div style="font-size:.62rem;color:var(--muted);margin-top:2px">Budget max : ${totalMax} €</div></div><div style="text-align:right"><div style="font-size:1rem;font-weight:700;font-family:var(--mono);color:${totalCol}">${totalDep.toFixed(0)} €</div><div style="font-size:.6rem;color:var(--muted)">(${totalPct}%)</div></div></div>`;
 }
 
@@ -916,10 +1119,10 @@ function renderPrelevements(d){
   const trimest=tous.filter(p2=>p2.frequence==='trimestriel'&&!p2.suspendu);
   if(restants.length){ pl.innerHTML+='<div class="section-title">À venir</div>'; restants.forEach(p2=>{ const diff=p2.jour-aujourd; let bc='prel-ok',bt='le '+p2.jour; if(diff===0){bc='prel-urgent';bt="Auj.";}else if(diff<=2){bc='prel-urgent';bt=`Dans ${diff}j`;}else if(diff<=5){bc='prel-soon';bt=`Dans ${diff}j`;} pl.innerHTML+=`<div class="prel-row"><span>${p2.nom}</span><div style="display:flex;gap:8px;align-items:center"><span class="prel-badge ${bc}">${bt}</span><span style="font-family:var(--mono)">${p2.montant.toFixed(2)} €</span></div></div>`; }); }
   if(passes.length){ pl.innerHTML+='<div class="section-title">Déjà passés</div>'; passes.forEach(p2=>pl.innerHTML+=`<div class="prel-row past"><span>${p2.nom}</span><span style="color:var(--muted);font-family:var(--mono)">${p2.montant.toFixed(2)} €</span></div>`); }
-  if(trimest.length){ pl.innerHTML+='<div class="section-title">Trimestriels</div>'; trimest.forEach(p2=>pl.innerHTML+=`<div class="prel-row"><span>${p2.nom}</span><span style="color:var(--muted);font-family:var(--mono)">${p2.montant.toFixed(2)} €/trim</span></div>`); }
+  if(trimest.length){ pl.innerHTML+='<div class="section-title">Trimestriels</div>'; trimest.forEach(p2=>pl.innerHTML+=`<div class="prel-row"><span>${p2.nom}</span><span style="color:var(--muted);font-family:var(--mono)">${p2.montant.toFixed(2)}€/trim</span></div>`); }
 }
 
-// ── REVENUS ──
+// ── REVENUS avec actions ──
 function renderRevenus(d){
   document.getElementById('r-total').textContent=fmt(d.total_revenus);
   const cp=pct(d.completude,d.objectif_completude);
@@ -929,9 +1132,33 @@ function renderRevenus(d){
   const rs=document.getElementById('r-sources');
   rs.innerHTML='<div class="card-label" style="margin-bottom:.6rem">Sources de revenus</div>';
   sources.forEach(s=>{ const bw=Math.min(100,Math.round((s.val/d.total_revenus)*100)); rs.innerHTML+=`<div class="row"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:1rem">${s.icon}</span><div><div style="font-size:.75rem">${s.label}</div><div style="font-size:.6rem;color:var(--muted)">${s.sub}</div></div></div><div style="text-align:right"><div style="font-family:var(--mono);font-size:.82rem;color:var(--green)">${Math.round(s.val).toLocaleString('fr-FR')} €</div><div style="font-size:.58rem;color:var(--muted)">${bw}%</div></div></div><div class="bar" style="margin:.3rem 0 .5rem"><div class="fill" style="width:${bw}%;background:var(--green)"></div></div>`; });
+
   const supp=d.revenus_supp||[], rsupp=document.getElementById('r-supp');
-  if(supp.length){ rsupp.style.display='block'; const ts=supp.reduce((s,r)=>s+r.montant,0); rsupp.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem"><div class="card-label" style="margin:0">Rentrées supplémentaires</div><span style="font-family:var(--mono);font-size:.8rem;color:var(--green)">+${Math.round(ts).toLocaleString('fr-FR')} €</span></div>`; supp.forEach(r=>{ const date=new Date(r.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}); rsupp.innerHTML+=`<div class="row"><span style="font-size:.75rem">${r.libelle||'Divers'}</span><div style="text-align:right"><span style="font-family:var(--mono);color:var(--green)">+${r.montant.toFixed(2)} €</span><br><span style="font-size:.6rem;color:var(--muted)">${date}</span></div></div>`; }); }
-  else rsupp.style.display='none';
+  if(supp.length){
+    rsupp.style.display='block';
+    const ts=supp.reduce((s,r)=>s+r.montant,0);
+    rsupp.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem">
+      <div class="card-label" style="margin:0">Rentrées supplémentaires</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-family:var(--mono);font-size:.8rem;color:var(--green)">+${Math.round(ts).toLocaleString('fr-FR')} €</span>
+        <span style="font-size:.58rem;color:var(--muted)">✏️ · 🗑️</span>
+      </div>
+    </div>`;
+    supp.forEach(r=>{
+      const date=new Date(r.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
+      rsupp.innerHTML+=`<div class="row" style="align-items:flex-start">
+        <div style="flex:1">
+          <div style="font-size:.75rem">${r.libelle||'Divers'}</div>
+          <div style="font-size:.6rem;color:var(--muted)">${date}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px">
+          <span style="font-family:var(--mono);color:var(--green);font-size:.75rem">+${r.montant.toFixed(2)} €</span>
+          <button class="action-btn edit" onclick="modifierRevenu('${r.id}','${(r.libelle||'').replace(/'/g,"\\'")}',${r.montant})" title="Modifier">✏️</button>
+          <button class="action-btn del" onclick="supprimerRevenu('${r.id}','${(r.libelle||'').replace(/'/g,"\\'")}',${r.montant})" title="Supprimer">🗑️</button>
+        </div>
+      </div>`;
+    });
+  } else rsupp.style.display='none';
 }
 
 // ── CHARGEMENT PRINCIPAL ──
