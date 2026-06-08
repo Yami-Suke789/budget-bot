@@ -114,10 +114,9 @@ const sessionsModifier = {};
 const sessionsAjoutEleve = {};
 const sessionsRevenu = {};
 const sessionsEpargne = {};
-// Sessions pour modifications avancées
-const sessionsModifConfig = {};  // modifier salaire/beau-frère/objectif
-const sessionsModifPrel = {};    // modifier un prélèvement
-const sessionsInvest = {};       // saisie investissement
+const sessionsModifConfig = {};
+const sessionsModifPrel = {};
+const sessionsInvest = {};
 
 // ============================================================
 // PERSISTANCE CONFIG SUPABASE
@@ -132,7 +131,6 @@ async function chargerConfig() {
       if (row.cle === 'beau_frere')            BEAU_FRERE           = row.valeur;
       if (row.cle === 'objectif_completude')   OBJECTIF_COMPLETUDE  = row.valeur;
     });
-    // Sync prélèvements depuis config si présents
     data.forEach(row => {
       if (row.cle.startsWith('prel_')) {
         const nomPrel = row.cle.replace('prel_montant_', '');
@@ -187,17 +185,13 @@ async function getInvestissements() {
   return data || [];
 }
 
-// Mapping tickers → symboles Yahoo Finance
 const TICKER_MAP = {
-  'ISWD': 'ISWD.L',   // ETF Islamic World (London)
-  'SGLD': 'SGLD.L',   // Or physique (London)
-  'NVDA': 'NVDA',     // Nvidia (NASDAQ)
-  'MSFT': 'MSFT',     // Microsoft (NASDAQ)
-  'AAPL': 'AAPL',     // Apple (NASDAQ)
+  'ISWD': 'ISWD.L',           // MSCI World Islamic (iShares, London)
+  'HIEU': 'DE000SL0HH65.SG',  // MSCI Europe Islamic (HSBC, Stuttgart)
+  'HIEM': 'HIEM.L',           // MSCI Emerging Markets Islamic (HSBC, London)
 };
 
-// Watchlist marché — toujours affichée dans le dashboard
-const MARKET_WATCHLIST = ['ISWD', 'SGLD', 'NVDA', 'MSFT'];
+const MARKET_WATCHLIST = ['ISWD', 'HIEU', 'HIEM'];
 
 async function getPrixActuelETF(ticker) {
   try {
@@ -226,25 +220,21 @@ async function getPrixActuelETF(ticker) {
 
 async function afficherPortefeuille(chatId) {
   const investissements = await getInvestissements();
-
-  // Récupérer les prix de la watchlist complète
   let msg = `📈 *Marché — Watchlist*\n\n`;
   for (const ticker of MARKET_WATCHLIST) {
     const data = await getPrixActuelETF(ticker);
     if (data) {
       const varEmoji = data.variation === null ? '—' : data.variation >= 0 ? `🟢 +${data.variation}%` : `🔴 ${data.variation}%`;
-      const labels = { ISWD: 'ETF Islamic World', SGLD: 'Or physique', NVDA: 'Nvidia', MSFT: 'Microsoft' };
+      const labels = { ISWD: 'MSCI World Islamic', HIEU: 'MSCI Europe Islamic', HIEM: 'MSCI EM Islamic' };
       msg += `*${ticker}* — ${labels[ticker] || ticker}\n`;
       msg += `Prix: *${data.prix} ${data.currency}* | ${varEmoji}\n\n`;
     }
   }
-
   if (investissements.length === 0) {
     msg += `_Portefeuille vide — /investir pour enregistrer un achat_`;
     await send(chatId, msg);
     return;
   }
-
   msg += `━━━━━━━━━━━━━━\n💼 *Mon portefeuille*\n\n`;
   const parTicker = {};
   investissements.forEach(inv => {
@@ -252,7 +242,6 @@ async function afficherPortefeuille(chatId) {
     parTicker[inv.ticker].montant_investi += inv.montant;
     parTicker[inv.ticker].nb_parts += inv.nb_parts;
   });
-
   let totalInvesti = 0, totalActuel = 0;
   for (const [ticker, data] of Object.entries(parTicker)) {
     const marche = await getPrixActuelETF(ticker);
@@ -272,14 +261,12 @@ async function afficherPortefeuille(chatId) {
       msg += `*${ticker}*: ${data.montant_investi.toFixed(0)}€ investi ⚠️ cours indisponible\n\n`;
     }
   }
-
   if (Object.keys(parTicker).length > 1) {
     const pv = totalActuel - totalInvesti;
     msg += `━━━━━━━━━━━━━━\n💼 Total investi: *${totalInvesti.toFixed(0)}€*\n`;
     msg += `📊 Valeur actuelle: *${totalActuel.toFixed(0)}€*\n`;
     msg += `${pv >= 0 ? '📈' : '📉'} +/-value: *${pv >= 0 ? '+' : ''}${pv.toFixed(0)}€*`;
   }
-
   await send(chatId, msg);
 }
 
@@ -416,7 +403,6 @@ async function getData(moisOffset = 0) {
 async function verifierAlertesBudget(chatId, totalDep) {
   const TOTAL_CHARGES_FIXES = getTotalChargesFixes();
   const totalGlobal = TOTAL_CHARGES_FIXES + totalDep;
-
   if (totalGlobal > SEUIL_ALERTE_TOTAL) {
     await send(chatId,
       `🚨 *ALERTE — Seuil global dépassé !*\n\n` +
@@ -448,7 +434,6 @@ async function saveCoursManque(chatId, eleve) {
 }
 
 async function saveCoursDeplace(chatId, eleve) {
-  // On enregistre comme cours manqué avec flag déplacé (libellé spécifique)
   const gain_manque = ELEVES[eleve].taux * ELEVES[eleve].duree;
   const { error } = await supabase.from('cours_manques').insert({ eleve, gain_manque, chat_id: String(chatId), libelle: 'déplacé' });
   if (error) console.error('saveCoursDeplace error:', error);
@@ -458,7 +443,6 @@ async function saveCoursDeplace(chatId, eleve) {
 async function saveDepense(chatId, montant, categorie, libelle) {
   const { error } = await supabase.from('depenses').insert({ montant, categorie, libelle, chat_id: String(chatId) });
   if (error) console.error('saveDepense error:', error);
-  // Vérifier alertes après chaque dépense
   const d = await getData();
   await verifierAlertesBudget(chatId, d.totalDep);
 }
@@ -478,9 +462,6 @@ async function saveRevenu(chatId, montant, libelle) {
   if (error) console.error('saveRevenu error:', error);
 }
 
-// ============================================================
-// SAVE ÉLÈVE CUSTOM
-// ============================================================
 async function saveEleveCustom(chatId, eleveData) {
   const payload = {
     nom: eleveData.nom, niveau: eleveData.niveau, taux: eleveData.taux, duree: eleveData.duree,
@@ -494,9 +475,6 @@ async function saveEleveCustom(chatId, eleveData) {
   return true;
 }
 
-// ============================================================
-// SUSPENSION / RÉACTIVATION ÉLÈVE
-// ============================================================
 async function suspendreEleve(nom) {
   const { error } = await supabase.from('eleves_custom').update({ actif: false }).eq('nom', nom);
   if (!error) { delete ELEVES[nom]; return true; }
@@ -518,9 +496,6 @@ async function reactiverEleve(nom) {
   return false;
 }
 
-// ============================================================
-// SNAPSHOT MENSUEL
-// ============================================================
 async function sauvegarderSnapshotMensuel() {
   const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
   const mois = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -574,9 +549,6 @@ async function afficherProgressionEpargne(chatId, montant) {
   await send(chatId, msg);
 }
 
-// ============================================================
-// SUIVI PRÉLÈVEMENTS
-// ============================================================
 function getPrelEvementsAVenir(joursAvance = 7) {
   const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
   const aujourdhui = now.getDate();
@@ -782,7 +754,7 @@ async function traiterAjoutEleve(chatId, texte) {
 }
 
 // ============================================================
-// TRAITEMENT CALLBACKS
+// TRAITEMENT CALLBACKS — (identique à l'original, non modifié)
 // ============================================================
 async function traiterCallback(cb) {
   const chatId = cb.message.chat.id;
@@ -794,7 +766,6 @@ async function traiterCallback(cb) {
 
   const session = sessions[chatId] || {};
 
-  // ── AJOUT ÉLÈVE callbacks ──────────────────────────────
   if (data === 'ae_annuler') { delete sessionsAjoutEleve[chatId]; await send(chatId, '❌ Ajout d\'élève annulé.'); return; }
 
   if (data.startsWith('ae_niv_')) {
@@ -867,7 +838,6 @@ async function traiterCallback(cb) {
     return;
   }
 
-  // ── SUSPENSION / RÉACTIVATION ÉLÈVE ───────────────────
   if (data.startsWith('susp_')) {
     const nom = data.replace('susp_', '');
     const ok = await suspendreEleve(nom);
@@ -884,7 +854,6 @@ async function traiterCallback(cb) {
     return;
   }
 
-  // ── COURS DÉPLACÉ ──────────────────────────────────────
   if (data === 'cours_deplace') {
     const eleve = session.eleve;
     if (!eleve) return;
@@ -903,7 +872,6 @@ async function traiterCallback(cb) {
     return;
   }
 
-  // ── OUI/NON cours ──────────────────────────────────────
   if (data === 'cours_oui' || data === 'cours_non') {
     const eleve = session.eleve;
     if (!eleve) return;
@@ -960,7 +928,6 @@ async function traiterCallback(cb) {
     return;
   }
 
-  // ── Catégorie dépense ──────────────────────────────────
   if (data.startsWith('cat_')) {
     const cat = data.replace('cat_', '');
     const montant = session.montant;
@@ -974,7 +941,6 @@ async function traiterCallback(cb) {
     return;
   }
 
-  // ── Annuler ────────────────────────────────────────────
   if (data === 'annuler') {
     delete sessions[chatId]; delete sessionsEpargne[chatId];
     delete sessionsModifConfig[chatId]; delete sessionsModifPrel[chatId];
@@ -982,7 +948,6 @@ async function traiterCallback(cb) {
     return;
   }
 
-  // ── Fiche ──────────────────────────────────────────────
   if (data.startsWith('fiche_eleve_')) {
     const eleve = data.replace('fiche_eleve_', '');
     sessionsFiches[chatId] = { eleve, etape: 'attente_chapitre' };
@@ -991,7 +956,6 @@ async function traiterCallback(cb) {
   }
   if (data === 'fiche_annuler') { delete sessionsFiches[chatId]; await send(chatId, '❌ Génération de fiche annulée.'); return; }
 
-  // ── Annuler type ───────────────────────────────────────
   if (data === 'ann_cours_fait') {
     const rows = [];
     const noms = Object.keys(ELEVES);
@@ -1060,7 +1024,6 @@ async function traiterCallback(cb) {
     return;
   }
 
-  // ── Modifier ───────────────────────────────────────────
   if (data === 'mod_budget') {
     const cats = Object.entries(BUDGETS);
     const rows = [];
@@ -1092,24 +1055,10 @@ async function traiterCallback(cb) {
     return;
   }
 
-  // ── CONFIG — modifier revenus fixes / charges ──────────
-  if (data === 'cfg_salaire') {
-    sessionsModifConfig[chatId] = { champ: 'salaire' };
-    await send(chatId, `💼 *Salaire LGM actuel : ${SALAIRE_LGM_DEFAULT}€*\n\nEnvoie le nouveau montant :`);
-    return;
-  }
-  if (data === 'cfg_beaufre') {
-    sessionsModifConfig[chatId] = { champ: 'beaufre' };
-    await send(chatId, `👨‍👩‍👦 *Beau-frère actuel : ${BEAU_FRERE}€*\n\nEnvoie le nouveau montant :`);
-    return;
-  }
-  if (data === 'cfg_objectif') {
-    sessionsModifConfig[chatId] = { champ: 'objectif' };
-    await send(chatId, `🎯 *Objectif Complétude actuel : ${OBJECTIF_COMPLETUDE}€*\n\nEnvoie le nouveau montant mensuel cible :`);
-    return;
-  }
+  if (data === 'cfg_salaire') { sessionsModifConfig[chatId] = { champ: 'salaire' }; await send(chatId, `💼 *Salaire LGM actuel : ${SALAIRE_LGM_DEFAULT}€*\n\nEnvoie le nouveau montant :`); return; }
+  if (data === 'cfg_beaufre') { sessionsModifConfig[chatId] = { champ: 'beaufre' }; await send(chatId, `👨‍👩‍👦 *Beau-frère actuel : ${BEAU_FRERE}€*\n\nEnvoie le nouveau montant :`); return; }
+  if (data === 'cfg_objectif') { sessionsModifConfig[chatId] = { champ: 'objectif' }; await send(chatId, `🎯 *Objectif Complétude actuel : ${OBJECTIF_COMPLETUDE}€*\n\nEnvoie le nouveau montant mensuel cible :`); return; }
   if (data === 'cfg_charges') {
-    // Afficher la liste des charges modifiables
     const items = Object.entries(CHARGES_FIXES);
     const rows = [];
     for (let i = 0; i < items.length; i += 2)
@@ -1125,7 +1074,6 @@ async function traiterCallback(cb) {
     return;
   }
 
-  // ── PRÉLÈVEMENTS — suspendre / réactiver / modifier ────
   if (data === 'prel_suspendre') {
     const actifs = PRELEVEMENTS_DATES.filter(p => !p.suspendu && p.jour);
     const rows = [];
@@ -1148,10 +1096,7 @@ async function traiterCallback(cb) {
   if (data === 'prel_modifier') {
     const rows = [];
     for (let i = 0; i < PRELEVEMENTS_DATES.length; i += 2)
-      rows.push(PRELEVEMENTS_DATES.slice(i, i+2).map(p => ({
-        t: `${p.suspendu ? '⏸️' : ''}${p.nom} (${p.montant}€)`,
-        d: `prel_mod_${p.nom}`
-      })));
+      rows.push(PRELEVEMENTS_DATES.slice(i, i+2).map(p => ({ t: `${p.suspendu ? '⏸️' : ''}${p.nom} (${p.montant}€)`, d: `prel_mod_${p.nom}` })));
     rows.push([{ t: '↩️ Retour', d: 'annuler' }]);
     await sendBtns(chatId, '✏️ *Quel prélèvement modifier ?*', rows);
     return;
@@ -1179,10 +1124,7 @@ async function traiterCallback(cb) {
     sessionsModifPrel[chatId] = { nom, etape: 'choix_champ' };
     await sendBtns(chatId,
       `✏️ *${nom}*\nMontant actuel: *${p.montant}€* | Jour: *le ${p.jour || '?'}*\n\nQue veux-tu modifier ?`,
-      [
-        [{ t: '💶 Montant', d: 'prel_chg_montant' }, { t: '📅 Jour', d: 'prel_chg_jour' }],
-        [{ t: '↩️ Annuler', d: 'annuler' }]
-      ]
+      [[{ t: '💶 Montant', d: 'prel_chg_montant' }, { t: '📅 Jour', d: 'prel_chg_jour' }], [{ t: '↩️ Annuler', d: 'annuler' }]]
     );
     return;
   }
@@ -1201,7 +1143,6 @@ async function traiterCallback(cb) {
     return;
   }
 
-  // ── Investissement ─────────────────────────────────────
   if (data.startsWith('inv_ticker_')) {
     const ticker = data.replace('inv_ticker_', '');
     if (ticker === 'autre') {
@@ -1214,7 +1155,6 @@ async function traiterCallback(cb) {
     return;
   }
 
-  // ── Revenu type ────────────────────────────────────────
   if (data.startsWith('rev_type_')) {
     const type = data.replace('rev_type_', '');
     if (type === '__autre__') {
@@ -1276,7 +1216,6 @@ app.post('/webhook', async (req, res) => {
       return;
     }
 
-    // ── COMMANDE /config ───────────────────────────────────
     if (texte === '/config') {
       await sendBtns(chatId, '⚙️ *Configuration — Que veux-tu modifier ?*', [
         [{ t: '💼 Salaire LGM', d: 'cfg_salaire' }, { t: '👨‍👩‍👦 Beau-frère', d: 'cfg_beaufre' }],
@@ -1287,7 +1226,6 @@ app.post('/webhook', async (req, res) => {
       return;
     }
 
-    // ── COMMANDE /prelevements (gestion) ───────────────────
     if (texte === '/gererprelevements' || texte === '/gerer') {
       await sendBtns(chatId, '📅 *Gérer les prélèvements*', [
         [{ t: '⏸️ Suspendre', d: 'prel_suspendre' }, { t: '▶️ Réactiver', d: 'prel_reactiver' }],
@@ -1322,18 +1260,17 @@ app.post('/webhook', async (req, res) => {
     if (texte === '/historique') { await envoyerBilanMensuel(chatId); return; }
     if (texte === '/snapshot') { await send(chatId, '📦 Sauvegarde du snapshot en cours...'); await sauvegarderSnapshotMensuel(); return; }
 
-    // ── COMMANDE /portefeuille ─────────────────────────────
     if (texte === '/portefeuille' || texte === '/invest' || texte === '/portfolio') {
       await afficherPortefeuille(chatId);
       return;
     }
 
-    // ── COMMANDE /investir ─────────────────────────────────
     if (texte === '/investir') {
       await sendBtns(chatId, '📈 *Quel actif as-tu acheté ?*', [
-        [{ t: 'ISWD — ETF World Islamic', d: 'inv_ticker_ISWD' }],
-        [{ t: 'SGLD — Or physique',       d: 'inv_ticker_SGLD' }],
-        [{ t: '📝 Autre ticker',           d: 'inv_ticker_autre' }],
+        [{ t: 'ISWD — World Islamic (65%)', d: 'inv_ticker_ISWD' }],
+        [{ t: 'HIEU — Europe Islamic (25%)', d: 'inv_ticker_HIEU' }],
+        [{ t: 'HIEM — EM Islamic (10%)',     d: 'inv_ticker_HIEM' }],
+        [{ t: '📝 Autre ticker',             d: 'inv_ticker_autre' }],
         [{ t: '↩️ Annuler', d: 'annuler' }]
       ]);
       return;
@@ -1342,9 +1279,7 @@ app.post('/webhook', async (req, res) => {
     if (texte === '/epargne') {
       const data = await getData();
       sessionsEpargne[chatId] = { etape: 'saisie' };
-      await send(chatId,
-        `💎 *Mise à jour épargne*\n\nActuelle en base : *${data.epargneBase.toLocaleString('fr-FR')} €*\n\nEnvoie le nouveau montant total de ton épargne :\n_Ex: 9500_`
-      );
+      await send(chatId, `💎 *Mise à jour épargne*\n\nActuelle en base : *${data.epargneBase.toLocaleString('fr-FR')} €*\n\nEnvoie le nouveau montant total de ton épargne :\n_Ex: 9500_`);
       return;
     }
 
@@ -1366,9 +1301,7 @@ app.post('/webhook', async (req, res) => {
       let msg = `📅 *Prélèvements — Suivi du mois*\n\n📍 Nous sommes le *${aujourd}*\n`;
       msg += `💰 Total charges actives: *${getTotalChargesFixes().toFixed(2)}€/mois*\n`;
       msg += `💰 Restant ce mois: *${totalRestant.toFixed(2)}€*\n`;
-      if (suspendus.length > 0) {
-        msg += `\n⏸️ *Suspendus (${suspendus.length}):* ${suspendus.map(p => p.nom).join(', ')}\n`;
-      }
+      if (suspendus.length > 0) { msg += `\n⏸️ *Suspendus (${suspendus.length}):* ${suspendus.map(p => p.nom).join(', ')}\n`; }
       if (aVenir7j.length > 0) {
         msg += `\n⚠️ *Dans les 7 prochains jours:*\n`;
         aVenir7j.forEach(p => {
@@ -1376,15 +1309,12 @@ app.post('/webhook', async (req, res) => {
           msg += `• ${quand} (${p.jourEffectif}) — ${p.nom}: *${p.montant.toFixed(2)}€*\n`;
         });
         msg += `\n💸 Total cette semaine: *${aVenir7j.reduce((s, p) => s + p.montant, 0).toFixed(2)}€*\n`;
-      } else {
-        msg += `\n✅ Aucun prélèvement dans les 7 prochains jours\n`;
-      }
+      } else { msg += `\n✅ Aucun prélèvement dans les 7 prochains jours\n`; }
       msg += `\n_Gérer: /gererprelevements_`;
       await send(chatId, msg);
       return;
     }
 
-    // callback depuis /config
     if (texte === '/modifier' || texte === 'mod_prelevements') {
       await sendBtns(chatId, '✏️ *Que veux-tu modifier ?*', [
         [{ t: '📊 Un budget catégorie', d: 'mod_budget' }],
@@ -1395,19 +1325,12 @@ app.post('/webhook', async (req, res) => {
       return;
     }
 
-    // ── ÉTATS ACTIFS ───────────────────────────────────────
-
-    // Session modification prélèvement (montant ou jour)
     if (sessionsModifPrel[chatId]?.etape === 'attente_montant') {
       const sess = sessionsModifPrel[chatId];
       const montant = parseFloat(texte.replace(',', '.'));
       if (isNaN(montant) || montant <= 0) { await send(chatId, '❌ Montant invalide.'); return; }
       const p = PRELEVEMENTS_DATES.find(p => p.nom === sess.nom);
-      if (p) {
-        p.montant = montant;
-        CHARGES_FIXES[p.nom] = montant;
-        await sauvegarderConfig(`prel_montant_${p.nom}`, montant);
-      }
+      if (p) { p.montant = montant; CHARGES_FIXES[p.nom] = montant; await sauvegarderConfig(`prel_montant_${p.nom}`, montant); }
       delete sessionsModifPrel[chatId];
       await send(chatId, `✅ *${sess.nom}* mis à jour : *${montant}€*\n_Total charges: *${getTotalChargesFixes().toFixed(2)}€* — Sauvegardé ✓_`);
       return;
@@ -1418,36 +1341,22 @@ app.post('/webhook', async (req, res) => {
       const jour = parseInt(texte);
       if (isNaN(jour) || jour < 1 || jour > 31) { await send(chatId, '❌ Jour invalide (1-31).'); return; }
       const p = PRELEVEMENTS_DATES.find(p => p.nom === sess.nom);
-      if (p) {
-        p.jour = jour;
-        await sauvegarderConfig(`prel_jour_${p.nom}`, jour);
-      }
+      if (p) { p.jour = jour; await sauvegarderConfig(`prel_jour_${p.nom}`, jour); }
       delete sessionsModifPrel[chatId];
       await send(chatId, `✅ *${sess.nom}* — nouveau jour : *le ${jour}* — Sauvegardé ✓`);
       return;
     }
 
-    // Session modification config (salaire, beau-frère, objectif, charge)
     if (sessionsModifConfig[chatId]) {
       const sess = sessionsModifConfig[chatId];
       const montant = parseFloat(texte.replace(',', '.'));
       if (isNaN(montant) || montant <= 0) { await send(chatId, '❌ Montant invalide. Ex: *2500*'); return; }
       let msg = '';
-      if (sess.champ === 'salaire') {
-        SALAIRE_LGM_DEFAULT = montant;
-        await sauvegarderConfig('salaire_lgm', montant);
-        msg = `✅ Salaire LGM mis à jour : *${montant}€/mois*\n_Sauvegardé en base ✓_`;
-      } else if (sess.champ === 'beaufre') {
-        BEAU_FRERE = montant;
-        await sauvegarderConfig('beau_frere', montant);
-        msg = `✅ Revenu beau-frère mis à jour : *${montant}€/mois*\n_Sauvegardé en base ✓_`;
-      } else if (sess.champ === 'objectif') {
-        OBJECTIF_COMPLETUDE = montant;
-        await sauvegarderConfig('objectif_completude', montant);
-        msg = `✅ Objectif Complétude mis à jour : *${montant}€/mois*\n_Sauvegardé en base ✓_`;
-      } else if (sess.champ === 'charge') {
-        const nom = sess.nom;
-        const ancien = CHARGES_FIXES[nom];
+      if (sess.champ === 'salaire') { SALAIRE_LGM_DEFAULT = montant; await sauvegarderConfig('salaire_lgm', montant); msg = `✅ Salaire LGM mis à jour : *${montant}€/mois*\n_Sauvegardé en base ✓_`; }
+      else if (sess.champ === 'beaufre') { BEAU_FRERE = montant; await sauvegarderConfig('beau_frere', montant); msg = `✅ Revenu beau-frère mis à jour : *${montant}€/mois*\n_Sauvegardé en base ✓_`; }
+      else if (sess.champ === 'objectif') { OBJECTIF_COMPLETUDE = montant; await sauvegarderConfig('objectif_completude', montant); msg = `✅ Objectif Complétude mis à jour : *${montant}€/mois*\n_Sauvegardé en base ✓_`; }
+      else if (sess.champ === 'charge') {
+        const nom = sess.nom; const ancien = CHARGES_FIXES[nom];
         CHARGES_FIXES[nom] = montant;
         const prel = PRELEVEMENTS_DATES.find(p => p.nom === nom);
         if (prel) prel.montant = montant;
@@ -1459,39 +1368,30 @@ app.post('/webhook', async (req, res) => {
       return;
     }
 
-    // Session investissement
     if (sessionsInvest[chatId]) {
       const sess = sessionsInvest[chatId];
       if (sess.etape === 'ticker_autre') {
         const ticker = texte.trim().toUpperCase();
         if (ticker.length < 2 || ticker.length > 10) { await send(chatId, '❌ Ticker invalide. Ex: AAPL, MSFT'); return; }
-        sess.ticker = ticker;
-        sess.etape = 'montant';
+        sess.ticker = ticker; sess.etape = 'montant';
         await send(chatId, `📈 *${ticker}*\n\nMontant investi en € ? (ex: *200*)`);
         return;
       }
       if (sess.etape === 'montant') {
         const montant = parseFloat(texte.replace(',', '.'));
         if (isNaN(montant) || montant <= 0) { await send(chatId, '❌ Montant invalide. Ex: *200*'); return; }
-        sess.montant = montant;
-        sess.etape = 'prix';
-        await send(chatId, `📈 *${sess.ticker}* — ${montant}€\n\nPrix unitaire de la part au moment de l'achat ? (ex: *51.05*)`);
-        return;
-      }
-      if (sess.etape === 'prix') {
-        const prix = parseFloat(texte.replace(',', '.'));
-        if (isNaN(prix) || prix <= 0) { await send(chatId, '❌ Prix invalide. Ex: *51.05*'); return; }
-        const nb_parts = sess.montant / prix;
-        await saveInvestissement(chatId, sess.ticker, sess.montant, prix);
+        await send(chatId, `⏳ Récupération du prix *${sess.ticker}*...`);
+        const marche = await getPrixActuelETF(sess.ticker);
+        if (!marche || !marche.prix) {
+          await send(chatId, `❌ Impossible de récupérer le prix de *${sess.ticker}*.\nRéessaie dans quelques secondes.`);
+          delete sessionsInvest[chatId];
+          return;
+        }
+        const prix = marche.prix;
+        const nb_parts = montant / prix;
+        await saveInvestissement(chatId, sess.ticker, montant, prix);
         delete sessionsInvest[chatId];
-        await send(chatId,
-          `✅ *Achat enregistré !*\n\n` +
-          `📈 ${sess.ticker}\n` +
-          `💶 Montant: *${sess.montant}€*\n` +
-          `📊 Prix unitaire: *${prix}€*\n` +
-          `🔢 Parts achetées: *${nb_parts.toFixed(4)}*\n\n` +
-          `_/portefeuille pour voir ta situation complète_`
-        );
+        await send(chatId, `✅ *Achat enregistré !*\n\n📈 ${sess.ticker}\n💶 Montant: *${montant}€*\n📊 Prix au moment de l'achat: *${prix} ${marche.currency}*\n🔢 Parts achetées: *${nb_parts.toFixed(4)}*\n\n_/portefeuille pour voir ta situation complète_`);
         return;
       }
     }
@@ -1501,7 +1401,6 @@ app.post('/webhook', async (req, res) => {
       if (handled) return;
     }
 
-    // Session revenu — libellé custom
     if (sessionsRevenu[chatId]?.etape === 'libelle_custom') {
       const libelle = texte.trim();
       if (!libelle || libelle.length < 2) { await send(chatId, '❌ Libellé trop court. Réessaie.'); return; }
@@ -1517,20 +1416,15 @@ app.post('/webhook', async (req, res) => {
         await saveRevenu(chatId, montant, type);
         delete sessionsRevenu[chatId];
         await send(chatId, `✅ Rentrée *+${montant}€* enregistrée ! (${type})`);
-      } else {
-        await send(chatId, 'Envoie un montant valide, ex: *150*');
-      }
+      } else { await send(chatId, 'Envoie un montant valide, ex: *150*'); }
       return;
     }
 
     if (sessionsModifier[chatId]?.etape === 'attente_montant_budget') {
       const cat = sessionsModifier[chatId].categorie;
       const montant = trouverMontant(texte);
-      if (montant && montant > 0) {
-        BUDGETS[cat].max = montant;
-        delete sessionsModifier[chatId];
-        await send(chatId, `✅ Budget *${BUDGETS[cat].label}* mis à jour : *${montant} €/mois*`);
-      } else { await send(chatId, 'Envoie un montant valide, ex: *400*'); }
+      if (montant && montant > 0) { BUDGETS[cat].max = montant; delete sessionsModifier[chatId]; await send(chatId, `✅ Budget *${BUDGETS[cat].label}* mis à jour : *${montant} €/mois*`); }
+      else { await send(chatId, 'Envoie un montant valide, ex: *400*'); }
       return;
     }
 
@@ -1539,11 +1433,8 @@ app.post('/webhook', async (req, res) => {
       const montant = trouverMontant(texte);
       if (montant && montant > 0) {
         const item = await annulerDerniereDepense(cat);
-        if (item) {
-          await saveDepense(chatId, montant, cat, item.libelle || texte);
-          delete sessionsModifier[chatId];
-          await send(chatId, `✅ Dépense rectifiée : *${montant} €* — ${BUDGETS[cat].label}\nAncien montant : ${item.montant} €`);
-        } else { await send(chatId, `Aucune dépense trouvée pour ${BUDGETS[cat].label} ce mois.`); delete sessionsModifier[chatId]; }
+        if (item) { await saveDepense(chatId, montant, cat, item.libelle || texte); delete sessionsModifier[chatId]; await send(chatId, `✅ Dépense rectifiée : *${montant} €* — ${BUDGETS[cat].label}\nAncien montant : ${item.montant} €`); }
+        else { await send(chatId, `Aucune dépense trouvée pour ${BUDGETS[cat].label} ce mois.`); delete sessionsModifier[chatId]; }
       } else { await send(chatId, 'Envoie le nouveau montant, ex: *45*'); }
       return;
     }
@@ -1557,10 +1448,7 @@ app.post('/webhook', async (req, res) => {
         const pdfPath = await creerPDF(eleve, texte, contenu);
         await sendDocument(chatId, pdfPath, `fiche_${eleve}_${texte.replace(/ /g,'_')}.pdf`);
         fs.unlinkSync(pdfPath);
-      } catch (err) {
-        console.error('Erreur fiche PDF:', err.message);
-        await send(chatId, '❌ Erreur génération fiche. Réessaie.');
-      }
+      } catch (err) { console.error('Erreur fiche PDF:', err.message); await send(chatId, '❌ Erreur génération fiche. Réessaie.'); }
       return;
     }
 
@@ -1584,14 +1472,8 @@ app.post('/webhook', async (req, res) => {
       const data = await getData();
       let m = `📚 *Complétude ${new Date().toLocaleString('fr-FR', { month: 'long', year: 'numeric' })}*\n\n`;
       m += `🟢 *${data.completude.toFixed(2)}€* / ${OBJECTIF_COMPLETUDE}€\nCours: ${data.cours.length}\n`;
-      if (data.cours.length > 0) {
-        m += `\n*Détail:*\n`;
-        data.cours.forEach(c => { m += `• ${c.eleve}${c.rattrapage ? ' (rattrapage)' : ''}: +${c.gain.toFixed(2)}€\n`; });
-      }
-      if (data.coursManques.length > 0) {
-        m += `\n❌ *Manques:*\n`;
-        data.coursManques.forEach(c => { m += `• ${c.eleve}${c.libelle === 'déplacé' ? ' 📅 (déplacé)' : ''}: -${c.gain_manque.toFixed(2)}€\n`; });
-      }
+      if (data.cours.length > 0) { m += `\n*Détail:*\n`; data.cours.forEach(c => { m += `• ${c.eleve}${c.rattrapage ? ' (rattrapage)' : ''}: +${c.gain.toFixed(2)}€\n`; }); }
+      if (data.coursManques.length > 0) { m += `\n❌ *Manques:*\n`; data.coursManques.forEach(c => { m += `• ${c.eleve}${c.libelle === 'déplacé' ? ' 📅 (déplacé)' : ''}: -${c.gain_manque.toFixed(2)}€\n`; }); }
       await send(chatId, m);
       return;
     }
@@ -1608,7 +1490,6 @@ app.post('/webhook', async (req, res) => {
       return;
     }
 
-    // ── DÉTECTION COURS ────────────────────────────────────
     const tousEleves = trouverTousLesEleves(texte);
     const eleve = tousEleves[0] || null;
     const isCours = /cours|rattrapage|seance/i.test(texte);
@@ -1618,24 +1499,16 @@ app.post('/webhook', async (req, res) => {
       const rattrapage = /rattrapage/i.test(texte);
       const fileAttente = tousEleves.slice(1);
       if (isPasFait) {
-        for (const el of tousEleves) {
-          const gain_manque = await saveCoursManque(chatId, el);
-          await send(chatId, `❌ Cours ${el} non effectué\n💸 Manque: *-${gain_manque.toFixed(2)}€*`);
-        }
+        for (const el of tousEleves) { const gain_manque = await saveCoursManque(chatId, el); await send(chatId, `❌ Cours ${el} non effectué\n💸 Manque: *-${gain_manque.toFixed(2)}€*`); }
         return;
       }
       sessions[chatId] = { eleve, rattrapage, etape: 'confirmation', fileAttente };
-      await sendBtns(chatId,
-        `📚 Cours avec *${eleve}*${rattrapage ? ' _(rattrapage)_' : ''} — effectué ?`,
-        [
-          [{ t: '✅ Oui', d: 'cours_oui' }, { t: '❌ Non', d: 'cours_non' }, { t: '📅 Déplacé', d: 'cours_deplace' }],
-          [{ t: '↩️ Annuler', d: 'annuler' }]
-        ]
+      await sendBtns(chatId, `📚 Cours avec *${eleve}*${rattrapage ? ' _(rattrapage)_' : ''} — effectué ?`,
+        [[{ t: '✅ Oui', d: 'cours_oui' }, { t: '❌ Non', d: 'cours_non' }, { t: '📅 Déplacé', d: 'cours_deplace' }], [{ t: '↩️ Annuler', d: 'annuler' }]]
       );
       return;
     }
 
-    // ── DÉTECTION DÉPENSE ──────────────────────────────────
     const montant = trouverMontant(texte);
     const cat = trouverCategorie(texte);
     if (montant && montant > 0 && montant < 5000 && !isCours) {
@@ -1649,25 +1522,10 @@ app.post('/webhook', async (req, res) => {
       }
     }
 
-    if (/salaire|lgm|paie/i.test(texte) && montant && montant > 1000) {
-      await saveSalaire(chatId, montant);
-      await send(chatId, `✅ Salaire LGM enregistré: *${montant}€* 📊`);
-      return;
-    }
+    if (/salaire|lgm|paie/i.test(texte) && montant && montant > 1000) { await saveSalaire(chatId, montant); await send(chatId, `✅ Salaire LGM enregistré: *${montant}€* 📊`); return; }
+    if (/epargne|épargne|economies|économies|capital|livret|compte epargne/i.test(texte) && montant && montant > 100) { await saveEpargne(chatId, montant); await afficherProgressionEpargne(chatId, montant); return; }
+    if (/recu|vinted|remboursement|rentree|participation/i.test(texte) && montant) { await saveRevenu(chatId, montant, texte); await send(chatId, `✅ Rentrée *+${montant}€* enregistrée !`); return; }
 
-    if (/epargne|épargne|economies|économies|capital|livret|compte epargne/i.test(texte) && montant && montant > 100) {
-      await saveEpargne(chatId, montant);
-      await afficherProgressionEpargne(chatId, montant);
-      return;
-    }
-
-    if (/recu|vinted|remboursement|rentree|participation/i.test(texte) && montant) {
-      await saveRevenu(chatId, montant, texte);
-      await send(chatId, `✅ Rentrée *+${montant}€* enregistrée !`);
-      return;
-    }
-
-    // ── NLP ÉTENDU ─────────────────────────────────────────
     const data = await getData();
     const elevesNLP = trouverTousLesEleves(texte);
     const eleveNLP = elevesNLP[0] || null;
@@ -1676,27 +1534,13 @@ app.post('/webhook', async (req, res) => {
       const signesAbsence = /absent|pas (l[aà]|venu|v[eè]nu|pu|fait|venir)|annul|pr[eé]venu|cancel|s.est d[eé]sist|pa(s)? (eu|pu)|a pas|na pas/i.test(texte);
       const signesCours = /\bcours\b|\bseance\b|\brattrapage\b|\bfait cours\b|\bvu\b|\btermin|\bfini\b|j.ai fait|on a fait|effectu/i.test(texte);
       const signesDeplace = /deplace|déplacé|reporté|reporte|autre.*jour|change.*jour|pas.*ce.*soir/i.test(texte);
-
-      if (signesDeplace && eleveNLP) {
-        const gain_manque = await saveCoursDeplace(chatId, eleveNLP);
-        await send(chatId, `📅 Cours *${eleveNLP}* marqué comme déplacé.`);
-        return;
-      }
-
-      if (signesAbsence) {
-        for (const el of elevesNLP) {
-          const gain_manque = await saveCoursManque(chatId, el);
-          await send(chatId, `❌ Cours ${el} non effectué\n💸 Manque: *-${gain_manque.toFixed(2)}€*`);
-        }
-        return;
-      }
-
+      if (signesDeplace && eleveNLP) { const gain_manque = await saveCoursDeplace(chatId, eleveNLP); await send(chatId, `📅 Cours *${eleveNLP}* marqué comme déplacé.`); return; }
+      if (signesAbsence) { for (const el of elevesNLP) { const gain_manque = await saveCoursManque(chatId, el); await send(chatId, `❌ Cours ${el} non effectué\n💸 Manque: *-${gain_manque.toFixed(2)}€*`); } return; }
       if (signesCours) {
         const rattrapage = /rattrapage/i.test(texte);
         const fileAttente = elevesNLP.slice(1);
         sessions[chatId] = { eleve: eleveNLP, rattrapage, etape: 'confirmation', fileAttente };
-        await sendBtns(chatId,
-          `📚 Cours avec *${eleveNLP}*${rattrapage ? ' _(rattrapage)_' : ''} — effectué ?`,
+        await sendBtns(chatId, `📚 Cours avec *${eleveNLP}*${rattrapage ? ' _(rattrapage)_' : ''} — effectué ?`,
           [[{ t: '✅ Oui', d: 'cours_oui' }, { t: '❌ Non', d: 'cours_non' }, { t: '📅 Déplacé', d: 'cours_deplace' }], [{ t: '↩️ Annuler', d: 'annuler' }]]
         );
         return;
@@ -1727,32 +1571,16 @@ app.post('/webhook', async (req, res) => {
       sessions[chatId] = { montant: montantNLP, libelle: texte, etape: 'choix_cat' };
       const cats = Object.entries(BUDGETS);
       const rows = [];
-      for (let i = 0; i < cats.length; i += 3)
-        rows.push(cats.slice(i, i+3).map(([k, b]) => ({ t: b.label, d: `cat_${k}` })));
+      for (let i = 0; i < cats.length; i += 3) rows.push(cats.slice(i, i+3).map(([k, b]) => ({ t: b.label, d: `cat_${k}` })));
       rows.push([{ t: '↩️ Annuler', d: 'annuler' }]);
       await sendBtns(chatId, `💸 *${montantNLP}€* — Quelle catégorie ?`, rows);
       return;
     }
 
-    if (/salaire|lgm|paie|virement.*lgm|lgm.*virement/i.test(texte) && montantNLP && montantNLP > 1000) {
-      await saveSalaire(chatId, montantNLP);
-      await send(chatId, `✅ Salaire LGM enregistré: *${montantNLP}€* 📊`);
-      return;
-    }
+    if (/salaire|lgm|paie|virement.*lgm|lgm.*virement/i.test(texte) && montantNLP && montantNLP > 1000) { await saveSalaire(chatId, montantNLP); await send(chatId, `✅ Salaire LGM enregistré: *${montantNLP}€* 📊`); return; }
+    if (/epargne|épargne|économie|économies|livret|capital|j.ai mis|j.ai économisé|mis de c[oô]t[eé]/i.test(texte) && montantNLP && montantNLP > 100) { await saveEpargne(chatId, montantNLP); await afficherProgressionEpargne(chatId, montantNLP); return; }
+    if (/reçu|vinted|remboursement|rentrée|rentr[eé]e|participation|prime|bonus|cash|gagné|vendu/i.test(texte) && montantNLP && montantNLP > 0) { await saveRevenu(chatId, montantNLP, texte); await send(chatId, `✅ Rentrée *+${montantNLP}€* enregistrée !`); return; }
 
-    if (/epargne|épargne|économie|économies|livret|capital|j.ai mis|j.ai économisé|mis de c[oô]t[eé]/i.test(texte) && montantNLP && montantNLP > 100) {
-      await saveEpargne(chatId, montantNLP);
-      await afficherProgressionEpargne(chatId, montantNLP);
-      return;
-    }
-
-    if (/reçu|vinted|remboursement|rentrée|rentr[eé]e|participation|prime|bonus|cash|gagné|vendu/i.test(texte) && montantNLP && montantNLP > 0) {
-      await saveRevenu(chatId, montantNLP, texte);
-      await send(chatId, `✅ Rentrée *+${montantNLP}€* enregistrée !`);
-      return;
-    }
-
-    // Fallback Gemini
     try {
       const reponse = await geminiParle(chatId, texte, data);
       await send(chatId, reponse);
@@ -1796,19 +1624,13 @@ app.post('/depense', async (req, res) => {
 });
 
 // ============================================================
-// API DASHBOARD
+// API DASHBOARD — CRUD
 // ============================================================
-// ROUTES API CRUD — À INSÉRER DANS index.js
-// Colle ce bloc AVANT la ligne: app.get('/', (req, res) => { ... })
-// ============================================================
-
-// ── SUPPRESSION DÉPENSE ──────────────────────────────────
 app.delete('/api/depense/:id', async (req, res) => {
   try {
     const { id } = req.params;
     if (!id) return res.json({ ok: false, error: 'ID manquant' });
-    const { data: item, error: fetchErr } = await supabase
-      .from('depenses').select('id, montant, libelle, categorie').eq('id', id).single();
+    const { data: item, error: fetchErr } = await supabase.from('depenses').select('id, montant, libelle, categorie').eq('id', id).single();
     if (fetchErr || !item) return res.json({ ok: false, error: 'Dépense introuvable' });
     const { error } = await supabase.from('depenses').delete().eq('id', id);
     if (error) return res.json({ ok: false, error: error.message });
@@ -1816,7 +1638,6 @@ app.delete('/api/depense/:id', async (req, res) => {
   } catch (err) { res.json({ ok: false, error: err.message }); }
 });
 
-// ── MODIFICATION DÉPENSE ─────────────────────────────────
 app.patch('/api/depense/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -1830,13 +1651,11 @@ app.patch('/api/depense/:id', async (req, res) => {
   } catch (err) { res.json({ ok: false, error: err.message }); }
 });
 
-// ── SUPPRESSION REVENU ───────────────────────────────────
 app.delete('/api/revenu/:id', async (req, res) => {
   try {
     const { id } = req.params;
     if (!id) return res.json({ ok: false, error: 'ID manquant' });
-    const { data: item, error: fetchErr } = await supabase
-      .from('revenus').select('id, montant, libelle').eq('id', id).single();
+    const { data: item, error: fetchErr } = await supabase.from('revenus').select('id, montant, libelle').eq('id', id).single();
     if (fetchErr || !item) return res.json({ ok: false, error: 'Revenu introuvable' });
     const { error } = await supabase.from('revenus').delete().eq('id', id);
     if (error) return res.json({ ok: false, error: error.message });
@@ -1844,7 +1663,6 @@ app.delete('/api/revenu/:id', async (req, res) => {
   } catch (err) { res.json({ ok: false, error: err.message }); }
 });
 
-// ── MODIFICATION REVENU ──────────────────────────────────
 app.patch('/api/revenu/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -1858,13 +1676,11 @@ app.patch('/api/revenu/:id', async (req, res) => {
   } catch (err) { res.json({ ok: false, error: err.message }); }
 });
 
-// ── SUPPRESSION INVESTISSEMENT ───────────────────────────
 app.delete('/api/investissement/:id', async (req, res) => {
   try {
     const { id } = req.params;
     if (!id) return res.json({ ok: false, error: 'ID manquant' });
-    const { data: item, error: fetchErr } = await supabase
-      .from('investissements').select('id, ticker, montant').eq('id', id).single();
+    const { data: item, error: fetchErr } = await supabase.from('investissements').select('id, ticker, montant').eq('id', id).single();
     if (fetchErr || !item) return res.json({ ok: false, error: 'Investissement introuvable' });
     const { error } = await supabase.from('investissements').delete().eq('id', id);
     if (error) return res.json({ ok: false, error: error.message });
@@ -1872,8 +1688,6 @@ app.delete('/api/investissement/:id', async (req, res) => {
   } catch (err) { res.json({ ok: false, error: err.message }); }
 });
 
-// ── MODIFICATION INVESTISSEMENT ──────────────────────────
-// Recalcule nb_parts automatiquement si montant change
 app.patch('/api/investissement/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -1881,9 +1695,7 @@ app.patch('/api/investissement/:id', async (req, res) => {
     if (!id) return res.json({ ok: false, error: 'ID manquant' });
     const v = parseFloat(montant);
     if (isNaN(v) || v <= 0) return res.json({ ok: false, error: 'Montant invalide' });
-    // Récupérer le prix unitaire pour recalculer nb_parts
-    const { data: item } = await supabase
-      .from('investissements').select('prix_unitaire').eq('id', id).single();
+    const { data: item } = await supabase.from('investissements').select('prix_unitaire').eq('id', id).single();
     const nb_parts = item ? v / item.prix_unitaire : null;
     const update = nb_parts ? { montant: v, nb_parts } : { montant: v };
     const { error } = await supabase.from('investissements').update(update).eq('id', id);
@@ -1891,7 +1703,7 @@ app.patch('/api/investissement/:id', async (req, res) => {
     res.json({ ok: true });
   } catch (err) { res.json({ ok: false, error: err.message }); }
 });
-// ============================================================
+
 app.get('/api/dashboard', async (req, res) => {
   try {
     const moisOffset = parseInt(req.query.mois || '0');
@@ -1915,7 +1727,6 @@ app.get('/api/dashboard', async (req, res) => {
     const potentiel = calculerPotentielRestant(moisOffset, data.cours, data.coursManques);
     const { data: snapshots } = await supabase.from('snapshots_mensuels').select('mois, donnees').order('mois', { ascending: false }).limit(12);
 
-    // Récupérer investissements + prix watchlist complète
     const investissements = await getInvestissements();
     const prixActuels = {};
     const watchlistTickers = [...new Set([...MARKET_WATCHLIST, ...investissements.map(i => i.ticker)])];
@@ -1948,24 +1759,20 @@ app.get('/api/dashboard', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ── API CONFIG (dashboard interactif) ──────────────────────
 app.post('/api/config', async (req, res) => {
   try {
     const { cle, valeur } = req.body;
     if (!cle || valeur === undefined) return res.json({ ok: false, error: 'Paramètres manquants' });
     const v = parseFloat(valeur);
     if (isNaN(v) || v <= 0) return res.json({ ok: false, error: 'Valeur invalide' });
-
     if (cle === 'salaire_lgm')        SALAIRE_LGM_DEFAULT = v;
     else if (cle === 'beau_frere')     BEAU_FRERE = v;
     else if (cle === 'objectif_completude') OBJECTIF_COMPLETUDE = v;
-
     await sauvegarderConfig(cle, v);
     res.json({ ok: true });
   } catch (err) { res.json({ ok: false, error: err.message }); }
 });
 
-// ── API BUDGET (dashboard interactif) ──────────────────────
 app.post('/api/budget', async (req, res) => {
   try {
     const { categorie, max } = req.body;
@@ -1973,21 +1780,18 @@ app.post('/api/budget', async (req, res) => {
     const v = parseFloat(max);
     if (isNaN(v) || v <= 0) return res.json({ ok: false, error: 'Valeur invalide' });
     if (!BUDGETS[categorie]) return res.json({ ok: false, error: 'Catégorie inconnue' });
-
     BUDGETS[categorie].max = v;
     await sauvegarderConfig(`budget_${categorie}`, v);
     res.json({ ok: true });
   } catch (err) { res.json({ ok: false, error: err.message }); }
 });
 
-// ── API PRÉLÈVEMENT (dashboard interactif) ─────────────────
 app.post('/api/prel', async (req, res) => {
   try {
     const { nom, champ, valeur } = req.body;
     if (!nom || !champ) return res.json({ ok: false, error: 'Paramètres manquants' });
     const p = PRELEVEMENTS_DATES.find(p => p.nom === nom);
     if (!p) return res.json({ ok: false, error: 'Prélèvement introuvable' });
-
     if (champ === 'montant') {
       const v = parseFloat(valeur);
       if (isNaN(v) || v <= 0) return res.json({ ok: false, error: 'Montant invalide' });
@@ -2004,12 +1808,66 @@ app.post('/api/prel', async (req, res) => {
       if (p.suspendu) CHARGES_FIXES[nom] = 0;
       else CHARGES_FIXES[nom] = p.montant;
       await sauvegarderConfig(`prel_suspendu_${nom}`, v);
-    } else {
-      return res.json({ ok: false, error: 'Champ inconnu' });
-    }
-
+    } else { return res.json({ ok: false, error: 'Champ inconnu' }); }
     res.json({ ok: true });
   } catch (err) { res.json({ ok: false, error: err.message }); }
+});
+
+// ============================================================
+// ROUTE API SIMULATEUR — NOUVELLE
+// ============================================================
+app.get('/api/simulateur', async (req, res) => {
+  try {
+    const data = await getData(0);
+    const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
+    const aujourdhui = now.getDate();
+    const dernierJour = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+
+    const prelevementsRestants = PRELEVEMENTS_DATES
+      .filter(p => p.jour && !p.suspendu && p.jour >= aujourdhui)
+      .map(p => ({ nom: p.nom, montant: p.montant, jour: p.jour }))
+      .sort((a, b) => a.jour - b.jour);
+
+    const totalPrelevementsRestants = prelevementsRestants.reduce((s, p) => s + p.montant, 0);
+    const potentiel = calculerPotentielRestant(0, data.cours, data.coursManques);
+
+    const depVariablesActuelles = {
+      courses: data.totaux['courses'] || 0,
+      essence: data.totaux['essence'] || 0,
+      restos:  data.totaux['restos']  || 0,
+    };
+
+    res.json({
+      epargne_actuelle:             data.epargneBase,
+      solde_actuel:                 data.solde,
+      epargne_estimee_actuelle:     data.epargneEstimee,
+      completude_actuelle:          data.completude,
+      potentiel_cours_restants:     potentiel.montantRestant,
+      salaire:                      data.salaire,
+      beau_frere:                   BEAU_FRERE,
+      revenus_supp:                 data.revenusSupp,
+      total_revenus:                data.totalRevenus,
+      charges_fixes_total:          getTotalChargesFixes(),
+      prelevements_restants:        prelevementsRestants,
+      total_prelevements_restants:  totalPrelevementsRestants,
+      depenses_variables_actuelles: data.totalDep,
+      dep_variables_detail:         depVariablesActuelles,
+      budgets_max: {
+        courses: BUDGETS['courses']?.max || 500,
+        essence: BUDGETS['essence']?.max || 300,
+        restos:  BUDGETS['restos']?.max  || 80,
+      },
+      objectifs:             OBJECTIFS,
+      objectif_completude:   OBJECTIF_COMPLETUDE,
+      eleves_restants:       potentiel.elevesRestants,
+      jours_restants_count:  potentiel.joursRestantsCount,
+      jour_actuel:           aujourdhui,
+      dernier_jour:          dernierJour,
+      jours_restants_mois:   dernierJour - aujourdhui,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'dashboard.html')); });
@@ -2061,10 +1919,7 @@ function demarrerScheduler() {
 
     if (heure === 20 && minute === 0) {
       const dernierJourDuMois = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-      if (now.getDate() === dernierJourDuMois) {
-        await sauvegarderSnapshotMensuel();
-        await envoyerSyntheseMensuelle();
-      }
+      if (now.getDate() === dernierJourDuMois) { await sauvegarderSnapshotMensuel(); await envoyerSyntheseMensuelle(); }
     }
 
     const demain = now.getDate() + 1;
@@ -2079,28 +1934,19 @@ function demarrerScheduler() {
       }
     }
 
-    // Rappel DCA investissement — 1er du mois à 10h
     if (now.getDate() === 1 && heure === 10 && minute === 0) {
       const investissements = await getInvestissements();
       const parTicker = {};
-      investissements.forEach(inv => {
-        if (!parTicker[inv.ticker]) parTicker[inv.ticker] = 0;
-        parTicker[inv.ticker] += inv.montant;
-      });
+      investissements.forEach(inv => { if (!parTicker[inv.ticker]) parTicker[inv.ticker] = 0; parTicker[inv.ticker] += inv.montant; });
       const totalInvesti = Object.values(parTicker).reduce((a, b) => a + b, 0);
-      let msg = `📅 *Rappel DCA mensuel*\n\n`;
-      msg += `C'est le 1er du mois — as-tu pensé à ton versement ISWD ?\n\n`;
-      if (totalInvesti > 0) {
-        msg += `💼 Total investi à ce jour: *${totalInvesti.toFixed(0)}€*\n`;
-        Object.entries(parTicker).forEach(([t, m]) => { msg += `• ${t}: ${m.toFixed(0)}€\n`; });
-        msg += `\n`;
-      }
+      let msg = `📅 *Rappel DCA mensuel*\n\nC'est le 1er du mois — as-tu pensé à ton versement ISWD ?\n\n`;
+      if (totalInvesti > 0) { msg += `💼 Total investi à ce jour: *${totalInvesti.toFixed(0)}€*\n`; Object.entries(parTicker).forEach(([t, m]) => { msg += `• ${t}: ${m.toFixed(0)}€\n`; }); msg += `\n`; }
       msg += `_/investir pour enregistrer ton achat du mois_`;
       await send(CHAT_ID, msg);
     }
 
     for (const [nomEleve, profil] of Object.entries(ELEVES)) {
-      if (profil.jour !== jour) continue;                              // ← filtre jour critique
+      if (profil.jour !== jour) continue;
       if (profil.uneSemaineSurDeux && !estSemaineSerena()) continue;
       const totalMin = profil.minute + Math.floor(profil.duree * 60);
       const heureFin = profil.heure + Math.floor(totalMin / 60);
@@ -2109,10 +1955,7 @@ function demarrerScheduler() {
         sessions[CHAT_ID] = { eleve: nomEleve, rattrapage: false, etape: 'confirmation' };
         await sendBtns(CHAT_ID,
           `📚 *Fin de cours !*\n\nAs-tu fait cours avec *${nomEleve}* ?`,
-          [
-            [{ t: '✅ Oui', d: 'cours_oui' }, { t: '❌ Non', d: 'cours_non' }, { t: '📅 Déplacé', d: 'cours_deplace' }],
-            [{ t: '↩️ Annuler', d: 'annuler' }]
-          ]
+          [[{ t: '✅ Oui', d: 'cours_oui' }, { t: '❌ Non', d: 'cours_non' }, { t: '📅 Déplacé', d: 'cours_deplace' }], [{ t: '↩️ Annuler', d: 'annuler' }]]
         );
       }
     }
@@ -2232,7 +2075,7 @@ async function annulerDerniereDepense(categorie) {
 }
 
 // ============================================================
-// FICHE — SESSION DÉDIÉE
+// FICHE
 // ============================================================
 async function demarrerFiche(chatId) {
   const elevesDispo = Object.keys(ELEVES);
