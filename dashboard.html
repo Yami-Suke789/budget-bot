@@ -472,63 +472,67 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
 <!-- SIMULATEUR -->
 <div class="section" id="tab-simul">
 
-  <!-- Épargne de départ -->
+  <!-- Saisie épargne + bouton Simuler -->
   <div class="simul-result">
-    <div class="simul-result-label">Épargne projetée fin de mois</div>
-    <div class="simul-result-main" id="simul-epargne-val">—</div>
-    <div class="simul-gauge"><div class="simul-gauge-fill" id="simul-gauge-fill" style="width:0%"></div></div>
-    <div class="simul-gauge-labels"><span id="simul-gauge-pct">0%</span><span id="simul-obj-label">Objectif</span></div>
-    <div class="simul-result-sub" id="simul-solde-sub">—</div>
-    <div class="simul-ep-row">
+    <div class="simul-ep-row" style="margin-bottom:.7rem">
       <span class="simul-ep-label">💰 Épargne actuelle</span>
-      <input type="number" class="simul-ep-input" id="simul-ep-input" placeholder="0" oninput="recalcSimulateur()">
+      <input type="number" class="simul-ep-input" id="simul-ep-input" placeholder="0">
       <span style="font-size:.65rem;color:var(--muted)">€</span>
     </div>
-  </div>
 
-  <!-- Détail du calcul -->
-  <div class="simul-acc" id="acc-detail">
-    <div class="simul-acc-head" onclick="toggleAcc('acc-detail')">
-      <div class="simul-acc-head-left">📋 Détail du calcul</div>
-      <div class="simul-acc-head-right"><span class="simul-acc-chev">›</span></div>
-    </div>
-    <div class="simul-acc-body">
-      <div id="simul-detail-list" style="padding-top:.4rem"></div>
-    </div>
-  </div>
-
-  <!-- Dépenses exceptionnelles -->
-  <div class="simul-acc open" id="acc-dep">
-    <div class="simul-acc-head" onclick="toggleAcc('acc-dep')">
-      <div class="simul-acc-head-left">➕ Dépenses exceptionnelles</div>
-      <div class="simul-acc-head-right">
-        <span class="simul-acc-badge" id="simul-dep-total" style="color:var(--red)">0 €</span>
-        <span class="simul-acc-chev">›</span>
-      </div>
-    </div>
-    <div class="simul-acc-body">
-      <div style="font-size:.62rem;color:var(--muted);margin:.5rem 0 .4rem">Achat ponctuel, sortie, voyage...</div>
-      <div style="display:flex;gap:6px;margin-bottom:.5rem">
-        <input type="text" id="simul-dep-label" placeholder="Libellé" style="flex:1;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text);font-size:.72rem;padding:6px 9px;border-radius:7px;outline:none;font-family:'Sora',sans-serif" onfocus="this.style.borderColor='var(--purple)'" onblur="this.style.borderColor='var(--border)'">
-        <input type="number" id="simul-dep-montant" placeholder="0" step="1" min="0" style="width:70px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text);font-size:.78rem;padding:6px 8px;border-radius:7px;outline:none;font-family:var(--mono);text-align:right" onfocus="this.style.borderColor='var(--purple)'" onblur="this.style.borderColor='var(--border)'">
+    <!-- Dépenses exceptionnelles inline -->
+    <div style="margin-bottom:.7rem">
+      <div style="font-size:.6rem;color:var(--muted);margin-bottom:.4rem;text-transform:uppercase;letter-spacing:.06em">➕ Dépenses exceptionnelles à prévoir</div>
+      <div style="display:flex;gap:6px;margin-bottom:.4rem">
+        <input type="text" id="simul-dep-label" placeholder="Libellé (ex: voyage, achat...)" style="flex:1;background:rgba(255,255,255,0.08);border:1px solid var(--border);color:var(--text);font-size:.72rem;padding:6px 9px;border-radius:7px;outline:none;font-family:'Sora',sans-serif" onfocus="this.style.borderColor='var(--purple)'" onblur="this.style.borderColor='var(--border)'">
+        <input type="number" id="simul-dep-montant" placeholder="0" step="1" min="0" style="width:72px;background:rgba(255,255,255,0.08);border:1px solid var(--border);color:var(--text);font-size:.78rem;padding:6px 8px;border-radius:7px;outline:none;font-family:var(--mono);text-align:right" onfocus="this.style.borderColor='var(--purple)'" onblur="this.style.borderColor='var(--border)'">
         <button class="simul-add-btn" onclick="addDepenseLibre()">+</button>
       </div>
       <div id="simul-dep-list"></div>
+      <div id="simul-dep-total-row" style="display:none;font-size:.68rem;color:var(--red);font-family:var(--mono);text-align:right;margin-top:3px"></div>
+    </div>
+
+    <!-- Boutons action -->
+    <div style="display:flex;gap:8px">
+      <button onclick="recalcSimulateur()" style="flex:2;background:var(--purple);color:#fff;border:none;border-radius:9px;padding:10px;font-size:.78rem;font-weight:700;cursor:pointer;font-family:'Sora',sans-serif;transition:.15s" onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">▶ Simuler</button>
+      <button onclick="resetSimulateur()" style="flex:1;background:rgba(255,255,255,0.06);color:var(--muted);border:1px solid var(--border);border-radius:9px;padding:10px;font-size:.72rem;cursor:pointer;font-family:'Sora',sans-serif">↺ Reset</button>
     </div>
   </div>
 
-  <!-- Objectifs -->
-  <div class="simul-acc" id="acc-obj">
-    <div class="simul-acc-head" onclick="toggleAcc('acc-obj')">
-      <div class="simul-acc-head-left">🎯 Objectifs d'épargne</div>
-      <div class="simul-acc-head-right"><span class="simul-acc-chev">›</span></div>
-    </div>
-    <div class="simul-acc-body">
-      <div id="simul-obj-list" style="padding-top:.5rem">—</div>
-    </div>
-  </div>
+  <!-- Résultat (caché jusqu'au premier clic) -->
+  <div id="simul-result-block" style="display:none">
 
-  <button class="simul-reset" onclick="resetSimulateur()">↺ Réinitialiser</button>
+    <div class="simul-result" style="margin-top:.55rem">
+      <div class="simul-result-label">Épargne projetée fin de mois</div>
+      <div class="simul-result-main" id="simul-epargne-val">—</div>
+      <div class="simul-gauge"><div class="simul-gauge-fill" id="simul-gauge-fill" style="width:0%"></div></div>
+      <div class="simul-gauge-labels"><span id="simul-gauge-pct">0%</span><span id="simul-obj-label">Objectif</span></div>
+      <div class="simul-result-sub" id="simul-solde-sub">—</div>
+    </div>
+
+    <!-- Détail du calcul -->
+    <div class="simul-acc" id="acc-detail">
+      <div class="simul-acc-head" onclick="toggleAcc('acc-detail')">
+        <div class="simul-acc-head-left">📋 Détail du calcul</div>
+        <div class="simul-acc-head-right"><span class="simul-acc-chev">›</span></div>
+      </div>
+      <div class="simul-acc-body">
+        <div id="simul-detail-list" style="padding-top:.4rem"></div>
+      </div>
+    </div>
+
+    <!-- Objectifs -->
+    <div class="simul-acc" id="acc-obj">
+      <div class="simul-acc-head" onclick="toggleAcc('acc-obj')">
+        <div class="simul-acc-head-left">🎯 Objectifs d'épargne</div>
+        <div class="simul-acc-head-right"><span class="simul-acc-chev">›</span></div>
+      </div>
+      <div class="simul-acc-body">
+        <div id="simul-obj-list" style="padding-top:.5rem">—</div>
+      </div>
+    </div>
+
+  </div>
 </div>
 
 <!-- CONFIG -->
@@ -611,7 +615,7 @@ function setTab(t){
   document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',tabs[i]===t));
   document.querySelectorAll('.section').forEach(el=>el.classList.remove('active'));
   document.getElementById('tab-'+t).classList.add('active');
-  if(t==='simul' && simulData) recalcSimulateur();
+  if(t==='simul' && simulData) { /* pas de recalc auto — bouton Simuler */ }
 }
 
 function changerMois(dir){
@@ -808,14 +812,23 @@ function renderInvest(d){
     cont.innerHTML=html; return;
   }
 
+  // Debug : afficher les clés reçues si aucun prix ne matche
+  const tickersDispo = Object.keys(prix);
+
   const parTicker={};
   invs.forEach(inv=>{ if(!parTicker[inv.ticker])parTicker[inv.ticker]={montant_investi:0,nb_parts:0,achats:[]}; parTicker[inv.ticker].montant_investi+=inv.montant; parTicker[inv.ticker].nb_parts+=inv.nb_parts; parTicker[inv.ticker].achats.push(inv); });
 
   let totalInvesti=0,totalActuel=0;
   let portfolioHtml=`<div class="invest-card"><div class="invest-title">💼 Mon portefeuille</div>`;
+  // Note debug : clés prix disponibles
+  if(tickersDispo.length===0){
+    portfolioHtml+=`<div style="font-size:.62rem;color:var(--amber);margin-bottom:.5rem">⚠️ Prix marché indisponibles (Yahoo Finance)</div>`;
+  }
   Object.entries(parTicker).forEach(([ticker,data])=>{
     const prixMoyen=data.montant_investi/data.nb_parts;
-    const marche=prix[ticker]; totalInvesti+=data.montant_investi;
+    // Chercher le prix avec le ticker exact, puis en majuscules
+    const marche=prix[ticker]||prix[ticker.toUpperCase()]||null;
+    totalInvesti+=data.montant_investi;
     let pvHtml='';
     if(marche){ const valeur=marche.prix*data.nb_parts; const pv=valeur-data.montant_investi; const pvPct=(pv/data.montant_investi*100); totalActuel+=valeur; const pvColor=pv>=0?'var(--green)':'var(--red)'; pvHtml=`<div style="font-size:.7rem;color:${pvColor};font-family:var(--mono);margin-top:2px">${pv>=0?'▲ +':'▼ '}${pv.toFixed(0)}€ (${pvPct>=0?'+':''}${pvPct.toFixed(1)}%)</div>`; }
     else totalActuel+=data.montant_investi;
@@ -840,12 +853,12 @@ function toggleAcc(id){
 
 function initSimulateur(d){
   simulData = d;
+  // Pré-remplir l'épargne une seule fois
   const epInput = document.getElementById('simul-ep-input');
   if(epInput && !epInput._initialized){
     epInput.value = Math.round(d.epargne_base||0);
     epInput._initialized = true;
   }
-  recalcSimulateur();
 }
 
 function addDepenseLibre(){
@@ -856,99 +869,103 @@ function addDepenseLibre(){
   document.getElementById('simul-dep-label').value='';
   document.getElementById('simul-dep-montant').value='';
   renderSimulateurDepenses();
-  recalcSimulateur();
 }
 
 function removeDepense(idx){
   simulDepenses.splice(idx,1);
   renderSimulateurDepenses();
-  recalcSimulateur();
 }
 
 function renderSimulateurDepenses(){
   const cont = document.getElementById('simul-dep-list');
-  if(!simulDepenses.length){ cont.innerHTML=''; return; }
+  const totalRow = document.getElementById('simul-dep-total-row');
+  if(!simulDepenses.length){
+    cont.innerHTML='';
+    if(totalRow) totalRow.style.display='none';
+    return;
+  }
   cont.innerHTML = simulDepenses.map((dep,i)=>`
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);font-size:.72rem">
-      <span style="color:var(--text)">${dep.label}</span>
-      <div style="display:flex;align-items:center;gap:6px">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid var(--border);font-size:.72rem">
+      <span style="color:var(--text);flex:1">${dep.label}</span>
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
         <span style="font-family:var(--mono);color:var(--red)">${dep.montant.toFixed(0)} €</span>
         <button class="simul-remove-btn" onclick="removeDepense(${i})">✕</button>
       </div>
     </div>`).join('');
+  const total = simulDepenses.reduce((s,d)=>s+d.montant,0);
+  if(totalRow){ totalRow.style.display='block'; totalRow.textContent='Total : -'+total.toFixed(0)+' €'; }
 }
 
 function recalcSimulateur(){
-  if(!simulData) return;
+  if(!simulData){ toast('⏳ Données non chargées, réessaie',true); return; }
   const d = simulData;
 
-  // 1. Épargne saisie
+  // Épargne saisie
   const epInput = document.getElementById('simul-ep-input');
-  const epargneBase = epInput ? (parseFloat(epInput.value)||0) : (d.epargne_base||0);
+  const epargneBase = parseFloat(epInput?.value) || 0;
+  if(epargneBase <= 0){ toast('❌ Saisis ton épargne actuelle',true); return; }
 
-  // 2. Solde actuel du backend (revenus perçus - charges passées - dépenses passées)
+  // Solde actuel du mois (calculé par le backend)
   const soldeActuel = d.solde || 0;
 
-  // 3. Prélèvements restants du mois (jours FUTURS uniquement)
+  // Prélèvements restants (jours strictement futurs)
   const aujourd = new Date().getDate();
-  const prelsRestants = (d.prelevements_tous||[]).filter(p=>p.jour && p.jour > aujourd && !p.suspendu && p.frequence!=='trimestriel');
-  const totalPrel = prelsRestants.reduce((s,p)=>s+p.montant, 0);
+  const prelsRestants = (d.prelevements_tous||[]).filter(p => p.jour && p.jour > aujourd && !p.suspendu && p.frequence !== 'trimestriel');
+  const totalPrel = prelsRestants.reduce((s,p) => s+p.montant, 0);
 
-  // 4. Complément budgets courses / essence / restos
-  const budgets = d.budgets||{};
-  const totaux = d.totaux||{};
+  // Complément budgets courses / essence / restos
+  const budgets = d.budgets || {};
+  const totaux  = d.totaux  || {};
   const complementCourses = Math.max(0, (budgets.courses?.max||500) - (totaux.courses||0));
   const complementEssence = Math.max(0, (budgets.essence?.max||300) - (totaux.essence||0));
   const complementRestos  = Math.max(0, (budgets.restos?.max||80)  - (totaux.restos||0));
 
-  // 5. Cours restants
+  // Cours restants
   const totalCours = d.potentiel_restant || 0;
 
-  // 6. Dépenses exceptionnelles saisies
-  const totalExcep = simulDepenses.reduce((s,dep)=>s+dep.montant, 0);
-  document.getElementById('simul-dep-total').textContent = totalExcep>0 ? '-'+totalExcep.toFixed(0)+' €' : '0 €';
+  // Dépenses exceptionnelles
+  const totalExcep = simulDepenses.reduce((s,dep) => s+dep.montant, 0);
 
-  // 7. Solde projeté = solde actuel + cours à venir - prélèvements futurs - compléments budgets - excep
+  // Calcul
   const soldeProj = soldeActuel + totalCours - totalPrel - complementCourses - complementEssence - complementRestos - totalExcep;
   const epargneProj = epargneBase + Math.max(0, soldeProj);
 
-  // Affichage
+  // Afficher le bloc résultat
+  document.getElementById('simul-result-block').style.display = 'block';
+
+  // Résultat principal
   const epEl = document.getElementById('simul-epargne-val');
   epEl.textContent = fmt(epargneProj);
-  epEl.style.color = epargneProj > epargneBase ? 'var(--green)' : epargneProj === epargneBase ? 'var(--amber)' : 'var(--red)';
-  document.getElementById('simul-solde-sub').textContent = 'Solde fin de mois estimé : '+(soldeProj>=0?'+':'')+Math.round(soldeProj).toLocaleString('fr-FR')+' €';
-
-  // Jauge
   const objPrincipal = (d.objectifs&&d.objectifs[0]) ? d.objectifs[0].montant : 12000;
-  const epPct = pct(epargneProj, objPrincipal);
-  const epColor = epargneProj >= objPrincipal ? 'var(--green)' : epargneProj >= epargneBase ? 'var(--amber)' : 'var(--red)';
+  const epPct   = pct(epargneProj, objPrincipal);
+  const epColor = epargneProj >= objPrincipal ? 'var(--green)' : epargneProj > epargneBase ? 'var(--amber)' : 'var(--red)';
   epEl.style.color = epColor;
   document.getElementById('simul-gauge-fill').style.cssText = `width:${epPct}%;background:${epColor}`;
   document.getElementById('simul-gauge-pct').textContent = epPct+'%';
   if(d.objectifs&&d.objectifs[0]) document.getElementById('simul-obj-label').textContent = 'Obj. '+d.objectifs[0].montant.toLocaleString('fr-FR')+' €';
+  document.getElementById('simul-solde-sub').textContent = 'Solde fin de mois estimé : '+(soldeProj>=0?'+':'')+Math.round(soldeProj).toLocaleString('fr-FR')+' €';
 
   // Détail
   const detailEl = document.getElementById('simul-detail-list');
-  if(detailEl){
-    const lignes = [
-      {label:'Solde actuel', val:soldeActuel, c:soldeActuel>=0?'var(--green)':'var(--red)'},
-      {label:'📚 Cours restants', val:totalCours, c:'var(--green)'},
-      {label:'📅 Prélèvements restants', val:-totalPrel, c:'var(--red)'},
-      {label:`🛒 Courses restantes (/${budgets.courses?.max||500}€)`, val:-complementCourses, c:'var(--amber)'},
-      {label:`⛽ Essence restante (/${budgets.essence?.max||300}€)`, val:-complementEssence, c:'var(--amber)'},
-      {label:`🍽️ Restos restants (/${budgets.restos?.max||80}€)`, val:-complementRestos, c:'var(--amber)'},
-      {label:'➕ Dépenses exceptionnelles', val:-totalExcep, c:'var(--red)'},
-    ].filter(l=>l.val!==0);
-    detailEl.innerHTML = lignes.map(l=>`
-      <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:.7rem">
-        <span style="color:var(--muted);flex:1;padding-right:8px">${l.label}</span>
-        <span style="font-family:var(--mono);color:${l.c};flex-shrink:0">${l.val>0?'+':''}${Math.round(l.val).toLocaleString('fr-FR')} €</span>
-      </div>`).join('')
-    + `<div style="display:flex;justify-content:space-between;padding:6px 0;font-size:.72rem;font-weight:700">
-        <span>= Solde projeté</span>
-        <span style="font-family:var(--mono);color:${soldeProj>=0?'var(--green)':'var(--red)'}">${soldeProj>=0?'+':''}${Math.round(soldeProj).toLocaleString('fr-FR')} €</span>
-      </div>`;
-  }
+  const lignes = [
+    {label:'Solde actuel (revenus − charges − dépenses à ce jour)', val:soldeActuel, c:soldeActuel>=0?'var(--green)':'var(--red)'},
+    {label:'📚 Cours restants', val:totalCours, c:'var(--green)'},
+    {label:'📅 Prélèvements restants', val:-totalPrel, c:'var(--red)'},
+    {label:`🛒 Courses à prévoir (max ${budgets.courses?.max||500}€)`, val:-complementCourses, c:'var(--amber)'},
+    {label:`⛽ Essence à prévoir (max ${budgets.essence?.max||300}€)`, val:-complementEssence, c:'var(--amber)'},
+    {label:`🍽️ Restos à prévoir (max ${budgets.restos?.max||80}€)`, val:-complementRestos, c:'var(--amber)'},
+    {label:'➕ Dépenses exceptionnelles', val:-totalExcep, c:'var(--red)'},
+  ].filter(l => l.val !== 0);
+
+  detailEl.innerHTML = lignes.map(l=>`
+    <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:.7rem">
+      <span style="color:var(--muted);flex:1;padding-right:8px">${l.label}</span>
+      <span style="font-family:var(--mono);color:${l.c};flex-shrink:0">${l.val>0?'+':''}${Math.round(l.val).toLocaleString('fr-FR')} €</span>
+    </div>`).join('')
+  + `<div style="display:flex;justify-content:space-between;padding:7px 0;font-size:.73rem;font-weight:700;border-top:1px solid rgba(255,255,255,0.1);margin-top:2px">
+      <span>= Solde projeté</span>
+      <span style="font-family:var(--mono);color:${soldeProj>=0?'var(--green)':'var(--red)'}">${soldeProj>=0?'+':''}${Math.round(soldeProj).toLocaleString('fr-FR')} €</span>
+    </div>`;
 
   // Objectifs
   const objList = document.getElementById('simul-obj-list');
@@ -956,17 +973,29 @@ function recalcSimulateur(){
     objList.innerHTML = d.objectifs.map(o=>{
       const op=pct(epargneProj,o.montant), oc=op>=100?'var(--green)':op>=80?'var(--amber)':'var(--red)';
       const delta=Math.round(epargneProj-o.montant);
-      return `<div class="simul-obj-row"><span>${delta>=0?'✅':'⚠️'} ${o.label}</span><div style="text-align:right"><div style="font-family:var(--mono);font-size:.72rem;color:${oc}">${delta>=0?'+':''}${delta.toLocaleString('fr-FR')} €</div><div style="font-size:.58rem;color:var(--muted)">${op}% · ${o.montant.toLocaleString('fr-FR')} €</div></div></div>`;
+      return `<div class="simul-obj-row">
+        <span>${delta>=0?'✅':'⚠️'} ${o.label}</span>
+        <div style="text-align:right">
+          <div style="font-family:var(--mono);font-size:.72rem;color:${oc}">${delta>=0?'+':''}${delta.toLocaleString('fr-FR')} €</div>
+          <div style="font-size:.58rem;color:var(--muted)">${op}% · cible ${o.montant.toLocaleString('fr-FR')} €</div>
+        </div>
+      </div>`;
     }).join('');
   }
+
+  // Scroll vers résultat
+  document.getElementById('simul-result-block').scrollIntoView({behavior:'smooth', block:'start'});
 }
 
 function resetSimulateur(){
   simulDepenses = [];
   renderSimulateurDepenses();
   const epInput = document.getElementById('simul-ep-input');
-  if(epInput && simulData){ epInput.value = Math.round(simulData.epargne_base||0); epInput._initialized = false; }
-  recalcSimulateur();
+  if(epInput && simulData){
+    epInput.value = Math.round(simulData.epargne_base||0);
+    epInput._initialized = false;
+  }
+  document.getElementById('simul-result-block').style.display = 'none';
   toast('↺ Réinitialisé');
 }
 
