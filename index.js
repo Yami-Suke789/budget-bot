@@ -1798,6 +1798,100 @@ app.post('/depense', async (req, res) => {
 // ============================================================
 // API DASHBOARD
 // ============================================================
+// ROUTES API CRUD — À INSÉRER DANS index.js
+// Colle ce bloc AVANT la ligne: app.get('/', (req, res) => { ... })
+// ============================================================
+
+// ── SUPPRESSION DÉPENSE ──────────────────────────────────
+app.delete('/api/depense/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id) return res.json({ ok: false, error: 'ID manquant' });
+    const { data: item, error: fetchErr } = await supabase
+      .from('depenses').select('id, montant, libelle, categorie').eq('id', id).single();
+    if (fetchErr || !item) return res.json({ ok: false, error: 'Dépense introuvable' });
+    const { error } = await supabase.from('depenses').delete().eq('id', id);
+    if (error) return res.json({ ok: false, error: error.message });
+    res.json({ ok: true, deleted: item });
+  } catch (err) { res.json({ ok: false, error: err.message }); }
+});
+
+// ── MODIFICATION DÉPENSE ─────────────────────────────────
+app.patch('/api/depense/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { montant } = req.body;
+    if (!id) return res.json({ ok: false, error: 'ID manquant' });
+    const v = parseFloat(montant);
+    if (isNaN(v) || v <= 0) return res.json({ ok: false, error: 'Montant invalide' });
+    const { error } = await supabase.from('depenses').update({ montant: v }).eq('id', id);
+    if (error) return res.json({ ok: false, error: error.message });
+    res.json({ ok: true });
+  } catch (err) { res.json({ ok: false, error: err.message }); }
+});
+
+// ── SUPPRESSION REVENU ───────────────────────────────────
+app.delete('/api/revenu/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id) return res.json({ ok: false, error: 'ID manquant' });
+    const { data: item, error: fetchErr } = await supabase
+      .from('revenus').select('id, montant, libelle').eq('id', id).single();
+    if (fetchErr || !item) return res.json({ ok: false, error: 'Revenu introuvable' });
+    const { error } = await supabase.from('revenus').delete().eq('id', id);
+    if (error) return res.json({ ok: false, error: error.message });
+    res.json({ ok: true, deleted: item });
+  } catch (err) { res.json({ ok: false, error: err.message }); }
+});
+
+// ── MODIFICATION REVENU ──────────────────────────────────
+app.patch('/api/revenu/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { montant } = req.body;
+    if (!id) return res.json({ ok: false, error: 'ID manquant' });
+    const v = parseFloat(montant);
+    if (isNaN(v) || v <= 0) return res.json({ ok: false, error: 'Montant invalide' });
+    const { error } = await supabase.from('revenus').update({ montant: v }).eq('id', id);
+    if (error) return res.json({ ok: false, error: error.message });
+    res.json({ ok: true });
+  } catch (err) { res.json({ ok: false, error: err.message }); }
+});
+
+// ── SUPPRESSION INVESTISSEMENT ───────────────────────────
+app.delete('/api/investissement/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id) return res.json({ ok: false, error: 'ID manquant' });
+    const { data: item, error: fetchErr } = await supabase
+      .from('investissements').select('id, ticker, montant').eq('id', id).single();
+    if (fetchErr || !item) return res.json({ ok: false, error: 'Investissement introuvable' });
+    const { error } = await supabase.from('investissements').delete().eq('id', id);
+    if (error) return res.json({ ok: false, error: error.message });
+    res.json({ ok: true, deleted: item });
+  } catch (err) { res.json({ ok: false, error: err.message }); }
+});
+
+// ── MODIFICATION INVESTISSEMENT ──────────────────────────
+// Recalcule nb_parts automatiquement si montant change
+app.patch('/api/investissement/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { montant } = req.body;
+    if (!id) return res.json({ ok: false, error: 'ID manquant' });
+    const v = parseFloat(montant);
+    if (isNaN(v) || v <= 0) return res.json({ ok: false, error: 'Montant invalide' });
+    // Récupérer le prix unitaire pour recalculer nb_parts
+    const { data: item } = await supabase
+      .from('investissements').select('prix_unitaire').eq('id', id).single();
+    const nb_parts = item ? v / item.prix_unitaire : null;
+    const update = nb_parts ? { montant: v, nb_parts } : { montant: v };
+    const { error } = await supabase.from('investissements').update(update).eq('id', id);
+    if (error) return res.json({ ok: false, error: error.message });
+    res.json({ ok: true });
+  } catch (err) { res.json({ ok: false, error: err.message }); }
+});
+// ============================================================
 app.get('/api/dashboard', async (req, res) => {
   try {
     const moisOffset = parseInt(req.query.mois || '0');
