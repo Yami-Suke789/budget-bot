@@ -225,33 +225,44 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
 .item-actions{display:flex;gap:4px;align-items:center}
 
 /* ── SIMULATEUR ── */
-.simul-card{background:rgba(10,18,32,0.88);border-radius:14px;padding:.85rem;border:1px solid rgba(255,255,255,0.07);margin-bottom:.55rem}
-.simul-title{font-size:.6rem;text-transform:uppercase;letter-spacing:.08em;color:var(--purple);margin-bottom:.6rem;font-weight:700;display:flex;align-items:center;gap:6px}
-.simul-result{background:linear-gradient(135deg,rgba(167,139,250,0.12),rgba(96,165,250,0.06));border:1px solid rgba(167,139,250,0.25);border-radius:14px;padding:1rem;margin-bottom:.55rem;position:sticky;top:calc(env(safe-area-inset-top,44px) + 6.5rem);z-index:5}
-.simul-result-main{font-size:1.8rem;font-weight:700;font-family:var(--mono);text-align:center;margin:.3rem 0}
+.simul-result{background:linear-gradient(135deg,rgba(167,139,250,0.12),rgba(96,165,250,0.06));border:1px solid rgba(167,139,250,0.25);border-radius:14px;padding:1rem;margin-bottom:.55rem}
+.simul-result-main{font-size:2rem;font-weight:700;font-family:var(--mono);text-align:center;margin:.3rem 0}
 .simul-result-label{font-size:.58rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);text-align:center}
 .simul-result-sub{font-size:.7rem;color:var(--muted);text-align:center;margin-top:.3rem}
 .simul-gauge{height:8px;background:var(--border);border-radius:4px;overflow:hidden;margin:.6rem 0 .3rem}
 .simul-gauge-fill{height:100%;border-radius:4px;transition:width .4s cubic-bezier(.4,0,.2,1)}
 .simul-gauge-labels{display:flex;justify-content:space-between;font-size:.58rem;color:var(--muted)}
+/* épargne input */
+.simul-ep-row{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.04);border-radius:9px;padding:.5rem .7rem;margin-top:.6rem}
+.simul-ep-label{font-size:.65rem;color:var(--muted);flex:1}
+.simul-ep-input{background:rgba(255,255,255,0.08);border:1px solid rgba(167,139,250,0.3);color:var(--text);font-size:.9rem;padding:5px 8px;border-radius:7px;width:100px;font-family:var(--mono);outline:none;text-align:right;font-weight:700}
+.simul-ep-input:focus{border-color:var(--purple)}
+/* accordéon */
+.simul-acc{background:rgba(10,18,32,0.88);border-radius:12px;border:1px solid rgba(255,255,255,0.07);margin-bottom:.45rem;overflow:hidden}
+.simul-acc-head{display:flex;justify-content:space-between;align-items:center;padding:.7rem .85rem;cursor:pointer;user-select:none;transition:background .15s}
+.simul-acc-head:hover{background:rgba(255,255,255,0.03)}
+.simul-acc-head-left{display:flex;align-items:center;gap:7px;font-size:.72rem;font-weight:600}
+.simul-acc-head-right{display:flex;align-items:center;gap:7px}
+.simul-acc-badge{font-family:var(--mono);font-size:.68rem;font-weight:700}
+.simul-acc-chev{color:var(--muted);font-size:.65rem;transition:transform .2s}
+.simul-acc.open .simul-acc-chev{transform:rotate(90deg)}
+.simul-acc-body{display:none;padding:.1rem .85rem .85rem;border-top:1px solid var(--border)}
+.simul-acc.open .simul-acc-body{display:block}
+/* rows */
 .simul-obj-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);font-size:.7rem}
 .simul-obj-row:last-child{border-bottom:none}
 .simul-input-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:.74rem}
 .simul-input-row:last-child{border-bottom:none}
 .simul-input-row label{flex:1;color:var(--text)}
-.simul-input{background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text);font-size:.78rem;padding:5px 8px;border-radius:7px;width:80px;font-family:var(--mono);outline:none;transition:.2s;text-align:right}
-.simul-input:focus{border-color:var(--purple)}
 .simul-checkbox{width:16px;height:16px;accent-color:var(--purple);cursor:pointer;flex-shrink:0}
-.simul-quick-btns{display:flex;gap:5px;flex-wrap:wrap;margin:.4rem 0}
+.simul-quick-btns{display:flex;gap:5px;flex-wrap:wrap;margin:.5rem 0 .3rem}
 .simul-qbtn{background:rgba(167,139,250,0.1);border:1px solid rgba(167,139,250,0.2);color:var(--purple);border-radius:7px;padding:5px 10px;font-size:.65rem;cursor:pointer;transition:.15s;font-family:'Sora',sans-serif;font-weight:600}
 .simul-qbtn:hover{background:rgba(167,139,250,0.2)}
-.simul-qbtn.active{background:rgba(167,139,250,0.25);border-color:rgba(167,139,250,0.5)}
 .simul-add-btn{background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.2);color:var(--green);border-radius:7px;padding:5px 12px;font-size:.65rem;cursor:pointer;transition:.15s;font-family:'Sora',sans-serif;font-weight:600}
 .simul-add-btn:hover{background:rgba(74,222,128,0.2)}
 .simul-remove-btn{background:none;border:none;color:var(--red);cursor:pointer;font-size:.8rem;padding:2px 5px;border-radius:5px;transition:.15s}
 .simul-remove-btn:hover{background:rgba(248,113,113,0.1)}
-.simul-section-sep{height:1px;background:var(--border);margin:.7rem 0}
-.simul-reset{background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.2);color:var(--red);border-radius:8px;padding:7px;font-size:.65rem;cursor:pointer;width:100%;margin-top:.5rem;font-family:'Sora',sans-serif;transition:.15s}
+.simul-reset{background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.2);color:var(--red);border-radius:8px;padding:7px;font-size:.65rem;cursor:pointer;width:100%;margin-top:.3rem;font-family:'Sora',sans-serif;transition:.15s}
 .simul-reset:hover{background:rgba(248,113,113,0.15)}
 </style>
 </head>
@@ -460,82 +471,109 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
 
 <!-- SIMULATEUR -->
 <div class="section" id="tab-simul">
-  <!-- Résultat sticky -->
-  <div class="simul-result" id="simul-result">
+
+  <!-- Résultat principal -->
+  <div class="simul-result">
     <div class="simul-result-label">Épargne projetée fin de mois</div>
     <div class="simul-result-main" id="simul-epargne-val">—</div>
     <div class="simul-gauge"><div class="simul-gauge-fill" id="simul-gauge-fill" style="width:0%"></div></div>
     <div class="simul-gauge-labels"><span id="simul-gauge-pct">0%</span><span id="simul-obj-label">Objectif</span></div>
     <div class="simul-result-sub" id="simul-solde-sub">—</div>
-  </div>
-
-  <!-- Objectifs -->
-  <div class="simul-card" id="simul-obj-card">
-    <div class="simul-title">🎯 Objectifs d'épargne</div>
-    <div id="simul-obj-list">—</div>
-  </div>
-
-  <!-- Prélèvements restants -->
-  <div class="simul-card">
-    <div class="simul-title">📅 Prélèvements restants <span style="color:var(--muted);font-weight:400;font-size:.6rem">(décocher pour exclure)</span></div>
-    <div id="simul-prel-list">—</div>
-    <div style="display:flex;justify-content:space-between;margin-top:.6rem;padding-top:.5rem;border-top:1px solid var(--border);font-size:.72rem">
-      <span style="color:var(--muted)">Total sélectionné</span>
-      <span style="font-family:var(--mono);color:var(--red)" id="simul-prel-total">0 €</span>
+    <!-- Épargne de départ éditable -->
+    <div class="simul-ep-row">
+      <span class="simul-ep-label">💰 Épargne de départ</span>
+      <input type="number" class="simul-ep-input" id="simul-ep-input" placeholder="0" oninput="recalcSimulateur()">
+      <span style="font-size:.65rem;color:var(--muted)">€</span>
     </div>
   </div>
 
-  <!-- Dépenses rapides -->
-  <div class="simul-card">
-    <div class="simul-title">🛒 Dépenses à prévoir</div>
-    <div style="font-size:.65rem;color:var(--muted);margin-bottom:.5rem">Raccourcis rapides</div>
-    <div class="simul-quick-btns" id="simul-quick-btns">
-      <button class="simul-qbtn" onclick="addQuick('courses',80)">🛒 Courses +80€</button>
-      <button class="simul-qbtn" onclick="addQuick('courses',120)">🛒 Courses +120€</button>
-      <button class="simul-qbtn" onclick="addQuick('essence',60)">⛽ Essence +60€</button>
-      <button class="simul-qbtn" onclick="addQuick('restau',30)">🍽️ Restau +30€</button>
-      <button class="simul-qbtn" onclick="addQuick('restau',60)">🍽️ Restau +60€</button>
+  <!-- Accordéon : Objectifs -->
+  <div class="simul-acc" id="acc-obj">
+    <div class="simul-acc-head" onclick="toggleAcc('acc-obj')">
+      <div class="simul-acc-head-left">🎯 Objectifs d'épargne</div>
+      <div class="simul-acc-head-right">
+        <span class="simul-acc-chev">›</span>
+      </div>
     </div>
-    <div class="simul-section-sep"></div>
-    <div style="font-size:.65rem;color:var(--muted);margin-bottom:.5rem">Dépense libre</div>
-    <div style="display:flex;gap:6px;margin-bottom:.4rem">
-      <input type="text" id="simul-dep-label" placeholder="Libellé" style="flex:1;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text);font-size:.75rem;padding:6px 10px;border-radius:7px;outline:none;font-family:'Sora',sans-serif" onfocus="this.style.borderColor='var(--purple)'" onblur="this.style.borderColor='var(--border)'">
-      <input type="number" id="simul-dep-montant" placeholder="0" step="1" min="0" style="width:70px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text);font-size:.75rem;padding:6px 8px;border-radius:7px;outline:none;font-family:var(--mono);text-align:right" onfocus="this.style.borderColor='var(--purple)'" onblur="this.style.borderColor='var(--border)'">
-      <button class="simul-add-btn" onclick="addDepenseLibre()">+ Ajouter</button>
-    </div>
-    <div id="simul-dep-list"></div>
-    <div style="display:flex;justify-content:space-between;margin-top:.5rem;padding-top:.5rem;border-top:1px solid var(--border);font-size:.72rem">
-      <span style="color:var(--muted)">Total dépenses simulées</span>
-      <span style="font-family:var(--mono);color:var(--red)" id="simul-dep-total">0 €</span>
+    <div class="simul-acc-body">
+      <div id="simul-obj-list" style="padding-top:.5rem">—</div>
     </div>
   </div>
 
-  <!-- Rentrées supplémentaires -->
-  <div class="simul-card">
-    <div class="simul-title">💸 Rentrées supplémentaires</div>
-    <div style="display:flex;gap:6px;margin-bottom:.4rem">
-      <input type="text" id="simul-rev-label" placeholder="Libellé" style="flex:1;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text);font-size:.75rem;padding:6px 10px;border-radius:7px;outline:none;font-family:'Sora',sans-serif" onfocus="this.style.borderColor='var(--purple)'" onblur="this.style.borderColor='var(--border)'">
-      <input type="number" id="simul-rev-montant" placeholder="0" step="1" min="0" style="width:70px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text);font-size:.75rem;padding:6px 8px;border-radius:7px;outline:none;font-family:var(--mono);text-align:right" onfocus="this.style.borderColor='var(--purple)'" onblur="this.style.borderColor='var(--border)'">
-      <button class="simul-add-btn" onclick="addRentree()">+ Ajouter</button>
+  <!-- Accordéon : Prélèvements -->
+  <div class="simul-acc" id="acc-prel">
+    <div class="simul-acc-head" onclick="toggleAcc('acc-prel')">
+      <div class="simul-acc-head-left">📅 Prélèvements restants</div>
+      <div class="simul-acc-head-right">
+        <span class="simul-acc-badge red" id="simul-prel-total" style="color:var(--red)">—</span>
+        <span class="simul-acc-chev">›</span>
+      </div>
     </div>
-    <div id="simul-rev-list"></div>
-    <div style="display:flex;justify-content:space-between;margin-top:.5rem;padding-top:.5rem;border-top:1px solid var(--border);font-size:.72rem">
-      <span style="color:var(--muted)">Total rentrées simulées</span>
-      <span style="font-family:var(--mono);color:var(--green)" id="simul-rev-total">0 €</span>
-    </div>
-  </div>
-
-  <!-- Cours restants simulés -->
-  <div class="simul-card">
-    <div class="simul-title">📚 Cours restants (potentiel)</div>
-    <div id="simul-cours-list">—</div>
-    <div style="display:flex;justify-content:space-between;margin-top:.5rem;padding-top:.5rem;border-top:1px solid var(--border);font-size:.72rem">
-      <span style="color:var(--muted)">Gain potentiel inclus</span>
-      <span style="font-family:var(--mono);color:var(--green)" id="simul-cours-total">0 €</span>
+    <div class="simul-acc-body">
+      <div id="simul-prel-list" style="padding-top:.4rem">—</div>
     </div>
   </div>
 
-  <button class="simul-reset" onclick="resetSimulateur()">↺ Réinitialiser le simulateur</button>
+  <!-- Accordéon : Dépenses -->
+  <div class="simul-acc" id="acc-dep">
+    <div class="simul-acc-head" onclick="toggleAcc('acc-dep')">
+      <div class="simul-acc-head-left">🛒 Dépenses à prévoir</div>
+      <div class="simul-acc-head-right">
+        <span class="simul-acc-badge" id="simul-dep-total" style="color:var(--red)">0 €</span>
+        <span class="simul-acc-chev">›</span>
+      </div>
+    </div>
+    <div class="simul-acc-body">
+      <div class="simul-quick-btns">
+        <button class="simul-qbtn" onclick="addQuick('courses',80)">🛒 80€</button>
+        <button class="simul-qbtn" onclick="addQuick('courses',120)">🛒 120€</button>
+        <button class="simul-qbtn" onclick="addQuick('essence',60)">⛽ 60€</button>
+        <button class="simul-qbtn" onclick="addQuick('restau',30)">🍽️ 30€</button>
+        <button class="simul-qbtn" onclick="addQuick('restau',60)">🍽️ 60€</button>
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:.4rem">
+        <input type="text" id="simul-dep-label" placeholder="Libellé" style="flex:1;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text);font-size:.72rem;padding:5px 9px;border-radius:7px;outline:none;font-family:'Sora',sans-serif" onfocus="this.style.borderColor='var(--purple)'" onblur="this.style.borderColor='var(--border)'">
+        <input type="number" id="simul-dep-montant" placeholder="0" step="1" min="0" style="width:65px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text);font-size:.72rem;padding:5px 7px;border-radius:7px;outline:none;font-family:var(--mono);text-align:right" onfocus="this.style.borderColor='var(--purple)'" onblur="this.style.borderColor='var(--border)'">
+        <button class="simul-add-btn" onclick="addDepenseLibre()">+</button>
+      </div>
+      <div id="simul-dep-list"></div>
+    </div>
+  </div>
+
+  <!-- Accordéon : Rentrées -->
+  <div class="simul-acc" id="acc-rev">
+    <div class="simul-acc-head" onclick="toggleAcc('acc-rev')">
+      <div class="simul-acc-head-left">💸 Rentrées supplémentaires</div>
+      <div class="simul-acc-head-right">
+        <span class="simul-acc-badge" id="simul-rev-total" style="color:var(--green)">0 €</span>
+        <span class="simul-acc-chev">›</span>
+      </div>
+    </div>
+    <div class="simul-acc-body">
+      <div style="display:flex;gap:6px;margin:.5rem 0 .4rem">
+        <input type="text" id="simul-rev-label" placeholder="Libellé" style="flex:1;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text);font-size:.72rem;padding:5px 9px;border-radius:7px;outline:none;font-family:'Sora',sans-serif" onfocus="this.style.borderColor='var(--purple)'" onblur="this.style.borderColor='var(--border)'">
+        <input type="number" id="simul-rev-montant" placeholder="0" step="1" min="0" style="width:65px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text);font-size:.72rem;padding:5px 7px;border-radius:7px;outline:none;font-family:var(--mono);text-align:right" onfocus="this.style.borderColor='var(--purple)'" onblur="this.style.borderColor='var(--border)'">
+        <button class="simul-add-btn" onclick="addRentree()">+</button>
+      </div>
+      <div id="simul-rev-list"></div>
+    </div>
+  </div>
+
+  <!-- Accordéon : Cours restants -->
+  <div class="simul-acc" id="acc-cours">
+    <div class="simul-acc-head" onclick="toggleAcc('acc-cours')">
+      <div class="simul-acc-head-left">📚 Cours restants</div>
+      <div class="simul-acc-head-right">
+        <span class="simul-acc-badge" id="simul-cours-total" style="color:var(--green)">0 €</span>
+        <span class="simul-acc-chev">›</span>
+      </div>
+    </div>
+    <div class="simul-acc-body">
+      <div id="simul-cours-list" style="padding-top:.4rem">—</div>
+    </div>
+  </div>
+
+  <button class="simul-reset" onclick="resetSimulateur()">↺ Réinitialiser</button>
 </div>
 
 <!-- CONFIG -->
@@ -851,13 +889,21 @@ function renderInvest(d){
 }
 
 // ── SIMULATEUR ──
+function toggleAcc(id){
+  document.getElementById(id).classList.toggle('open');
+}
+
 function initSimulateur(d){
   simulData = d;
-  // Init checkboxes prélèvements restants
+  // Pré-remplir l'épargne de départ depuis Supabase
+  const epInput = document.getElementById('simul-ep-input');
+  if(epInput && !epInput._initialized){
+    epInput.value = Math.round(d.epargne_base||0);
+    epInput._initialized = true;
+  }
   const aujourd = new Date().getDate();
   const prels = (d.prelevements_tous||[]).filter(p=>p.jour&&p.jour>=aujourd&&!p.suspendu&&p.frequence!=='trimestriel');
   prels.forEach(p=>{ if(simulPrelChecked[p.nom]===undefined) simulPrelChecked[p.nom]=true; });
-  // Init checkboxes cours
   const elevesR = d.eleves_restants||{};
   Object.keys(elevesR).forEach(nom=>{ if(simulCoursChecked[nom]===undefined) simulCoursChecked[nom]=true; });
   renderSimulateurPrel(prels);
@@ -867,11 +913,11 @@ function initSimulateur(d){
 
 function renderSimulateurPrel(prels){
   const cont = document.getElementById('simul-prel-list');
-  if(!prels||!prels.length){ cont.innerHTML='<div style="color:var(--muted);font-size:.72rem;padding:4px 0">Aucun prélèvement restant ce mois.</div>'; return; }
+  if(!prels||!prels.length){ cont.innerHTML='<div style="color:var(--muted);font-size:.72rem;padding:4px 0">Aucun prélèvement restant.</div>'; return; }
   cont.innerHTML = prels.map(p=>`
     <div class="simul-input-row">
       <input type="checkbox" class="simul-checkbox" id="prel-chk-${encodeId(p.nom)}" ${simulPrelChecked[p.nom]?'checked':''} onchange="togglePrel('${p.nom}',this.checked)">
-      <label for="prel-chk-${encodeId(p.nom)}" style="cursor:pointer">${p.nom} <span style="color:var(--muted);font-size:.65rem">· le ${p.jour}</span></label>
+      <label for="prel-chk-${encodeId(p.nom)}" style="cursor:pointer">${p.nom} <span style="color:var(--muted);font-size:.62rem">· le ${p.jour}</span></label>
       <span style="font-family:var(--mono);font-size:.72rem;color:var(--red);flex-shrink:0">${p.montant.toFixed(0)} €</span>
     </div>`).join('');
 }
@@ -881,12 +927,10 @@ function renderSimulateurCours(elevesR, planning){
   const keys = Object.keys(elevesR||{}).filter(n=>elevesR[n]>0);
   if(!keys.length){ cont.innerHTML='<div style="color:var(--muted);font-size:.72rem;padding:4px 0">Tous les cours sont terminés.</div>'; document.getElementById('simul-cours-total').textContent='0 €'; return; }
   cont.innerHTML = keys.map(nom=>{
-    const nb=elevesR[nom];
-    const p=planning[nom];
-    const gain=p?(p.taux*p.duree*nb):0;
+    const nb=elevesR[nom], p=planning[nom], gain=p?(p.taux*p.duree*nb):0;
     return `<div class="simul-input-row">
       <input type="checkbox" class="simul-checkbox" id="cours-chk-${encodeId(nom)}" ${simulCoursChecked[nom]?'checked':''} onchange="toggleCours('${nom}',this.checked)">
-      <label for="cours-chk-${encodeId(nom)}" style="cursor:pointer">${nom} <span style="color:var(--muted);font-size:.65rem">· ${nb} cours restant${nb>1?'s':''}</span></label>
+      <label for="cours-chk-${encodeId(nom)}" style="cursor:pointer">${nom} <span style="color:var(--muted);font-size:.62rem">· ${nb} cours</span></label>
       <span style="font-family:var(--mono);font-size:.72rem;color:var(--green);flex-shrink:0">+${gain.toFixed(0)} €</span>
     </div>`;
   }).join('');
@@ -912,16 +956,11 @@ function addDepenseLibre(){
   recalcSimulateur();
 }
 
-function removeDepense(idx){
-  simulDepenses.splice(idx,1);
-  renderSimulateurDepenses();
-  recalcSimulateur();
-}
+function removeDepense(idx){ simulDepenses.splice(idx,1); renderSimulateurDepenses(); recalcSimulateur(); }
 
 function renderSimulateurDepenses(){
   const cont=document.getElementById('simul-dep-list');
-  if(!simulDepenses.length){ cont.innerHTML=''; return; }
-  cont.innerHTML=simulDepenses.map((d,i)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid var(--border);font-size:.7rem"><span style="color:var(--muted)">${d.label}</span><div style="display:flex;align-items:center;gap:6px"><span style="font-family:var(--mono);color:var(--red)">-${d.montant.toFixed(0)} €</span><button class="simul-remove-btn" onclick="removeDepense(${i})">✕</button></div></div>`).join('');
+  cont.innerHTML=simulDepenses.map((d,i)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid var(--border);font-size:.7rem"><span style="color:var(--muted)">${d.label}</span><div style="display:flex;align-items:center;gap:5px"><span style="font-family:var(--mono);color:var(--red)">${d.montant.toFixed(0)} €</span><button class="simul-remove-btn" onclick="removeDepense(${i})">✕</button></div></div>`).join('');
 }
 
 function addRentree(){
@@ -935,16 +974,11 @@ function addRentree(){
   recalcSimulateur();
 }
 
-function removeRentree(idx){
-  simulRentrees.splice(idx,1);
-  renderSimulateurRentrees();
-  recalcSimulateur();
-}
+function removeRentree(idx){ simulRentrees.splice(idx,1); renderSimulateurRentrees(); recalcSimulateur(); }
 
 function renderSimulateurRentrees(){
   const cont=document.getElementById('simul-rev-list');
-  if(!simulRentrees.length){ cont.innerHTML=''; return; }
-  cont.innerHTML=simulRentrees.map((r,i)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid var(--border);font-size:.7rem"><span style="color:var(--muted)">${r.label}</span><div style="display:flex;align-items:center;gap:6px"><span style="font-family:var(--mono);color:var(--green)">+${r.montant.toFixed(0)} €</span><button class="simul-remove-btn" onclick="removeRentree(${i})">✕</button></div></div>`).join('');
+  cont.innerHTML=simulRentrees.map((r,i)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid var(--border);font-size:.7rem"><span style="color:var(--muted)">${r.label}</span><div style="display:flex;align-items:center;gap:5px"><span style="font-family:var(--mono);color:var(--green)">+${r.montant.toFixed(0)} €</span><button class="simul-remove-btn" onclick="removeRentree(${i})">✕</button></div></div>`).join('');
 }
 
 function recalcSimulateur(){
@@ -953,80 +987,73 @@ function recalcSimulateur(){
   const aujourd=new Date().getDate();
   const prels=(d.prelevements_tous||[]).filter(p=>p.jour&&p.jour>=aujourd&&!p.suspendu&&p.frequence!=='trimestriel');
 
-  // Prélèvements sélectionnés
+  // Épargne de départ (éditable)
+  const epInput=document.getElementById('simul-ep-input');
+  const epargneBase=epInput?parseFloat(epInput.value)||0:(d.epargne_base||0);
+
+  // Prélèvements
   let totalPrel=0;
   prels.forEach(p=>{ if(simulPrelChecked[p.nom]) totalPrel+=p.montant; });
-  document.getElementById('simul-prel-total').textContent='-'+totalPrel.toFixed(0)+' €';
+  const prelEl=document.getElementById('simul-prel-total');
+  if(prelEl) prelEl.textContent=totalPrel>0?'-'+totalPrel.toFixed(0)+' €':'0 €';
 
-  // Dépenses simulées
+  // Dépenses
   const totalDep=simulDepenses.reduce((s,d)=>s+d.montant,0);
-  document.getElementById('simul-dep-total').textContent='-'+totalDep.toFixed(0)+' €';
+  document.getElementById('simul-dep-total').textContent=totalDep>0?'-'+totalDep.toFixed(0)+' €':'0 €';
 
-  // Rentrées simulées
+  // Rentrées
   const totalRev=simulRentrees.reduce((s,r)=>s+r.montant,0);
-  document.getElementById('simul-rev-total').textContent='+'+totalRev.toFixed(0)+' €';
+  document.getElementById('simul-rev-total').textContent=totalRev>0?'+'+totalRev.toFixed(0)+' €':'0 €';
 
-  // Cours restants sélectionnés
-  const elevesR=d.eleves_restants||{};
-  const planning=d.planning||{};
+  // Cours
+  const elevesR=d.eleves_restants||{}, planning=d.planning||{};
   let totalCours=0;
-  Object.keys(elevesR).forEach(nom=>{
-    if(simulCoursChecked[nom]&&elevesR[nom]>0){
-      const p=planning[nom];
-      if(p) totalCours+=p.taux*p.duree*elevesR[nom];
-    }
-  });
-  document.getElementById('simul-cours-total').textContent='+'+totalCours.toFixed(0)+' €';
+  Object.keys(elevesR).forEach(nom=>{ if(simulCoursChecked[nom]&&elevesR[nom]>0){ const p=planning[nom]; if(p) totalCours+=p.taux*p.duree*elevesR[nom]; } });
+  document.getElementById('simul-cours-total').textContent=totalCours>0?'+'+totalCours.toFixed(0)+' €':'0 €';
 
-  // Calcul épargne projetée
-  const epargneBase=d.epargne_base||0;
+  // Calcul : épargne projetée = base + solde actuel + cours + rentrées - prélèvements restants - dépenses simulées
   const soldeActuel=d.solde||0;
-  // epargne_estimee = epargne_base + solde projeté fin de mois
-  // solde projeté = solde actuel + cours restants + rentrées - prélèvements restants - dépenses simulées
   const soldeProj=soldeActuel+totalCours+totalRev-totalPrel-totalDep;
   const epargneProj=epargneBase+Math.max(0,soldeProj);
 
-  const epargneEl=document.getElementById('simul-epargne-val');
-  epargneEl.textContent=fmt(epargneProj);
+  const epEl=document.getElementById('simul-epargne-val');
+  epEl.textContent=fmt(epargneProj);
   const soldeStr=(soldeProj>=0?'+':'')+Math.round(soldeProj).toLocaleString('fr-FR')+' €';
-  document.getElementById('simul-solde-sub').textContent='Solde fin de mois estimé : '+soldeStr;
+  document.getElementById('simul-solde-sub').textContent='Solde fin de mois : '+soldeStr;
 
-  // Couleur
   const objPrincipal=(d.objectifs&&d.objectifs[0])?d.objectifs[0].montant:12000;
   const epPct=pct(epargneProj,objPrincipal);
-  const epColor=epargneProj>=(d.objectifs&&d.objectifs[0]?d.objectifs[0].montant:12000)?'var(--green)':epargneProj>=epargneBase?'var(--amber)':'var(--red)';
-  epargneEl.style.color=epColor;
+  const epColor=epargneProj>=objPrincipal?'var(--green)':epargneProj>=epargneBase?'var(--amber)':'var(--red)';
+  epEl.style.color=epColor;
   document.getElementById('simul-gauge-fill').style.cssText=`width:${epPct}%;background:${epColor}`;
   document.getElementById('simul-gauge-pct').textContent=epPct+'%';
+  if(d.objectifs&&d.objectifs[0]) document.getElementById('simul-obj-label').textContent='Obj. '+d.objectifs[0].montant.toLocaleString('fr-FR')+' €';
 
   // Objectifs
   const objList=document.getElementById('simul-obj-list');
   if(d.objectifs&&d.objectifs.length){
-    document.getElementById('simul-obj-label').textContent='Obj. '+Math.round(d.objectifs[0].montant/1000)+'k €';
     objList.innerHTML=d.objectifs.map(o=>{
-      const op=pct(epargneProj,o.montant);
-      const oc=op>=100?'var(--green)':op>=80?'var(--amber)':'var(--red)';
+      const op=pct(epargneProj,o.montant), oc=op>=100?'var(--green)':op>=80?'var(--amber)':'var(--red)';
       const delta=Math.round(epargneProj-o.montant);
-      return `<div class="simul-obj-row"><span>${delta>=0?'✅':'⚠️'} ${o.label}</span><div style="text-align:right"><div style="font-family:var(--mono);font-size:.72rem;color:${oc}">${delta>=0?'+':''}${delta.toLocaleString('fr-FR')} €</div><div style="font-size:.6rem;color:var(--muted)">${op}% · cible ${o.montant.toLocaleString('fr-FR')} €</div></div></div>`;
+      return `<div class="simul-obj-row"><span>${delta>=0?'✅':'⚠️'} ${o.label}</span><div style="text-align:right"><div style="font-family:var(--mono);font-size:.72rem;color:${oc}">${delta>=0?'+':''}${delta.toLocaleString('fr-FR')} €</div><div style="font-size:.58rem;color:var(--muted)">${op}% · ${o.montant.toLocaleString('fr-FR')} €</div></div></div>`;
     }).join('');
   }
 }
 
 function resetSimulateur(){
-  simulDepenses=[];
-  simulRentrees=[];
-  // Réinitialiser les checkboxes à true
+  simulDepenses=[]; simulRentrees=[];
   if(simulData){
     const aujourd=new Date().getDate();
     const prels=(simulData.prelevements_tous||[]).filter(p=>p.jour&&p.jour>=aujourd&&!p.suspendu&&p.frequence!=='trimestriel');
-    prels.forEach(p=>simulPrelChecked[p.nom]=true);
-    Object.keys(simulData.eleves_restants||{}).forEach(n=>simulCoursChecked[n]=true);
-    document.querySelectorAll('.simul-checkbox').forEach(cb=>cb.checked=true);
+    prels.forEach(p=>{ simulPrelChecked[p.nom]=true; const cb=document.getElementById('prel-chk-'+encodeId(p.nom)); if(cb) cb.checked=true; });
+    Object.keys(simulData.eleves_restants||{}).forEach(n=>{ simulCoursChecked[n]=true; const cb=document.getElementById('cours-chk-'+encodeId(n)); if(cb) cb.checked=true; });
+    // Réinitialiser l'épargne
+    const epInput=document.getElementById('simul-ep-input');
+    if(epInput){ epInput.value=Math.round(simulData.epargne_base||0); epInput._initialized=false; }
   }
-  renderSimulateurDepenses();
-  renderSimulateurRentrees();
+  renderSimulateurDepenses(); renderSimulateurRentrees();
   recalcSimulateur();
-  toast('↺ Simulateur réinitialisé');
+  toast('↺ Réinitialisé');
 }
 
 // ── ALERTES SEUIL ──
