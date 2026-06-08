@@ -222,9 +222,37 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
 .refresh:active{transform:scale(.92) rotate(30deg)}
 .updated{text-align:center;font-size:.6rem;color:#2a3545;padding:.8rem 0 3rem;position:relative;z-index:1}
 .green{color:var(--green)}.amber{color:var(--amber)}.red{color:var(--red)}.orange{color:var(--orange)}
-
-/* TAG ANNULABLE */
 .item-actions{display:flex;gap:4px;align-items:center}
+
+/* ── SIMULATEUR ── */
+.simul-card{background:rgba(10,18,32,0.88);border-radius:14px;padding:.85rem;border:1px solid rgba(255,255,255,0.07);margin-bottom:.55rem}
+.simul-title{font-size:.6rem;text-transform:uppercase;letter-spacing:.08em;color:var(--purple);margin-bottom:.6rem;font-weight:700;display:flex;align-items:center;gap:6px}
+.simul-result{background:linear-gradient(135deg,rgba(167,139,250,0.12),rgba(96,165,250,0.06));border:1px solid rgba(167,139,250,0.25);border-radius:14px;padding:1rem;margin-bottom:.55rem;position:sticky;top:calc(env(safe-area-inset-top,44px) + 6.5rem);z-index:5}
+.simul-result-main{font-size:1.8rem;font-weight:700;font-family:var(--mono);text-align:center;margin:.3rem 0}
+.simul-result-label{font-size:.58rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);text-align:center}
+.simul-result-sub{font-size:.7rem;color:var(--muted);text-align:center;margin-top:.3rem}
+.simul-gauge{height:8px;background:var(--border);border-radius:4px;overflow:hidden;margin:.6rem 0 .3rem}
+.simul-gauge-fill{height:100%;border-radius:4px;transition:width .4s cubic-bezier(.4,0,.2,1)}
+.simul-gauge-labels{display:flex;justify-content:space-between;font-size:.58rem;color:var(--muted)}
+.simul-obj-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);font-size:.7rem}
+.simul-obj-row:last-child{border-bottom:none}
+.simul-input-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:.74rem}
+.simul-input-row:last-child{border-bottom:none}
+.simul-input-row label{flex:1;color:var(--text)}
+.simul-input{background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text);font-size:.78rem;padding:5px 8px;border-radius:7px;width:80px;font-family:var(--mono);outline:none;transition:.2s;text-align:right}
+.simul-input:focus{border-color:var(--purple)}
+.simul-checkbox{width:16px;height:16px;accent-color:var(--purple);cursor:pointer;flex-shrink:0}
+.simul-quick-btns{display:flex;gap:5px;flex-wrap:wrap;margin:.4rem 0}
+.simul-qbtn{background:rgba(167,139,250,0.1);border:1px solid rgba(167,139,250,0.2);color:var(--purple);border-radius:7px;padding:5px 10px;font-size:.65rem;cursor:pointer;transition:.15s;font-family:'Sora',sans-serif;font-weight:600}
+.simul-qbtn:hover{background:rgba(167,139,250,0.2)}
+.simul-qbtn.active{background:rgba(167,139,250,0.25);border-color:rgba(167,139,250,0.5)}
+.simul-add-btn{background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.2);color:var(--green);border-radius:7px;padding:5px 12px;font-size:.65rem;cursor:pointer;transition:.15s;font-family:'Sora',sans-serif;font-weight:600}
+.simul-add-btn:hover{background:rgba(74,222,128,0.2)}
+.simul-remove-btn{background:none;border:none;color:var(--red);cursor:pointer;font-size:.8rem;padding:2px 5px;border-radius:5px;transition:.15s}
+.simul-remove-btn:hover{background:rgba(248,113,113,0.1)}
+.simul-section-sep{height:1px;background:var(--border);margin:.7rem 0}
+.simul-reset{background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.2);color:var(--red);border-radius:8px;padding:7px;font-size:.65rem;cursor:pointer;width:100%;margin-top:.5rem;font-family:'Sora',sans-serif;transition:.15s}
+.simul-reset:hover{background:rgba(248,113,113,0.15)}
 </style>
 </head>
 <body>
@@ -312,6 +340,7 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
   <div class="tab" onclick="setTab('prelevements')">Prélèv.</div>
   <div class="tab" onclick="setTab('invest')">Invest.</div>
   <div class="tab" onclick="setTab('objectifs')">Objectifs</div>
+  <div class="tab" onclick="setTab('simul')">🎯 Simul.</div>
   <div class="tab" onclick="setTab('config')">⚙️ Config</div>
 </div>
 
@@ -429,6 +458,86 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
   <div class="grid"><div class="card full" id="o-ls">Chargement...</div></div>
 </div>
 
+<!-- SIMULATEUR -->
+<div class="section" id="tab-simul">
+  <!-- Résultat sticky -->
+  <div class="simul-result" id="simul-result">
+    <div class="simul-result-label">Épargne projetée fin de mois</div>
+    <div class="simul-result-main" id="simul-epargne-val">—</div>
+    <div class="simul-gauge"><div class="simul-gauge-fill" id="simul-gauge-fill" style="width:0%"></div></div>
+    <div class="simul-gauge-labels"><span id="simul-gauge-pct">0%</span><span id="simul-obj-label">Objectif</span></div>
+    <div class="simul-result-sub" id="simul-solde-sub">—</div>
+  </div>
+
+  <!-- Objectifs -->
+  <div class="simul-card" id="simul-obj-card">
+    <div class="simul-title">🎯 Objectifs d'épargne</div>
+    <div id="simul-obj-list">—</div>
+  </div>
+
+  <!-- Prélèvements restants -->
+  <div class="simul-card">
+    <div class="simul-title">📅 Prélèvements restants <span style="color:var(--muted);font-weight:400;font-size:.6rem">(décocher pour exclure)</span></div>
+    <div id="simul-prel-list">—</div>
+    <div style="display:flex;justify-content:space-between;margin-top:.6rem;padding-top:.5rem;border-top:1px solid var(--border);font-size:.72rem">
+      <span style="color:var(--muted)">Total sélectionné</span>
+      <span style="font-family:var(--mono);color:var(--red)" id="simul-prel-total">0 €</span>
+    </div>
+  </div>
+
+  <!-- Dépenses rapides -->
+  <div class="simul-card">
+    <div class="simul-title">🛒 Dépenses à prévoir</div>
+    <div style="font-size:.65rem;color:var(--muted);margin-bottom:.5rem">Raccourcis rapides</div>
+    <div class="simul-quick-btns" id="simul-quick-btns">
+      <button class="simul-qbtn" onclick="addQuick('courses',80)">🛒 Courses +80€</button>
+      <button class="simul-qbtn" onclick="addQuick('courses',120)">🛒 Courses +120€</button>
+      <button class="simul-qbtn" onclick="addQuick('essence',60)">⛽ Essence +60€</button>
+      <button class="simul-qbtn" onclick="addQuick('restau',30)">🍽️ Restau +30€</button>
+      <button class="simul-qbtn" onclick="addQuick('restau',60)">🍽️ Restau +60€</button>
+    </div>
+    <div class="simul-section-sep"></div>
+    <div style="font-size:.65rem;color:var(--muted);margin-bottom:.5rem">Dépense libre</div>
+    <div style="display:flex;gap:6px;margin-bottom:.4rem">
+      <input type="text" id="simul-dep-label" placeholder="Libellé" style="flex:1;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text);font-size:.75rem;padding:6px 10px;border-radius:7px;outline:none;font-family:'Sora',sans-serif" onfocus="this.style.borderColor='var(--purple)'" onblur="this.style.borderColor='var(--border)'">
+      <input type="number" id="simul-dep-montant" placeholder="0" step="1" min="0" style="width:70px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text);font-size:.75rem;padding:6px 8px;border-radius:7px;outline:none;font-family:var(--mono);text-align:right" onfocus="this.style.borderColor='var(--purple)'" onblur="this.style.borderColor='var(--border)'">
+      <button class="simul-add-btn" onclick="addDepenseLibre()">+ Ajouter</button>
+    </div>
+    <div id="simul-dep-list"></div>
+    <div style="display:flex;justify-content:space-between;margin-top:.5rem;padding-top:.5rem;border-top:1px solid var(--border);font-size:.72rem">
+      <span style="color:var(--muted)">Total dépenses simulées</span>
+      <span style="font-family:var(--mono);color:var(--red)" id="simul-dep-total">0 €</span>
+    </div>
+  </div>
+
+  <!-- Rentrées supplémentaires -->
+  <div class="simul-card">
+    <div class="simul-title">💸 Rentrées supplémentaires</div>
+    <div style="display:flex;gap:6px;margin-bottom:.4rem">
+      <input type="text" id="simul-rev-label" placeholder="Libellé" style="flex:1;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text);font-size:.75rem;padding:6px 10px;border-radius:7px;outline:none;font-family:'Sora',sans-serif" onfocus="this.style.borderColor='var(--purple)'" onblur="this.style.borderColor='var(--border)'">
+      <input type="number" id="simul-rev-montant" placeholder="0" step="1" min="0" style="width:70px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--text);font-size:.75rem;padding:6px 8px;border-radius:7px;outline:none;font-family:var(--mono);text-align:right" onfocus="this.style.borderColor='var(--purple)'" onblur="this.style.borderColor='var(--border)'">
+      <button class="simul-add-btn" onclick="addRentree()">+ Ajouter</button>
+    </div>
+    <div id="simul-rev-list"></div>
+    <div style="display:flex;justify-content:space-between;margin-top:.5rem;padding-top:.5rem;border-top:1px solid var(--border);font-size:.72rem">
+      <span style="color:var(--muted)">Total rentrées simulées</span>
+      <span style="font-family:var(--mono);color:var(--green)" id="simul-rev-total">0 €</span>
+    </div>
+  </div>
+
+  <!-- Cours restants simulés -->
+  <div class="simul-card">
+    <div class="simul-title">📚 Cours restants (potentiel)</div>
+    <div id="simul-cours-list">—</div>
+    <div style="display:flex;justify-content:space-between;margin-top:.5rem;padding-top:.5rem;border-top:1px solid var(--border);font-size:.72rem">
+      <span style="color:var(--muted)">Gain potentiel inclus</span>
+      <span style="font-family:var(--mono);color:var(--green)" id="simul-cours-total">0 €</span>
+    </div>
+  </div>
+
+  <button class="simul-reset" onclick="resetSimulateur()">↺ Réinitialiser le simulateur</button>
+</div>
+
 <!-- CONFIG -->
 <div class="section" id="tab-config">
   <div class="grid">
@@ -464,6 +573,13 @@ let selectedDay = null;
 let globalData = null;
 let currentBg = 0;
 let editingField = null;
+
+// ── SIMULATEUR STATE ──
+let simulData = null;
+let simulPrelChecked = {}; // nom → bool
+let simulDepenses = [];    // [{label, montant}]
+let simulRentrees = [];    // [{label, montant}]
+let simulCoursChecked = {}; // nom → bool
 
 const JOURS = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
 const NIVEAUX = {CP:'CP',CE1:'CE1',CE2:'CE2',CM1:'CM1',CM2:'CM2','6e':'6ème','5e':'5ème','4e':'4ème','3e':'3ème','2nde':'2nde','1ère':'1ère',Terminale:'Terminale'};
@@ -501,10 +617,11 @@ function toast(msg, isError=false){
 }
 
 function setTab(t){
-  const tabs=['apercu','cours','budgets','revenus','prelevements','invest','objectifs','config'];
+  const tabs=['apercu','cours','budgets','revenus','prelevements','invest','objectifs','simul','config'];
   document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',tabs[i]===t));
   document.querySelectorAll('.section').forEach(el=>el.classList.remove('active'));
   document.getElementById('tab-'+t).classList.add('active');
+  if(t==='simul' && simulData) recalcSimulateur();
 }
 
 function changerMois(dir){
@@ -519,11 +636,7 @@ function toggleDetail(cat){
 
 // ── API CALLS ──
 async function apiPost(path, body){
-  const r = await fetch(path, {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify(body)
-  });
+  const r = await fetch(path, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   return r.json();
 }
 
@@ -561,412 +674,393 @@ function closeModalModif(e){
   document.getElementById('modal-modif').classList.remove('open');
 }
 
-// ── SUPPRESSION DÉPENSE ──
+// ── SUPPRESSION / MODIF ──
 async function supprimerDepense(id, libelle, montant){
-  showConfirm(
-    '🗑️ Supprimer cette dépense ?',
-    `"${libelle || '—'}" — ${montant.toFixed(2)} €`,
-    async ()=>{
-      try{
-        const r = await fetch(`/api/depense/${id}`, { method:'DELETE' });
-        const j = await r.json();
-        if(j.ok){ toast('✅ Dépense supprimée'); charger(); }
-        else toast('❌ '+j.error, true);
-      }catch{ toast('❌ Erreur réseau', true); }
-    }
-  );
+  showConfirm('🗑️ Supprimer cette dépense ?',`"${libelle||'—'}" — ${montant.toFixed(2)} €`,async()=>{
+    try{ const r=await fetch(`/api/depense/${id}`,{method:'DELETE'}); const j=await r.json(); if(j.ok){toast('✅ Dépense supprimée');charger();}else toast('❌ '+j.error,true); }catch{toast('❌ Erreur réseau',true);}
+  });
 }
-
-// ── MODIFICATION DÉPENSE ──
 async function modifierDepense(id, libelle, montantActuel){
-  showModif(`✏️ Modifier "${libelle || 'dépense'}"`, montantActuel, async(val)=>{
-    try{
-      const r = await fetch(`/api/depense/${id}`, {
-        method:'PATCH',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ montant: val })
-      });
-      const j = await r.json();
-      if(j.ok){ toast('✅ Dépense modifiée'); charger(); }
-      else toast('❌ '+j.error, true);
-    }catch{ toast('❌ Erreur réseau', true); }
+  showModif(`✏️ Modifier "${libelle||'dépense'}"`,montantActuel,async(val)=>{
+    try{ const r=await fetch(`/api/depense/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({montant:val})}); const j=await r.json(); if(j.ok){toast('✅ Dépense modifiée');charger();}else toast('❌ '+j.error,true); }catch{toast('❌ Erreur réseau',true);}
   });
 }
-
-// ── SUPPRESSION REVENU ──
 async function supprimerRevenu(id, libelle, montant){
-  showConfirm(
-    '🗑️ Supprimer ce revenu ?',
-    `"${libelle || '—'}" — +${montant.toFixed(2)} €`,
-    async ()=>{
-      try{
-        const r = await fetch(`/api/revenu/${id}`, { method:'DELETE' });
-        const j = await r.json();
-        if(j.ok){ toast('✅ Revenu supprimé'); charger(); }
-        else toast('❌ '+j.error, true);
-      }catch{ toast('❌ Erreur réseau', true); }
-    }
-  );
-}
-
-// ── MODIFICATION REVENU ──
-async function modifierRevenu(id, libelle, montantActuel){
-  showModif(`✏️ Modifier "${libelle || 'revenu'}"`, montantActuel, async(val)=>{
-    try{
-      const r = await fetch(`/api/revenu/${id}`, {
-        method:'PATCH',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ montant: val })
-      });
-      const j = await r.json();
-      if(j.ok){ toast('✅ Revenu modifié'); charger(); }
-      else toast('❌ '+j.error, true);
-    }catch{ toast('❌ Erreur réseau', true); }
+  showConfirm('🗑️ Supprimer ce revenu ?',`"${libelle||'—'}" — +${montant.toFixed(2)} €`,async()=>{
+    try{ const r=await fetch(`/api/revenu/${id}`,{method:'DELETE'}); const j=await r.json(); if(j.ok){toast('✅ Revenu supprimé');charger();}else toast('❌ '+j.error,true); }catch{toast('❌ Erreur réseau',true);}
   });
 }
-
-// ── SUPPRESSION INVESTISSEMENT ──
-async function supprimerInvestissement(id, ticker, montant){
-  showConfirm(
-    '🗑️ Supprimer cet achat ?',
-    `${ticker} — ${montant.toFixed(0)} €\nCette action est irréversible.`,
-    async ()=>{
-      try{
-        const r = await fetch(`/api/investissement/${id}`, { method:'DELETE' });
-        const j = await r.json();
-        if(j.ok){ toast('✅ Achat supprimé'); charger(); }
-        else toast('❌ '+j.error, true);
-      }catch{ toast('❌ Erreur réseau', true); }
-    }
-  );
+async function modifierRevenu(id, libelle, montantActuel){
+  showModif(`✏️ Modifier "${libelle||'revenu'}"`,montantActuel,async(val)=>{
+    try{ const r=await fetch(`/api/revenu/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({montant:val})}); const j=await r.json(); if(j.ok){toast('✅ Revenu modifié');charger();}else toast('❌ '+j.error,true); }catch{toast('❌ Erreur réseau',true);}
+  });
 }
-
-// ── MODIFICATION INVESTISSEMENT ──
+async function supprimerInvestissement(id, ticker, montant){
+  showConfirm('🗑️ Supprimer cet achat ?',`${ticker} — ${montant.toFixed(0)} €\nCette action est irréversible.`,async()=>{
+    try{ const r=await fetch(`/api/investissement/${id}`,{method:'DELETE'}); const j=await r.json(); if(j.ok){toast('✅ Achat supprimé');charger();}else toast('❌ '+j.error,true); }catch{toast('❌ Erreur réseau',true);}
+  });
+}
 async function modifierInvestissement(id, ticker, montantActuel){
-  showModif(`✏️ Modifier achat ${ticker}`, montantActuel, async(val)=>{
-    try{
-      const r = await fetch(`/api/investissement/${id}`, {
-        method:'PATCH',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ montant: val })
-      });
-      const j = await r.json();
-      if(j.ok){ toast('✅ Achat modifié'); charger(); }
-      else toast('❌ '+j.error, true);
-    }catch{ toast('❌ Erreur réseau', true); }
+  showModif(`✏️ Modifier achat ${ticker}`,montantActuel,async(val)=>{
+    try{ const r=await fetch(`/api/investissement/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({montant:val})}); const j=await r.json(); if(j.ok){toast('✅ Achat modifié');charger();}else toast('❌ '+j.error,true); }catch{toast('❌ Erreur réseau',true);}
   });
 }
 
 // ── SAVE CONFIG ──
 async function saveConfig(cle, valeur){
-  try{
-    const r = await fetch('/api/config', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({cle, valeur: parseFloat(valeur)})
-    });
-    const j = await r.json();
-    if(j.ok){ toast('✅ Sauvegardé'); charger(); }
-    else toast('❌ Erreur: '+j.error, true);
-  }catch{ toast('❌ Erreur réseau', true); }
+  try{ const r=await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cle,valeur:parseFloat(valeur)})}); const j=await r.json(); if(j.ok){toast('✅ Sauvegardé');charger();}else toast('❌ Erreur: '+j.error,true); }catch{toast('❌ Erreur réseau',true);}
 }
-
 async function savePrel(nom, champ, valeur){
-  try{
-    const r = await fetch('/api/prel', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({nom, champ, valeur})
-    });
-    const j = await r.json();
-    if(j.ok){ toast('✅ Sauvegardé'); charger(); }
-    else toast('❌ Erreur: '+j.error, true);
-  }catch{ toast('❌ Erreur réseau', true); }
+  try{ const r=await fetch('/api/prel',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nom,champ,valeur})}); const j=await r.json(); if(j.ok){toast('✅ Sauvegardé');charger();}else toast('❌ Erreur: '+j.error,true); }catch{toast('❌ Erreur réseau',true);}
 }
-
 async function saveBudget(cat, valeur){
-  try{
-    const r = await fetch('/api/budget', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({categorie: cat, max: parseFloat(valeur)})
-    });
-    const j = await r.json();
-    if(j.ok){ toast('✅ Budget mis à jour'); charger(); }
-    else toast('❌ Erreur: '+j.error, true);
-  }catch{ toast('❌ Erreur réseau', true); }
+  try{ const r=await fetch('/api/budget',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({categorie:cat,max:parseFloat(valeur)})}); const j=await r.json(); if(j.ok){toast('✅ Budget mis à jour');charger();}else toast('❌ Erreur: '+j.error,true); }catch{toast('❌ Erreur réseau',true);}
 }
 
-// ── INLINE EDIT (config) ──
+// ── INLINE EDIT ──
 function showInlineEdit(containerId, label, currentVal, onSave){
   const existing = document.getElementById('inline-'+containerId);
-  if(existing){ existing.remove(); editingField = null; return; }
+  if(existing){ existing.remove(); editingField=null; return; }
   if(editingField){ document.getElementById('inline-'+editingField)?.remove(); }
   editingField = containerId;
   const div = document.createElement('div');
-  div.className = 'inline-edit';
-  div.id = 'inline-'+containerId;
-  div.innerHTML = `
-    <div style="font-size:.68rem;color:var(--muted);margin-bottom:6px">${label}</div>
-    <input type="number" step="0.01" value="${currentVal}" id="input-${containerId}" placeholder="${currentVal}">
-    <div class="inline-edit-actions">
-      <button class="btn-save" onclick="confirmInlineEdit('${containerId}')">Enregistrer</button>
-      <button class="btn-cancel" onclick="cancelInlineEdit('${containerId}')">Annuler</button>
-    </div>`;
+  div.className='inline-edit'; div.id='inline-'+containerId;
+  div.innerHTML=`<div style="font-size:.68rem;color:var(--muted);margin-bottom:6px">${label}</div><input type="number" step="0.01" value="${currentVal}" id="input-${containerId}" placeholder="${currentVal}"><div class="inline-edit-actions"><button class="btn-save" onclick="confirmInlineEdit('${containerId}')">Enregistrer</button><button class="btn-cancel" onclick="cancelInlineEdit('${containerId}')">Annuler</button></div>`;
   const target = document.getElementById('after-'+containerId);
   if(target) target.after(div);
   setTimeout(()=>document.getElementById('input-'+containerId)?.focus(), 50);
   div._onSave = onSave;
 }
-
 function confirmInlineEdit(id){
-  const val = document.getElementById('input-'+id)?.value;
-  const div = document.getElementById('inline-'+id);
-  if(!val || isNaN(parseFloat(val))){ toast('❌ Valeur invalide', true); return; }
-  if(div && div._onSave) div._onSave(parseFloat(val));
-  div?.remove(); editingField = null;
+  const val=document.getElementById('input-'+id)?.value;
+  const div=document.getElementById('inline-'+id);
+  if(!val||isNaN(parseFloat(val))){ toast('❌ Valeur invalide',true); return; }
+  if(div&&div._onSave) div._onSave(parseFloat(val));
+  div?.remove(); editingField=null;
 }
-
-function cancelInlineEdit(id){
-  document.getElementById('inline-'+id)?.remove();
-  editingField = null;
-}
+function cancelInlineEdit(id){ document.getElementById('inline-'+id)?.remove(); editingField=null; }
 
 // ── CONFIG TAB ──
 function renderConfig(d){
-  const cfgRev = document.getElementById('cfg-revenus-list');
-  const revenusConfig = [
-    {cle:'salaire_lgm', label:'💼 Salaire LGM', val: d.salaire, unit:'€/mois'},
-    {cle:'beau_frere',  label:'👤 Beau-frère',  val: d.beau_frere, unit:'€/mois'},
-    {cle:'objectif_completude', label:'🎯 Objectif Complétude', val: d.objectif_completude, unit:'€/mois'},
+  const cfgRev=document.getElementById('cfg-revenus-list');
+  const revenusConfig=[
+    {cle:'salaire_lgm',label:'💼 Salaire LGM',val:d.salaire,unit:'€/mois'},
+    {cle:'beau_frere',label:'👤 Beau-frère',val:d.beau_frere,unit:'€/mois'},
+    {cle:'objectif_completude',label:'🎯 Objectif Complétude',val:d.objectif_completude,unit:'€/mois'},
   ];
-  cfgRev.innerHTML = revenusConfig.map(r=>`
-    <div>
-      <div class="row" id="after-cfg-${r.cle}">
-        <div><div style="font-size:.75rem">${r.label}</div><div style="font-size:.6rem;color:var(--muted)">${r.unit}</div></div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-family:var(--mono);font-size:.82rem">${Math.round(r.val).toLocaleString('fr-FR')} €</span>
-          <button class="edit-btn" onclick="showInlineEdit('cfg-${r.cle}','Nouveau montant (${r.unit})',${r.val},(v)=>saveConfig('${r.cle}',v))">✏️</button>
-        </div>
-      </div>
-    </div>`).join('');
-
-  const cfgBud = document.getElementById('cfg-budgets-list');
-  cfgBud.innerHTML = Object.entries(d.budgets||{}).map(([k,b])=>`
-    <div>
-      <div class="row" id="after-budg-${k}">
-        <span style="font-size:.75rem">${b.label}</span>
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-family:var(--mono);font-size:.82rem">${b.max} €/mois</span>
-          <button class="edit-btn" onclick="showInlineEdit('budg-${k}','Nouveau plafond ${b.label}',${b.max},(v)=>saveBudget('${k}',v))">✏️</button>
-        </div>
-      </div>
-    </div>`).join('');
-
-  const cfgPrel = document.getElementById('cfg-prel-list');
-  const prels = d.prelevements_tous||[];
-  cfgPrel.innerHTML = prels.map(p=>{
-    const suspLabel = p.suspendu ? '<span class="prel-badge prel-susp" style="margin-left:6px">Suspendu</span>' : '';
-    return `<div>
-      <div class="row" id="after-prel-${encodeId(p.nom)}" style="${p.suspendu?'opacity:.5':''}">
-        <div>
-          <div style="font-size:.75rem">${p.nom}${suspLabel}</div>
-          <div style="font-size:.6rem;color:var(--muted)">le ${p.jour||'—'} · ${p.montant.toFixed(2)} €</div>
-        </div>
-        <div style="display:flex;gap:6px;align-items:center">
-          <button class="edit-btn" onclick="showInlineEdit('prel-m-${encodeId(p.nom)}','Nouveau montant ${p.nom}',${p.montant},(v)=>savePrel('${p.nom}','montant',v))">💶</button>
-          <button class="edit-btn" onclick="showInlineEdit('prel-j-${encodeId(p.nom)}','Nouveau jour (1-31)',${p.jour||1},(v)=>savePrel('${p.nom}','jour',v))">📅</button>
-          <button class="edit-btn ${p.suspendu?'success':'danger'}" onclick="savePrel('${p.nom}','suspendu',${p.suspendu?0:1})">${p.suspendu?'▶️':'⏸️'}</button>
-        </div>
-      </div>
-    </div>`;
+  cfgRev.innerHTML=revenusConfig.map(r=>`<div><div class="row" id="after-cfg-${r.cle}"><div><div style="font-size:.75rem">${r.label}</div><div style="font-size:.6rem;color:var(--muted)">${r.unit}</div></div><div style="display:flex;align-items:center;gap:8px"><span style="font-family:var(--mono);font-size:.82rem">${Math.round(r.val).toLocaleString('fr-FR')} €</span><button class="edit-btn" onclick="showInlineEdit('cfg-${r.cle}','Nouveau montant (${r.unit})',${r.val},(v)=>saveConfig('${r.cle}',v))">✏️</button></div></div></div>`).join('');
+  const cfgBud=document.getElementById('cfg-budgets-list');
+  cfgBud.innerHTML=Object.entries(d.budgets||{}).map(([k,b])=>`<div><div class="row" id="after-budg-${k}"><span style="font-size:.75rem">${b.label}</span><div style="display:flex;align-items:center;gap:8px"><span style="font-family:var(--mono);font-size:.82rem">${b.max} €/mois</span><button class="edit-btn" onclick="showInlineEdit('budg-${k}','Nouveau plafond ${b.label}',${b.max},(v)=>saveBudget('${k}',v))">✏️</button></div></div></div>`).join('');
+  const cfgPrel=document.getElementById('cfg-prel-list');
+  const prels=d.prelevements_tous||[];
+  cfgPrel.innerHTML=prels.map(p=>{
+    const suspLabel=p.suspendu?'<span class="prel-badge prel-susp" style="margin-left:6px">Suspendu</span>':'';
+    return `<div><div class="row" id="after-prel-${encodeId(p.nom)}" style="${p.suspendu?'opacity:.5':''}"><div><div style="font-size:.75rem">${p.nom}${suspLabel}</div><div style="font-size:.6rem;color:var(--muted)">le ${p.jour||'—'} · ${p.montant.toFixed(2)} €</div></div><div style="display:flex;gap:6px;align-items:center"><button class="edit-btn" onclick="showInlineEdit('prel-m-${encodeId(p.nom)}','Nouveau montant ${p.nom}',${p.montant},(v)=>savePrel('${p.nom}','montant',v))">💶</button><button class="edit-btn" onclick="showInlineEdit('prel-j-${encodeId(p.nom)}','Nouveau jour (1-31)',${p.jour||1},(v)=>savePrel('${p.nom}','jour',v))">📅</button><button class="edit-btn ${p.suspendu?'success':'danger'}" onclick="savePrel('${p.nom}','suspendu',${p.suspendu?0:1})">${p.suspendu?'▶️':'⏸️'}</button></div></div></div>`;
   }).join('');
 }
 
 function encodeId(s){ return s.replace(/[^a-zA-Z0-9]/g,'-'); }
 
-// ── INVESTISSEMENTS ──
+// ── INVESTISSEMENTS (watchlist mise à jour : ETF islamiques) ──
 function renderInvest(d){
-  const cont = document.getElementById('invest-content');
-  const invs = d.investissements || [];
-  const prix = d.prix_actuels || {};
-  const watchlist = d.market_watchlist || ['ISWD','SGLD','NVDA','MSFT'];
-  const labels = { ISWD:'ETF Islamic World', SGLD:'Or physique (ETC)', NVDA:'Nvidia', MSFT:'Microsoft', AAPL:'Apple' };
-  const halal  = { ISWD:true, SGLD:true, NVDA:false, MSFT:false, AAPL:false };
+  const cont=document.getElementById('invest-content');
+  const invs=d.investissements||[];
+  const prix=d.prix_actuels||{};
+  // Nouvelle watchlist : 3 ETF islamiques Trade Republic
+  const watchlist=d.market_watchlist||['ISWD.L','DE000SL0HH65.SG','HIEM.L'];
+  const labels={
+    'ISWD.L':'MSCI World Islamic (iShares)',
+    'DE000SL0HH65.SG':'MSCI Europe Islamic (HSBC)',
+    'HIEM.L':'MSCI EM Islamic (HSBC)',
+    // compatibilité anciens noms
+    'ISWD':'ETF Islamic World',
+    'SGLD':'Or physique (ETC)',
+    'NVDA':'Nvidia',
+    'MSFT':'Microsoft',
+    'AAPL':'Apple'
+  };
+  const allTickers = [...new Set([...watchlist, ...Object.keys(prix)])];
 
-  let html = `<div class="card full" style="margin-bottom:.55rem">
+  let html=`<div class="card full" style="margin-bottom:.55rem">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem">
       <div class="card-label" style="margin:0">📊 Marché en direct</div>
       <div style="font-size:.58rem;color:var(--muted)">Yahoo Finance</div>
     </div>`;
 
-  watchlist.forEach(ticker => {
-    const p = prix[ticker];
-    const label = labels[ticker] || ticker;
-    const isHalal = halal[ticker];
+  // Allocation cible
+  const alloc={'ISWD.L':65,'DE000SL0HH65.SG':25,'HIEM.L':10};
+  html+=`<div style="background:rgba(74,222,128,0.05);border:1px solid rgba(74,222,128,0.12);border-radius:9px;padding:.6rem .75rem;margin-bottom:.6rem">
+    <div style="font-size:.55rem;text-transform:uppercase;letter-spacing:.06em;color:var(--green);font-weight:700;margin-bottom:.35rem">🕌 Allocation DCA cible</div>
+    <div style="display:flex;gap:3px;height:6px;border-radius:3px;overflow:hidden;margin-bottom:.35rem">
+      <div style="width:65%;background:var(--blue)"></div>
+      <div style="width:25%;background:var(--purple)"></div>
+      <div style="width:10%;background:var(--amber)"></div>
+    </div>
+    <div style="display:flex;gap:10px;font-size:.6rem">
+      <span style="color:var(--blue)">● ISWD 65%</span>
+      <span style="color:var(--purple)">● HSBC EU 25%</span>
+      <span style="color:var(--amber)">● HIEM 10%</span>
+    </div>
+  </div>`;
+
+  watchlist.forEach(ticker=>{
+    const p=prix[ticker];
+    const label=labels[ticker]||ticker;
+    const allocPct=alloc[ticker];
     if(p){
-      const varPct = p.variation;
-      const varColor = varPct === null ? 'var(--muted)' : varPct >= 0 ? 'var(--green)' : 'var(--red)';
-      const varStr = varPct === null ? '—' : (varPct >= 0 ? '+' : '') + varPct.toFixed(2) + '%';
-      const arrow = varPct === null ? '' : varPct >= 0 ? ' ▲' : ' ▼';
-      const stateColor = p.marketState === 'REGULAR' ? 'var(--green)' : 'var(--muted)';
-      html += `<div class="row">
-        <div>
-          <div style="font-size:.78rem;font-weight:600">${ticker} <span style="font-size:.58rem;color:var(--muted);font-weight:400">${label}</span></div>
-          <div style="display:flex;gap:6px;margin-top:2px">
-            ${isHalal ? '<span style="font-size:.55rem;background:rgba(74,222,128,0.1);color:var(--green);border:1px solid rgba(74,222,128,0.25);padding:1px 6px;border-radius:4px">Halal ✓</span>' : ''}
-            <span style="font-size:.55rem;color:${stateColor}">${p.marketState === 'REGULAR' ? '● Live' : '● Fermé'}</span>
-          </div>
-        </div>
-        <div style="text-align:right">
-          <div style="font-family:var(--mono);font-size:.88rem;font-weight:600">${p.prix.toLocaleString('fr-FR')} <span style="font-size:.65rem;color:var(--muted)">${p.currency}</span></div>
-          <div style="font-size:.72rem;color:${varColor};font-weight:600">${varStr}${arrow}</div>
-        </div>
-      </div>`;
+      const varPct=p.variation;
+      const varColor=varPct===null?'var(--muted)':varPct>=0?'var(--green)':'var(--red)';
+      const varStr=varPct===null?'—':(varPct>=0?'+':'')+varPct.toFixed(2)+'%';
+      const arrow=varPct===null?'':varPct>=0?' ▲':' ▼';
+      const stateColor=p.marketState==='REGULAR'?'var(--green)':'var(--muted)';
+      html+=`<div class="row"><div><div style="font-size:.78rem;font-weight:600">${ticker} <span style="font-size:.58rem;color:var(--muted);font-weight:400">${label}</span></div><div style="display:flex;gap:6px;margin-top:2px"><span style="font-size:.55rem;background:rgba(74,222,128,0.1);color:var(--green);border:1px solid rgba(74,222,128,0.25);padding:1px 6px;border-radius:4px">Halal ✓</span>${allocPct?`<span style="font-size:.55rem;color:var(--muted)">${allocPct}% cible</span>`:''}<span style="font-size:.55rem;color:${stateColor}">${p.marketState==='REGULAR'?'● Live':'● Fermé'}</span></div></div><div style="text-align:right"><div style="font-family:var(--mono);font-size:.88rem;font-weight:600">${p.prix.toLocaleString('fr-FR')} <span style="font-size:.65rem;color:var(--muted)">${p.currency}</span></div><div style="font-size:.72rem;color:${varColor};font-weight:600">${varStr}${arrow}</div></div></div>`;
     } else {
-      html += `<div class="row"><div><div style="font-size:.78rem">${ticker} — ${label}</div></div><div style="color:var(--muted);font-size:.7rem">Indisponible</div></div>`;
+      html+=`<div class="row"><div><div style="font-size:.78rem">${ticker} — ${label}</div><div style="font-size:.55rem;color:var(--green)">Halal ✓</div></div><div style="color:var(--muted);font-size:.7rem">Indisponible</div></div>`;
     }
   });
-  html += `<div style="font-size:.6rem;color:var(--muted);margin-top:.5rem;text-align:right">Actualisé à ${new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</div></div>`;
+  html+=`<div style="font-size:.6rem;color:var(--muted);margin-top:.5rem;text-align:right">Actualisé à ${new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</div></div>`;
 
-  if(!invs || invs.length === 0){
-    html += `<div class="invest-card">
-      <div class="invest-title">💼 Mon portefeuille</div>
-      <div style="color:var(--muted);font-size:.78rem;padding:.4rem 0">Aucun achat enregistré.</div>
-      <div style="font-size:.72rem;color:var(--muted);margin-top:.4rem">Utilise <strong style="color:var(--orange)">/investir</strong> sur Telegram pour ton premier achat.</div>
-    </div>`;
-    cont.innerHTML = html;
-    return;
+  if(!invs||invs.length===0){
+    html+=`<div class="invest-card"><div class="invest-title">💼 Mon portefeuille</div><div style="color:var(--muted);font-size:.78rem;padding:.4rem 0">Aucun achat enregistré.</div><div style="font-size:.72rem;color:var(--muted);margin-top:.4rem">Utilise <strong style="color:var(--orange)">/investir [montant]</strong> sur Telegram pour ton premier achat.</div></div>`;
+    cont.innerHTML=html; return;
   }
 
-  const parTicker = {};
-  invs.forEach(inv=>{
-    if(!parTicker[inv.ticker]) parTicker[inv.ticker]={montant_investi:0,nb_parts:0,achats:[]};
-    parTicker[inv.ticker].montant_investi += inv.montant;
-    parTicker[inv.ticker].nb_parts += inv.nb_parts;
-    parTicker[inv.ticker].achats.push(inv);
+  const parTicker={};
+  invs.forEach(inv=>{ if(!parTicker[inv.ticker])parTicker[inv.ticker]={montant_investi:0,nb_parts:0,achats:[]}; parTicker[inv.ticker].montant_investi+=inv.montant; parTicker[inv.ticker].nb_parts+=inv.nb_parts; parTicker[inv.ticker].achats.push(inv); });
+
+  let totalInvesti=0,totalActuel=0;
+  let portfolioHtml=`<div class="invest-card"><div class="invest-title">💼 Mon portefeuille</div>`;
+  Object.entries(parTicker).forEach(([ticker,data])=>{
+    const prixMoyen=data.montant_investi/data.nb_parts;
+    const marche=prix[ticker]; totalInvesti+=data.montant_investi;
+    let pvHtml='';
+    if(marche){ const valeur=marche.prix*data.nb_parts; const pv=valeur-data.montant_investi; const pvPct=(pv/data.montant_investi*100); totalActuel+=valeur; const pvColor=pv>=0?'var(--green)':'var(--red)'; pvHtml=`<div style="font-size:.7rem;color:${pvColor};font-family:var(--mono);margin-top:2px">${pv>=0?'▲ +':'▼ '}${pv.toFixed(0)}€ (${pvPct>=0?'+':''}${pvPct.toFixed(1)}%)</div>`; }
+    else totalActuel+=data.montant_investi;
+    portfolioHtml+=`<div class="row"><div><div style="font-size:.78rem;font-weight:600">${ticker}</div><div style="font-size:.62rem;color:var(--muted)">${data.nb_parts.toFixed(4)} parts · P.moy ${prixMoyen.toFixed(2)}</div>${pvHtml}</div><div style="text-align:right"><div style="font-family:var(--mono);font-size:.82rem">${data.montant_investi.toFixed(0)} €</div>${marche?`<div style="font-size:.68rem;color:var(--green);font-family:var(--mono)">${(marche.prix*data.nb_parts).toFixed(0)} €</div>`:''}</div></div>`;
   });
+  if(Object.keys(parTicker).length>1){ const pv=totalActuel-totalInvesti; const pvColor=pv>=0?'var(--green)':'var(--red)'; portfolioHtml+=`<div style="border-top:1px solid var(--border);margin-top:.5rem;padding-top:.5rem;display:flex;justify-content:space-between;align-items:center"><div style="font-size:.75rem;font-weight:700">Total</div><div style="text-align:right"><div style="font-family:var(--mono);font-size:.82rem">${totalInvesti.toFixed(0)} € investi</div><div style="font-family:var(--mono);font-size:.75rem;color:${pvColor}">${pv>=0?'+':''}${pv.toFixed(0)} € (${((pv/totalInvesti)*100).toFixed(1)}%)</div></div></div>`; }
+  portfolioHtml+=`<div style="font-size:.65rem;color:var(--muted);margin-top:.6rem">📅 DCA le 1er du mois · <strong style="color:var(--orange)">/investir [montant]</strong> pour ajouter</div></div>`;
 
-  let totalInvesti = 0, totalActuel = 0;
-  let portfolioHtml = `<div class="invest-card">
-    <div class="invest-title">💼 Mon portefeuille</div>`;
-
-  Object.entries(parTicker).forEach(([ticker, data])=>{
-    const prixMoyen = data.montant_investi / data.nb_parts;
-    const marche = prix[ticker];
-    totalInvesti += data.montant_investi;
-    let pvHtml = '';
-    if(marche){
-      const valeur = marche.prix * data.nb_parts;
-      const pv = valeur - data.montant_investi;
-      const pvPct = (pv / data.montant_investi * 100);
-      totalActuel += valeur;
-      const pvColor = pv >= 0 ? 'var(--green)' : 'var(--red)';
-      pvHtml = `<div style="font-size:.7rem;color:${pvColor};font-family:var(--mono);margin-top:2px">${pv>=0?'▲ +':'▼ '}${pv.toFixed(0)}€ (${pvPct>=0?'+':''}${pvPct.toFixed(1)}%)</div>`;
-    } else {
-      totalActuel += data.montant_investi;
-    }
-    portfolioHtml += `<div class="row">
-      <div>
-        <div style="font-size:.78rem;font-weight:600">${ticker}</div>
-        <div style="font-size:.62rem;color:var(--muted)">${data.nb_parts.toFixed(4)} parts · P.moy ${prixMoyen.toFixed(2)}</div>
-        ${pvHtml}
-      </div>
-      <div style="text-align:right">
-        <div style="font-family:var(--mono);font-size:.82rem">${data.montant_investi.toFixed(0)} €</div>
-        ${marche?`<div style="font-size:.68rem;color:var(--green);font-family:var(--mono)">${(marche.prix * data.nb_parts).toFixed(0)} €</div>`:''}
-      </div>
-    </div>`;
-  });
-
-  if(Object.keys(parTicker).length > 1){
-    const pv = totalActuel - totalInvesti;
-    const pvColor = pv >= 0 ? 'var(--green)' : 'var(--red)';
-    portfolioHtml += `<div style="border-top:1px solid var(--border);margin-top:.5rem;padding-top:.5rem;display:flex;justify-content:space-between;align-items:center">
-      <div style="font-size:.75rem;font-weight:700">Total</div>
-      <div style="text-align:right">
-        <div style="font-family:var(--mono);font-size:.82rem">${totalInvesti.toFixed(0)} € investi</div>
-        <div style="font-family:var(--mono);font-size:.75rem;color:${pvColor}">${pv>=0?'+':''}${pv.toFixed(0)} € (${((pv/totalInvesti)*100).toFixed(1)}%)</div>
-      </div>
-    </div>`;
-  }
-  portfolioHtml += `<div style="font-size:.65rem;color:var(--muted);margin-top:.6rem">📅 Rappel DCA le 1er du mois · <strong style="color:var(--orange)">/investir</strong> pour ajouter un achat</div></div>`;
-
-  // Historique achats avec actions
-  let histHtml = `<div class="card full" style="margin-top:.3rem">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem">
-      <div class="card-label" style="margin:0">Historique achats</div>
-      <div style="font-size:.58rem;color:var(--muted)">✏️ modifier · 🗑️ supprimer</div>
-    </div>`;
-
+  let histHtml=`<div class="card full" style="margin-top:.3rem"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem"><div class="card-label" style="margin:0">Historique achats</div><div style="font-size:.58rem;color:var(--muted)">✏️ modifier · 🗑️ supprimer</div></div>`;
   invs.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).forEach(inv=>{
-    const date = new Date(inv.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit'});
-    histHtml += `<div class="row" style="align-items:flex-start">
-      <div style="flex:1">
-        <div style="font-size:.72rem;font-weight:600">${inv.ticker}</div>
-        <div style="font-size:.6rem;color:var(--muted)">${date} · @ ${inv.prix_unitaire.toFixed(2)} ${(prix[inv.ticker]||{}).currency||''}</div>
-      </div>
-      <div style="display:flex;align-items:center;gap:4px">
-        <div style="text-align:right;margin-right:4px">
-          <div style="font-family:var(--mono);font-size:.72rem">${inv.montant.toFixed(0)} €</div>
-          <div style="font-size:.6rem;color:var(--muted)">${inv.nb_parts.toFixed(4)} parts</div>
-        </div>
-        <button class="action-btn edit" onclick="modifierInvestissement('${inv.id}','${inv.ticker}',${inv.montant})" title="Modifier">✏️</button>
-        <button class="action-btn del" onclick="supprimerInvestissement('${inv.id}','${inv.ticker}',${inv.montant})" title="Supprimer">🗑️</button>
-      </div>
-    </div>`;
+    const date=new Date(inv.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit'});
+    histHtml+=`<div class="row" style="align-items:flex-start"><div style="flex:1"><div style="font-size:.72rem;font-weight:600">${inv.ticker}</div><div style="font-size:.6rem;color:var(--muted)">${date} · @ ${inv.prix_unitaire.toFixed(2)} ${(prix[inv.ticker]||{}).currency||''}</div></div><div style="display:flex;align-items:center;gap:4px"><div style="text-align:right;margin-right:4px"><div style="font-family:var(--mono);font-size:.72rem">${inv.montant.toFixed(0)} €</div><div style="font-size:.6rem;color:var(--muted)">${inv.nb_parts.toFixed(4)} parts</div></div><button class="action-btn edit" onclick="modifierInvestissement('${inv.id}','${inv.ticker}',${inv.montant})" title="Modifier">✏️</button><button class="action-btn del" onclick="supprimerInvestissement('${inv.id}','${inv.ticker}',${inv.montant})" title="Supprimer">🗑️</button></div></div>`;
   });
-  histHtml += `</div>`;
+  histHtml+=`</div>`;
+  cont.innerHTML=html+portfolioHtml+histHtml;
+}
 
-  cont.innerHTML = html + portfolioHtml + histHtml;
+// ── SIMULATEUR ──
+function initSimulateur(d){
+  simulData = d;
+  // Init checkboxes prélèvements restants
+  const aujourd = new Date().getDate();
+  const prels = (d.prelevements_tous||[]).filter(p=>p.jour&&p.jour>=aujourd&&!p.suspendu&&p.frequence!=='trimestriel');
+  prels.forEach(p=>{ if(simulPrelChecked[p.nom]===undefined) simulPrelChecked[p.nom]=true; });
+  // Init checkboxes cours
+  const elevesR = d.eleves_restants||{};
+  Object.keys(elevesR).forEach(nom=>{ if(simulCoursChecked[nom]===undefined) simulCoursChecked[nom]=true; });
+  renderSimulateurPrel(prels);
+  renderSimulateurCours(elevesR, d.planning||{});
+  recalcSimulateur();
+}
+
+function renderSimulateurPrel(prels){
+  const cont = document.getElementById('simul-prel-list');
+  if(!prels||!prels.length){ cont.innerHTML='<div style="color:var(--muted);font-size:.72rem;padding:4px 0">Aucun prélèvement restant ce mois.</div>'; return; }
+  cont.innerHTML = prels.map(p=>`
+    <div class="simul-input-row">
+      <input type="checkbox" class="simul-checkbox" id="prel-chk-${encodeId(p.nom)}" ${simulPrelChecked[p.nom]?'checked':''} onchange="togglePrel('${p.nom}',this.checked)">
+      <label for="prel-chk-${encodeId(p.nom)}" style="cursor:pointer">${p.nom} <span style="color:var(--muted);font-size:.65rem">· le ${p.jour}</span></label>
+      <span style="font-family:var(--mono);font-size:.72rem;color:var(--red);flex-shrink:0">${p.montant.toFixed(0)} €</span>
+    </div>`).join('');
+}
+
+function renderSimulateurCours(elevesR, planning){
+  const cont = document.getElementById('simul-cours-list');
+  const keys = Object.keys(elevesR||{}).filter(n=>elevesR[n]>0);
+  if(!keys.length){ cont.innerHTML='<div style="color:var(--muted);font-size:.72rem;padding:4px 0">Tous les cours sont terminés.</div>'; document.getElementById('simul-cours-total').textContent='0 €'; return; }
+  cont.innerHTML = keys.map(nom=>{
+    const nb=elevesR[nom];
+    const p=planning[nom];
+    const gain=p?(p.taux*p.duree*nb):0;
+    return `<div class="simul-input-row">
+      <input type="checkbox" class="simul-checkbox" id="cours-chk-${encodeId(nom)}" ${simulCoursChecked[nom]?'checked':''} onchange="toggleCours('${nom}',this.checked)">
+      <label for="cours-chk-${encodeId(nom)}" style="cursor:pointer">${nom} <span style="color:var(--muted);font-size:.65rem">· ${nb} cours restant${nb>1?'s':''}</span></label>
+      <span style="font-family:var(--mono);font-size:.72rem;color:var(--green);flex-shrink:0">+${gain.toFixed(0)} €</span>
+    </div>`;
+  }).join('');
+}
+
+function togglePrel(nom, checked){ simulPrelChecked[nom]=checked; recalcSimulateur(); }
+function toggleCours(nom, checked){ simulCoursChecked[nom]=checked; recalcSimulateur(); }
+
+function addQuick(label, montant){
+  simulDepenses.push({label,montant});
+  renderSimulateurDepenses();
+  recalcSimulateur();
+}
+
+function addDepenseLibre(){
+  const lbl=document.getElementById('simul-dep-label').value.trim()||'Divers';
+  const mnt=parseFloat(document.getElementById('simul-dep-montant').value);
+  if(!mnt||mnt<=0){ toast('❌ Montant invalide',true); return; }
+  simulDepenses.push({label:lbl,montant:mnt});
+  document.getElementById('simul-dep-label').value='';
+  document.getElementById('simul-dep-montant').value='';
+  renderSimulateurDepenses();
+  recalcSimulateur();
+}
+
+function removeDepense(idx){
+  simulDepenses.splice(idx,1);
+  renderSimulateurDepenses();
+  recalcSimulateur();
+}
+
+function renderSimulateurDepenses(){
+  const cont=document.getElementById('simul-dep-list');
+  if(!simulDepenses.length){ cont.innerHTML=''; return; }
+  cont.innerHTML=simulDepenses.map((d,i)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid var(--border);font-size:.7rem"><span style="color:var(--muted)">${d.label}</span><div style="display:flex;align-items:center;gap:6px"><span style="font-family:var(--mono);color:var(--red)">-${d.montant.toFixed(0)} €</span><button class="simul-remove-btn" onclick="removeDepense(${i})">✕</button></div></div>`).join('');
+}
+
+function addRentree(){
+  const lbl=document.getElementById('simul-rev-label').value.trim()||'Rentrée';
+  const mnt=parseFloat(document.getElementById('simul-rev-montant').value);
+  if(!mnt||mnt<=0){ toast('❌ Montant invalide',true); return; }
+  simulRentrees.push({label:lbl,montant:mnt});
+  document.getElementById('simul-rev-label').value='';
+  document.getElementById('simul-rev-montant').value='';
+  renderSimulateurRentrees();
+  recalcSimulateur();
+}
+
+function removeRentree(idx){
+  simulRentrees.splice(idx,1);
+  renderSimulateurRentrees();
+  recalcSimulateur();
+}
+
+function renderSimulateurRentrees(){
+  const cont=document.getElementById('simul-rev-list');
+  if(!simulRentrees.length){ cont.innerHTML=''; return; }
+  cont.innerHTML=simulRentrees.map((r,i)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid var(--border);font-size:.7rem"><span style="color:var(--muted)">${r.label}</span><div style="display:flex;align-items:center;gap:6px"><span style="font-family:var(--mono);color:var(--green)">+${r.montant.toFixed(0)} €</span><button class="simul-remove-btn" onclick="removeRentree(${i})">✕</button></div></div>`).join('');
+}
+
+function recalcSimulateur(){
+  if(!simulData) return;
+  const d=simulData;
+  const aujourd=new Date().getDate();
+  const prels=(d.prelevements_tous||[]).filter(p=>p.jour&&p.jour>=aujourd&&!p.suspendu&&p.frequence!=='trimestriel');
+
+  // Prélèvements sélectionnés
+  let totalPrel=0;
+  prels.forEach(p=>{ if(simulPrelChecked[p.nom]) totalPrel+=p.montant; });
+  document.getElementById('simul-prel-total').textContent='-'+totalPrel.toFixed(0)+' €';
+
+  // Dépenses simulées
+  const totalDep=simulDepenses.reduce((s,d)=>s+d.montant,0);
+  document.getElementById('simul-dep-total').textContent='-'+totalDep.toFixed(0)+' €';
+
+  // Rentrées simulées
+  const totalRev=simulRentrees.reduce((s,r)=>s+r.montant,0);
+  document.getElementById('simul-rev-total').textContent='+'+totalRev.toFixed(0)+' €';
+
+  // Cours restants sélectionnés
+  const elevesR=d.eleves_restants||{};
+  const planning=d.planning||{};
+  let totalCours=0;
+  Object.keys(elevesR).forEach(nom=>{
+    if(simulCoursChecked[nom]&&elevesR[nom]>0){
+      const p=planning[nom];
+      if(p) totalCours+=p.taux*p.duree*elevesR[nom];
+    }
+  });
+  document.getElementById('simul-cours-total').textContent='+'+totalCours.toFixed(0)+' €';
+
+  // Calcul épargne projetée
+  const epargneBase=d.epargne_base||0;
+  const soldeActuel=d.solde||0;
+  // epargne_estimee = epargne_base + solde projeté fin de mois
+  // solde projeté = solde actuel + cours restants + rentrées - prélèvements restants - dépenses simulées
+  const soldeProj=soldeActuel+totalCours+totalRev-totalPrel-totalDep;
+  const epargneProj=epargneBase+Math.max(0,soldeProj);
+
+  const epargneEl=document.getElementById('simul-epargne-val');
+  epargneEl.textContent=fmt(epargneProj);
+  const soldeStr=(soldeProj>=0?'+':'')+Math.round(soldeProj).toLocaleString('fr-FR')+' €';
+  document.getElementById('simul-solde-sub').textContent='Solde fin de mois estimé : '+soldeStr;
+
+  // Couleur
+  const objPrincipal=(d.objectifs&&d.objectifs[0])?d.objectifs[0].montant:12000;
+  const epPct=pct(epargneProj,objPrincipal);
+  const epColor=epargneProj>=(d.objectifs&&d.objectifs[0]?d.objectifs[0].montant:12000)?'var(--green)':epargneProj>=epargneBase?'var(--amber)':'var(--red)';
+  epargneEl.style.color=epColor;
+  document.getElementById('simul-gauge-fill').style.cssText=`width:${epPct}%;background:${epColor}`;
+  document.getElementById('simul-gauge-pct').textContent=epPct+'%';
+
+  // Objectifs
+  const objList=document.getElementById('simul-obj-list');
+  if(d.objectifs&&d.objectifs.length){
+    document.getElementById('simul-obj-label').textContent='Obj. '+Math.round(d.objectifs[0].montant/1000)+'k €';
+    objList.innerHTML=d.objectifs.map(o=>{
+      const op=pct(epargneProj,o.montant);
+      const oc=op>=100?'var(--green)':op>=80?'var(--amber)':'var(--red)';
+      const delta=Math.round(epargneProj-o.montant);
+      return `<div class="simul-obj-row"><span>${delta>=0?'✅':'⚠️'} ${o.label}</span><div style="text-align:right"><div style="font-family:var(--mono);font-size:.72rem;color:${oc}">${delta>=0?'+':''}${delta.toLocaleString('fr-FR')} €</div><div style="font-size:.6rem;color:var(--muted)">${op}% · cible ${o.montant.toLocaleString('fr-FR')} €</div></div></div>`;
+    }).join('');
+  }
+}
+
+function resetSimulateur(){
+  simulDepenses=[];
+  simulRentrees=[];
+  // Réinitialiser les checkboxes à true
+  if(simulData){
+    const aujourd=new Date().getDate();
+    const prels=(simulData.prelevements_tous||[]).filter(p=>p.jour&&p.jour>=aujourd&&!p.suspendu&&p.frequence!=='trimestriel');
+    prels.forEach(p=>simulPrelChecked[p.nom]=true);
+    Object.keys(simulData.eleves_restants||{}).forEach(n=>simulCoursChecked[n]=true);
+    document.querySelectorAll('.simul-checkbox').forEach(cb=>cb.checked=true);
+  }
+  renderSimulateurDepenses();
+  renderSimulateurRentrees();
+  recalcSimulateur();
+  toast('↺ Simulateur réinitialisé');
 }
 
 // ── ALERTES SEUIL ──
 function renderAlerteSeuil(d){
-  const el = document.getElementById('alerte-seuil');
-  const total = (d.charges_fixes||0) + (d.total_dep||0);
-  const seuilTotal = d.seuil_alerte_total || 3400;
-  const seuilVar = d.seuil_alerte_variable || 1000;
-  if(total > seuilTotal){
+  const el=document.getElementById('alerte-seuil');
+  const total=(d.charges_fixes||0)+(d.total_dep||0);
+  const seuilTotal=d.seuil_alerte_total||3400;
+  const seuilVar=d.seuil_alerte_variable||1000;
+  if(total>seuilTotal){
     el.classList.add('visible');
-    document.getElementById('alerte-seuil-title').textContent = '🚨 Seuil global dépassé !';
-    document.getElementById('alerte-seuil-body').innerHTML = `Fixes <strong>${Math.round(d.charges_fixes)}€</strong> + Variables <strong>${Math.round(d.total_dep)}€</strong> = <strong>${Math.round(total)}€</strong> — Dépassement: <strong>+${Math.round(total-seuilTotal)}€</strong>`;
-  } else if(d.total_dep > seuilVar){
+    document.getElementById('alerte-seuil-title').textContent='🚨 Seuil global dépassé !';
+    document.getElementById('alerte-seuil-body').innerHTML=`Fixes <strong>${Math.round(d.charges_fixes)}€</strong> + Variables <strong>${Math.round(d.total_dep)}€</strong> = <strong>${Math.round(total)}€</strong> — Dépassement: <strong>+${Math.round(total-seuilTotal)}€</strong>`;
+  } else if(d.total_dep>seuilVar){
     el.classList.add('visible');
-    document.getElementById('alerte-seuil-title').textContent = '⚠️ Dépenses variables élevées';
-    document.getElementById('alerte-seuil-body').innerHTML = `Variables ce mois: <strong>${Math.round(d.total_dep)}€</strong> > seuil <strong>${seuilVar}€</strong>`;
-  } else {
-    el.classList.remove('visible');
-  }
+    document.getElementById('alerte-seuil-title').textContent='⚠️ Dépenses variables élevées';
+    document.getElementById('alerte-seuil-body').innerHTML=`Variables ce mois: <strong>${Math.round(d.total_dep)}€</strong> > seuil <strong>${seuilVar}€</strong>`;
+  } else el.classList.remove('visible');
 }
 
 // ── MODAL FICHE ELEVE ──
 function openFiche(nom){
   if(!globalData) return;
-  const d = globalData;
-  const p = (d.planning||{})[nom];
+  const d=globalData;
+  const p=(d.planning||{})[nom];
   if(!p) return;
-  const coursFaits = (d.cours||[]).filter(c=>c.eleve===nom);
-  const coursManques = (d.cours_manques||[]).filter(c=>c.eleve===nom);
-  const gainTotal = coursFaits.reduce((s,c)=>s+c.gain,0);
-  const gainManque = coursManques.reduce((s,c)=>s+c.gain_manque,0);
-  const restants = (d.eleves_restants||{})[nom]||0;
-  const gainRestant = restants*p.taux*p.duree;
-  const tags = [p.tda?'<span class="fiche-tag tag-tda">TDA/TDAH</span>':'',p.ficheHebdo?'<span class="fiche-tag tag-hebdo">Fiche hebdo</span>':'',p.uneSemaineSurDeux?'<span class="fiche-tag tag-alt">1 sem/2</span>':''].filter(Boolean).join('');
-  document.getElementById('modal-title').textContent = '👤 '+nom;
-  document.getElementById('modal-content').innerHTML = `
-    ${tags?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:.8rem">${tags}</div>`:''}
-    <div class="fiche-row"><span style="color:var(--muted)">Niveau</span><span>${NIVEAUX[p.niveau]||p.niveau}</span></div>
-    <div class="fiche-row"><span style="color:var(--muted)">Taux horaire</span><span style="font-family:var(--mono);color:var(--amber)">${p.taux} €/h</span></div>
-    <div class="fiche-row"><span style="color:var(--muted)">Durée séance</span><span>${p.duree}h</span></div>
-    <div class="fiche-row"><span style="color:var(--muted)">Jour habituel</span><span>${JOURS[p.jour]}</span></div>
-    <div class="fiche-row"><span style="color:var(--muted)">Gain / séance</span><span style="font-family:var(--mono)">${(p.taux*p.duree).toFixed(2)} €</span></div>
-    <div style="height:1px;background:var(--border);margin:.6rem 0"></div>
-    <div class="fiche-row"><span style="color:var(--muted)">Cours faits</span><span style="color:var(--green)">${coursFaits.length} cours</span></div>
-    <div class="fiche-row"><span style="color:var(--muted)">Gains ce mois</span><span style="font-family:var(--mono);color:var(--green)">+${gainTotal.toFixed(2)} €</span></div>
-    ${coursManques.length>0?`<div class="fiche-row"><span style="color:var(--muted)">Cours manqués</span><span style="color:var(--red)">${coursManques.length} · -${gainManque.toFixed(2)} €</span></div>`:''}
-    ${restants>0?`<div class="fiche-row"><span style="color:var(--muted)">Cours restants</span><span style="color:var(--amber)">${restants} cours · +${gainRestant.toFixed(2)} €</span></div>`:''}
-    ${coursFaits.length>0?`<div style="margin-top:.7rem"><div class="card-label" style="margin-bottom:.4rem">Détail des séances</div>${coursFaits.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).map(c=>{const date=new Date(c.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});return `<div class="fiche-row"><span>${date}${c.rattrapage?' <span style="font-size:.58rem;color:var(--purple)">(rattrapage)</span>':''}</span><span style="font-family:var(--mono);color:var(--green)">+${c.gain.toFixed(2)} €</span></div>`;}).join('')}</div>`:''}`;
+  const coursFaits=(d.cours||[]).filter(c=>c.eleve===nom);
+  const coursManques=(d.cours_manques||[]).filter(c=>c.eleve===nom);
+  const gainTotal=coursFaits.reduce((s,c)=>s+c.gain,0);
+  const gainManque=coursManques.reduce((s,c)=>s+c.gain_manque,0);
+  const restants=(d.eleves_restants||{})[nom]||0;
+  const gainRestant=restants*p.taux*p.duree;
+  const tags=[p.tda?'<span class="fiche-tag tag-tda">TDA/TDAH</span>':'',p.ficheHebdo?'<span class="fiche-tag tag-hebdo">Fiche hebdo</span>':'',p.uneSemaineSurDeux?'<span class="fiche-tag tag-alt">1 sem/2</span>':''].filter(Boolean).join('');
+  document.getElementById('modal-title').textContent='👤 '+nom;
+  document.getElementById('modal-content').innerHTML=`${tags?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:.8rem">${tags}</div>`:''}<div class="fiche-row"><span style="color:var(--muted)">Niveau</span><span>${NIVEAUX[p.niveau]||p.niveau}</span></div><div class="fiche-row"><span style="color:var(--muted)">Taux horaire</span><span style="font-family:var(--mono);color:var(--amber)">${p.taux} €/h</span></div><div class="fiche-row"><span style="color:var(--muted)">Durée séance</span><span>${p.duree}h</span></div><div class="fiche-row"><span style="color:var(--muted)">Jour habituel</span><span>${JOURS[p.jour]}</span></div><div class="fiche-row"><span style="color:var(--muted)">Gain / séance</span><span style="font-family:var(--mono)">${(p.taux*p.duree).toFixed(2)} €</span></div><div style="height:1px;background:var(--border);margin:.6rem 0"></div><div class="fiche-row"><span style="color:var(--muted)">Cours faits</span><span style="color:var(--green)">${coursFaits.length} cours</span></div><div class="fiche-row"><span style="color:var(--muted)">Gains ce mois</span><span style="font-family:var(--mono);color:var(--green)">+${gainTotal.toFixed(2)} €</span></div>${coursManques.length>0?`<div class="fiche-row"><span style="color:var(--muted)">Cours manqués</span><span style="color:var(--red)">${coursManques.length} · -${gainManque.toFixed(2)} €</span></div>`:''} ${restants>0?`<div class="fiche-row"><span style="color:var(--muted)">Cours restants</span><span style="color:var(--amber)">${restants} cours · +${gainRestant.toFixed(2)} €</span></div>`:''} ${coursFaits.length>0?`<div style="margin-top:.7rem"><div class="card-label" style="margin-bottom:.4rem">Détail des séances</div>${coursFaits.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).map(c=>{const date=new Date(c.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});return `<div class="fiche-row"><span>${date}${c.rattrapage?' <span style="font-size:.58rem;color:var(--purple)">(rattrapage)</span>':''}</span><span style="font-family:var(--mono);color:var(--green)">+${c.gain.toFixed(2)} €</span></div>`;}).join('')}</div>`:''}`;
   document.getElementById('modal').classList.add('open');
 }
 
@@ -975,25 +1069,24 @@ function closeModalEdit(e){ if(e.target===document.getElementById('modal-edit'))
 
 // ── CALENDRIER ──
 function renderCalendrier(d){
-  const isCurrent = d.mois_offset===0;
-  const cal = d.calendrier||{};
-  const dernierJour = d.dernier_jour||31;
-  const annee = (d.annee_mois||{}).annee||new Date().getFullYear();
-  const mois  = (d.annee_mois||{}).mois||new Date().getMonth();
-  let pjs = new Date(annee,mois,1).getDay();
-  pjs = (pjs+6)%7;
-  const faitsByDay={}, manquesByDay={};
+  const isCurrent=d.mois_offset===0;
+  const cal=d.calendrier||{};
+  const dernierJour=d.dernier_jour||31;
+  const annee=(d.annee_mois||{}).annee||new Date().getFullYear();
+  const mois=(d.annee_mois||{}).mois||new Date().getMonth();
+  let pjs=new Date(annee,mois,1).getDay(); pjs=(pjs+6)%7;
+  const faitsByDay={},manquesByDay={};
   (d.cours||[]).forEach(c=>{ const j=new Date(c.created_at).getDate(); if(!faitsByDay[j])faitsByDay[j]=[]; faitsByDay[j].push(c); });
   (d.cours_manques||[]).forEach(c=>{ const j=new Date(c.created_at).getDate(); if(!manquesByDay[j])manquesByDay[j]=[]; manquesByDay[j].push(c); });
   let html='';
   for(let i=0;i<pjs;i++) html+='<div class="cal-day empty"></div>';
   for(let j=1;j<=dernierJour;j++){
     const info=cal[j]||{};
-    const faits=faitsByDay[j]||[], manques=manquesByDay[j]||[], prevus=info.prevus||[];
+    const faits=faitsByDay[j]||[],manques=manquesByDay[j]||[],prevus=info.prevus||[];
     const aPrevu=prevus.length>0;
     let gainPrevu=0;
     if(aPrevu&&info.estFutur&&d.planning) prevus.forEach(nom=>{ const pp=d.planning[nom]; if(pp) gainPrevu+=pp.taux*pp.duree; });
-    const gainJour=faits.reduce((s,c)=>s+c.gain,0), manqueJour=manques.reduce((s,c)=>s+c.gain_manque,0);
+    const gainJour=faits.reduce((s,c)=>s+c.gain,0),manqueJour=manques.reduce((s,c)=>s+c.gain_manque,0);
     let cls='cal-day';
     if(info.estAujourdHui) cls+=' today';
     if(faits.length>0) cls+=' done';
@@ -1002,24 +1095,24 @@ function renderCalendrier(d){
     else if(info.estPasse||!isCurrent) cls+=' past-empty';
     else cls+=' future-empty';
     if(selectedDay===j) cls+=' selected';
-    const amtStr = faits.length>0 ? '+'+gainJour.toFixed(0)+'€' : manques.length>0 ? '-'+manqueJour.toFixed(0)+'€' : gainPrevu>0 ? '~'+gainPrevu.toFixed(0)+'€' : '';
-    const dayData = JSON.stringify({faits:faits.map(c=>({nom:c.eleve,gain:c.gain})),manques:manques.map(c=>({nom:c.eleve,gain:c.gain_manque})),prevus,gainJour,manqueJour,gainPrevu}).replace(/"/g,"'");
+    const amtStr=faits.length>0?'+'+gainJour.toFixed(0)+'€':manques.length>0?'-'+manqueJour.toFixed(0)+'€':gainPrevu>0?'~'+gainPrevu.toFixed(0)+'€':'';
+    const dayData=JSON.stringify({faits:faits.map(c=>({nom:c.eleve,gain:c.gain})),manques:manques.map(c=>({nom:c.eleve,gain:c.gain_manque})),prevus,gainJour,manqueJour,gainPrevu}).replace(/"/g,"'");
     html+=`<div class="${cls}" onclick="showDay(${j},${dayData})"><div class="cal-num">${j}</div>${amtStr?`<div class="cal-amt">${amtStr}</div>`:''}</div>`;
   }
   document.getElementById('cal-grid').innerHTML=html;
   const potEl=document.getElementById('pot-montant');
   const potMontant=d.potentiel_restant||0;
   potEl.textContent=fmt(potMontant); potEl.style.color=potMontant>0?'var(--amber)':'var(--muted)';
-  const nbJ=d.jours_restants_count||0, elevesR=d.eleves_restants||{};
+  const nbJ=d.jours_restants_count||0,elevesR=d.eleves_restants||{};
   const elevStr=Object.entries(elevesR).map(([n,nb])=>nb+'× '+n).join(', ');
   document.getElementById('pot-detail').textContent=nbJ>0?nbJ+' cours à venir · '+elevStr:isCurrent?'Tous les cours du mois sont terminés !':'Mois archivé';
   document.getElementById('streak-zone').innerHTML=d.nb_cours>0?`<div class="streak-badge">🔥 ${d.nb_cours} cours ce mois</div>`:'';
   const pb=document.getElementById('pred-box');
   if(isCurrent&&d.nb_cours>0){
     pb.style.display='block';
-    const totalPredit=d.completude+potMontant, obj=d.objectif_completude||1500, ecart=totalPredit-obj;
+    const totalPredit=d.completude+potMontant,obj=d.objectif_completude||1500,ecart=totalPredit-obj;
     document.getElementById('pred-text').innerHTML=`À ce rythme → <strong style="color:${ecart>=0?'var(--green)':'var(--amber)'}">${fmt(totalPredit)}</strong> fin de mois `+(ecart>=0?`<span style="color:var(--green)">(+${Math.round(ecart)}€ au-dessus)</span>`:`<span style="color:var(--red)">(${Math.round(ecart)}€ sous l'objectif)</span>`);
-  }else pb.style.display='none';
+  } else pb.style.display='none';
   const recap={};
   (d.cours||[]).forEach(c=>{ if(!recap[c.eleve])recap[c.eleve]={gain:0,nb:0,manques:0}; recap[c.eleve].gain+=c.gain; recap[c.eleve].nb++; });
   (d.cours_manques||[]).forEach(c=>{ if(!recap[c.eleve])recap[c.eleve]={gain:0,nb:0,manques:0}; recap[c.eleve].manques++; });
@@ -1027,14 +1120,7 @@ function renderCalendrier(d){
   const re=document.getElementById('c-recap');
   const keys=Object.keys(recap);
   if(!keys.length){ re.innerHTML='<div style="color:var(--muted);font-size:.72rem;padding:6px 0">Aucun cours ce mois</div>'; }
-  else{
-    re.innerHTML=keys.map(nom=>{
-      const r=recap[nom];
-      const dots=[...Array(r.nb)].map(()=>'<div class="eleve-dot" style="background:var(--green)"></div>').join('')+[...Array(r.manques)].map(()=>'<div class="eleve-dot" style="background:var(--red)"></div>').join('');
-      const rest=elevesR[nom]||0;
-      return `<div class="eleve-recap" onclick="openFiche('${nom}')"><div style="display:flex;align-items:center;gap:8px"><div class="eleve-dots">${dots}</div><div><div>${nom}</div>${rest>0?`<div style="font-size:.58rem;color:var(--amber)">${rest} cours restants</div>`:''}</div></div><div style="text-align:right"><div style="font-family:var(--mono);color:var(--green);font-size:.75rem">+${r.gain.toFixed(2)} €</div><div style="font-size:.58rem;color:var(--muted)">${r.nb} cours${r.manques>0?` · <span style="color:var(--red)">${r.manques} manqué</span>`:''}</div></div></div>`;
-    }).join('');
-  }
+  else{ re.innerHTML=keys.map(nom=>{ const r=recap[nom]; const dots=[...Array(r.nb)].map(()=>'<div class="eleve-dot" style="background:var(--green)"></div>').join('')+[...Array(r.manques)].map(()=>'<div class="eleve-dot" style="background:var(--red)"></div>').join(''); const rest=elevesR[nom]||0; return `<div class="eleve-recap" onclick="openFiche('${nom}')"><div style="display:flex;align-items:center;gap:8px"><div class="eleve-dots">${dots}</div><div><div>${nom}</div>${rest>0?`<div style="font-size:.58rem;color:var(--amber)">${rest} cours restants</div>`:''}</div></div><div style="text-align:right"><div style="font-family:var(--mono);color:var(--green);font-size:.75rem">+${r.gain.toFixed(2)} €</div><div style="font-size:.58rem;color:var(--muted)">${r.nb} cours${r.manques>0?` · <span style="color:var(--red)">${r.manques} manqué</span>`:''}</div></div></div>`; }).join(''); }
   if(d.nb_cours_manques>0){ document.getElementById('c-mc').style.display='block'; document.getElementById('c-ml').innerHTML=(d.cours_manques||[]).map(c=>`<div class="eleve-recap"><span>${c.eleve}${c.libelle==='déplacé'?' <span style="font-size:.58rem;color:var(--amber)">📅 déplacé</span>':''}</span><span style="color:var(--red);font-family:var(--mono)">-${c.gain_manque.toFixed(2)} €</span></div>`).join(''); }
   else document.getElementById('c-mc').style.display='none';
 }
@@ -1052,43 +1138,20 @@ function showDay(jour,data){
   det.innerHTML=html; det.style.display='block';
 }
 
-// ── BUDGETS avec actions par item ──
+// ── BUDGETS ──
 function renderBudgets(d){
   const bl=document.getElementById('b-ls');
   const isCurrent=d.mois_offset===0;
-  const totalDep=d.total_dep||0, totalMax=Object.values(d.budgets).reduce((s,b)=>s+b.max,0);
-  const totalPct=pct(totalDep,totalMax), totalCol=col(totalPct);
-  bl.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem">
-    <div class="card-label" style="margin:0">Dépenses variables${isCurrent?'':' <span class="badge-hist">Archivé</span>'}</div>
-    <div style="font-size:.58rem;color:var(--muted)">✏️ modifier · 🗑️ supprimer</div>
-  </div>`;
-
+  const totalDep=d.total_dep||0,totalMax=Object.values(d.budgets).reduce((s,b)=>s+b.max,0);
+  const totalPct=pct(totalDep,totalMax),totalCol=col(totalPct);
+  bl.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem"><div class="card-label" style="margin:0">Dépenses variables${isCurrent?'':' <span class="badge-hist">Archivé</span>'}</div><div style="font-size:.58rem;color:var(--muted)">✏️ modifier · 🗑️ supprimer</div></div>`;
   Object.entries(d.totaux).forEach(([k,v])=>{
-    const b=d.budgets[k], p2=pct(v,b.max), c=col(p2);
-    const items=(d.detail||{})[k]||[], hasItems=items.length>0;
+    const b=d.budgets[k],p2=pct(v,b.max),c=col(p2);
+    const items=(d.detail||{})[k]||[],hasItems=items.length>0;
     bl.innerHTML+=`<div class="cat-btn${hasItems?' ':'noc'}" id="cat-btn-${k}" onclick="${hasItems?`toggleDetail('${k}')`:''}"><span>${b.label}</span><div style="display:flex;align-items:center;gap:8px"><div class="mini-bar"><div class="mini-fill" style="width:${p2}%;background:${c}"></div></div><span style="color:${c};min-width:82px;text-align:right;font-family:var(--mono);font-size:.7rem">${v.toFixed(0)}€ / ${b.max}€</span><span class="chevron">${hasItems?'›':''}</span></div></div>`;
-
-    // Items avec boutons d'action
-    const depHTML = items.length === 0
-      ? '<div style="color:var(--muted);font-size:.68rem;padding:4px 0">Aucune dépense</div>'
-      : items.sort((a,b2)=>new Date(b2.created_at)-new Date(a.created_at)).map(dep=>{
-          const date=new Date(dep.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
-          return `<div class="dep-item">
-            <div class="dep-item-left">
-              <div style="color:var(--text)">${dep.libelle||'—'}</div>
-              <div class="dep-date">${date}</div>
-            </div>
-            <div class="dep-item-right">
-              <span style="color:var(--text);font-family:var(--mono)">${dep.montant.toFixed(2)} €</span>
-              <button class="action-btn edit" onclick="modifierDepense('${dep.id}','${(dep.libelle||'').replace(/'/g,"\\'")}',${dep.montant})" title="Modifier">✏️</button>
-              <button class="action-btn del" onclick="supprimerDepense('${dep.id}','${(dep.libelle||'').replace(/'/g,"\\'")}',${dep.montant})" title="Supprimer">🗑️</button>
-            </div>
-          </div>`;
-        }).join('');
-
+    const depHTML=items.length===0?'<div style="color:var(--muted);font-size:.68rem;padding:4px 0">Aucune dépense</div>':items.sort((a,b2)=>new Date(b2.created_at)-new Date(a.created_at)).map(dep=>{ const date=new Date(dep.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}); return `<div class="dep-item"><div class="dep-item-left"><div style="color:var(--text)">${dep.libelle||'—'}</div><div class="dep-date">${date}</div></div><div class="dep-item-right"><span style="color:var(--text);font-family:var(--mono)">${dep.montant.toFixed(2)} €</span><button class="action-btn edit" onclick="modifierDepense('${dep.id}','${(dep.libelle||'').replace(/'/g,"\\'")}',${dep.montant})" title="Modifier">✏️</button><button class="action-btn del" onclick="supprimerDepense('${dep.id}','${(dep.libelle||'').replace(/'/g,"\\'")}',${dep.montant})" title="Supprimer">🗑️</button></div></div>`; }).join('');
     bl.innerHTML+=`<div class="cat-detail" id="cat-det-${k}">${depHTML}</div>`;
   });
-
   bl.innerHTML+=`<div class="dep-total-bar"><div><div style="font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Total dépenses</div><div style="font-size:.62rem;color:var(--muted);margin-top:2px">Budget max : ${totalMax} €</div></div><div style="text-align:right"><div style="font-size:1rem;font-weight:700;font-family:var(--mono);color:${totalCol}">${totalDep.toFixed(0)} €</div><div style="font-size:.6rem;color:var(--muted)">(${totalPct}%)</div></div></div>`;
 }
 
@@ -1102,7 +1165,7 @@ function renderPrelevements(d){
     let h=`<div class="alert-box"><div class="alert-title">⚠️ Dans les 7 prochains jours — ${totalSem.toFixed(0)} €</div>`;
     d.prelevements_a_venir.forEach(p2=>{ const q=p2.dansJours===0?"Aujourd'hui":p2.dansJours===1?'Demain':`Dans ${p2.dansJours}j`; h+=`<div style="display:flex;justify-content:space-between;margin-top:4px;font-size:.72rem"><span style="color:var(--muted)">${q} · ${p2.nom}</span><span style="color:var(--amber);font-family:var(--mono)">${p2.montant.toFixed(2)} €</span></div>`; });
     pAlert.innerHTML=h+'</div>';
-  }else pAlert.style.display='none';
+  } else pAlert.style.display='none';
   const pl=document.getElementById('p-ls');
   const aujourd=new Date().getDate();
   pl.innerHTML=`<div class="card-label" style="margin-bottom:.4rem">Prélèvements du mois${isCurrent?'':' <span class="badge-hist">Archivé</span>'}</div>`;
@@ -1111,9 +1174,7 @@ function renderPrelevements(d){
   const tous=d.prelevements_tous||[];
   const suspendus=tous.filter(p2=>p2.suspendu);
   if(suspendus.length){ pl.innerHTML+=`<div style="font-size:.65rem;color:var(--muted);padding:5px 0">⏸️ Suspendus: ${suspendus.map(p=>p.nom).join(', ')}</div>`; }
-  if(!isCurrent){
-    tous.filter(p2=>p2.frequence!=='trimestriel').forEach(p2=>{ pl.innerHTML+=`<div class="prel-row${p2.suspendu?' suspended':''}"><span>${p2.nom}</span><div style="display:flex;gap:8px;align-items:center"><span style="color:var(--muted)">le ${p2.jour||'—'}</span><span style="font-family:var(--mono)">${p2.montant.toFixed(2)} €</span></div></div>`; }); return;
-  }
+  if(!isCurrent){ tous.filter(p2=>p2.frequence!=='trimestriel').forEach(p2=>{ pl.innerHTML+=`<div class="prel-row${p2.suspendu?' suspended':''}"><span>${p2.nom}</span><div style="display:flex;gap:8px;align-items:center"><span style="color:var(--muted)">le ${p2.jour||'—'}</span><span style="font-family:var(--mono)">${p2.montant.toFixed(2)} €</span></div></div>`; }); return; }
   const restants=tous.filter(p2=>p2.jour&&p2.jour>=aujourd&&p2.frequence!=='trimestriel'&&!p2.suspendu);
   const passes=tous.filter(p2=>p2.jour&&p2.jour<aujourd&&p2.frequence!=='trimestriel'&&!p2.suspendu);
   const trimest=tous.filter(p2=>p2.frequence==='trimestriel'&&!p2.suspendu);
@@ -1122,7 +1183,7 @@ function renderPrelevements(d){
   if(trimest.length){ pl.innerHTML+='<div class="section-title">Trimestriels</div>'; trimest.forEach(p2=>pl.innerHTML+=`<div class="prel-row"><span>${p2.nom}</span><span style="color:var(--muted);font-family:var(--mono)">${p2.montant.toFixed(2)}€/trim</span></div>`); }
 }
 
-// ── REVENUS avec actions ──
+// ── REVENUS ──
 function renderRevenus(d){
   document.getElementById('r-total').textContent=fmt(d.total_revenus);
   const cp=pct(d.completude,d.objectif_completude);
@@ -1132,32 +1193,12 @@ function renderRevenus(d){
   const rs=document.getElementById('r-sources');
   rs.innerHTML='<div class="card-label" style="margin-bottom:.6rem">Sources de revenus</div>';
   sources.forEach(s=>{ const bw=Math.min(100,Math.round((s.val/d.total_revenus)*100)); rs.innerHTML+=`<div class="row"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:1rem">${s.icon}</span><div><div style="font-size:.75rem">${s.label}</div><div style="font-size:.6rem;color:var(--muted)">${s.sub}</div></div></div><div style="text-align:right"><div style="font-family:var(--mono);font-size:.82rem;color:var(--green)">${Math.round(s.val).toLocaleString('fr-FR')} €</div><div style="font-size:.58rem;color:var(--muted)">${bw}%</div></div></div><div class="bar" style="margin:.3rem 0 .5rem"><div class="fill" style="width:${bw}%;background:var(--green)"></div></div>`; });
-
-  const supp=d.revenus_supp||[], rsupp=document.getElementById('r-supp');
+  const supp=d.revenus_supp||[],rsupp=document.getElementById('r-supp');
   if(supp.length){
     rsupp.style.display='block';
     const ts=supp.reduce((s,r)=>s+r.montant,0);
-    rsupp.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem">
-      <div class="card-label" style="margin:0">Rentrées supplémentaires</div>
-      <div style="display:flex;align-items:center;gap:8px">
-        <span style="font-family:var(--mono);font-size:.8rem;color:var(--green)">+${Math.round(ts).toLocaleString('fr-FR')} €</span>
-        <span style="font-size:.58rem;color:var(--muted)">✏️ · 🗑️</span>
-      </div>
-    </div>`;
-    supp.forEach(r=>{
-      const date=new Date(r.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
-      rsupp.innerHTML+=`<div class="row" style="align-items:flex-start">
-        <div style="flex:1">
-          <div style="font-size:.75rem">${r.libelle||'Divers'}</div>
-          <div style="font-size:.6rem;color:var(--muted)">${date}</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:4px">
-          <span style="font-family:var(--mono);color:var(--green);font-size:.75rem">+${r.montant.toFixed(2)} €</span>
-          <button class="action-btn edit" onclick="modifierRevenu('${r.id}','${(r.libelle||'').replace(/'/g,"\\'")}',${r.montant})" title="Modifier">✏️</button>
-          <button class="action-btn del" onclick="supprimerRevenu('${r.id}','${(r.libelle||'').replace(/'/g,"\\'")}',${r.montant})" title="Supprimer">🗑️</button>
-        </div>
-      </div>`;
-    });
+    rsupp.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem"><div class="card-label" style="margin:0">Rentrées supplémentaires</div><div style="display:flex;align-items:center;gap:8px"><span style="font-family:var(--mono);font-size:.8rem;color:var(--green)">+${Math.round(ts).toLocaleString('fr-FR')} €</span><span style="font-size:.58rem;color:var(--muted)">✏️ · 🗑️</span></div></div>`;
+    supp.forEach(r=>{ const date=new Date(r.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}); rsupp.innerHTML+=`<div class="row" style="align-items:flex-start"><div style="flex:1"><div style="font-size:.75rem">${r.libelle||'Divers'}</div><div style="font-size:.6rem;color:var(--muted)">${date}</div></div><div style="display:flex;align-items:center;gap:4px"><span style="font-family:var(--mono);color:var(--green);font-size:.75rem">+${r.montant.toFixed(2)} €</span><button class="action-btn edit" onclick="modifierRevenu('${r.id}','${(r.libelle||'').replace(/'/g,"\\'")}',${r.montant})" title="Modifier">✏️</button><button class="action-btn del" onclick="supprimerRevenu('${r.id}','${(r.libelle||'').replace(/'/g,"\\'")}',${r.montant})" title="Supprimer">🗑️</button></div></div>`; });
   } else rsupp.style.display='none';
 }
 
@@ -1178,8 +1219,8 @@ async function charger(){
     document.getElementById('mois-badge').textContent=moisOffset===0?'Mois en cours':'Historique';
     document.getElementById('btn-next').disabled=moisOffset>=0;
 
-    const fixes=d.charges_fixes||0, dep=d.total_dep||0, chargeTotal=fixes+dep, rev=d.total_revenus||1;
-    const pctF=Math.round((fixes/chargeTotal)*100), pctD=100-pctF;
+    const fixes=d.charges_fixes||0,dep=d.total_dep||0,chargeTotal=fixes+dep,rev=d.total_revenus||1;
+    const pctF=Math.round((fixes/chargeTotal)*100),pctD=100-pctF;
     const pctSurRev=Math.round((chargeTotal/rev)*100);
     const cCol=pctSurRev>=90?'var(--red)':pctSurRev>=75?'var(--amber)':'var(--green)';
     document.getElementById('ct-fixes').textContent=fmt(fixes);
@@ -1194,8 +1235,8 @@ async function charger(){
 
     renderAlerteSeuil(d);
 
-    const gagne=d.completude||0, restantPot=d.potentiel_restant||0, manqueTot=d.total_manque||0, objC=d.objectif_completude||1500;
-    const projection=gagne+restantPot, projPct=pct(projection,objC), projCol=col(projPct);
+    const gagne=d.completude||0,restantPot=d.potentiel_restant||0,manqueTot=d.total_manque||0,objC=d.objectif_completude||1500;
+    const projection=gagne+restantPot,projPct=pct(projection,objC),projCol=col(projPct);
     document.getElementById('fc-gagne').textContent='+'+fmt(gagne);
     document.getElementById('fc-restant').textContent=restantPot>0?'+'+fmt(restantPot):'0 €';
     document.getElementById('fc-manques').textContent=manqueTot>0?'-'+fmt(manqueTot):'0 €';
@@ -1212,11 +1253,11 @@ async function charger(){
     document.getElementById('a-rv-det').textContent=sp.join(' · ');
     const sl=document.getElementById('a-sl'); sl.textContent=(d.solde>=0?'+':'')+fmt(d.solde); sl.style.color=cs(d.solde);
     document.getElementById('a-sl-b').style.cssText=`width:${Math.min(100,Math.max(0,(d.solde/1500)*100))}%;background:${cs(d.solde)}`;
-    const cp=pct(d.completude,d.objectif_completude);
-    const co=document.getElementById('a-co'); co.textContent=fmt(d.completude); co.style.color=col(cp);
-    document.getElementById('a-co-b').style.cssText=`width:${cp}%;background:${col(cp)}`;
-    document.getElementById('a-co-s').textContent=`${Math.round(d.completude)} / ${d.objectif_completude} € (${cp}%)`;
-    const pe=document.getElementById('a-co-pct'); pe.textContent=cp+'%'; pe.style.color=col(cp);
+    const cp2=pct(d.completude,d.objectif_completude);
+    const co=document.getElementById('a-co'); co.textContent=fmt(d.completude); co.style.color=col(cp2);
+    document.getElementById('a-co-b').style.cssText=`width:${cp2}%;background:${col(cp2)}`;
+    document.getElementById('a-co-s').textContent=`${Math.round(d.completude)} / ${d.objectif_completude} € (${cp2}%)`;
+    const pe=document.getElementById('a-co-pct'); pe.textContent=cp2+'%'; pe.style.color=col(cp2);
 
     document.getElementById('c-nb').textContent=d.nb_cours;
     document.getElementById('c-mn').textContent=d.nb_cours_manques;
@@ -1229,9 +1270,12 @@ async function charger(){
     renderInvest(d);
     renderConfig(d);
 
+    // Simulateur : init seulement si mois courant
+    if(moisOffset===0) initSimulateur(d);
+
     const ol=document.getElementById('o-ls');
     ol.innerHTML='<div class="card-label" style="margin-bottom:.6rem">Progression épargne</div>';
-    d.objectifs.forEach(o=>{ const p2=pct(d.epargne_estimee,o.montant), c=col(p2), delta=Math.round(d.epargne_estimee-o.montant); ol.innerHTML+=`<div class="obj"><div class="obj-header"><span>${delta>=0?'✅':'⚠️'} ${o.label}</span><span style="color:${c};font-family:var(--mono)">${delta>=0?'+':''}${delta.toLocaleString('fr-FR')} €</span></div><div class="bar"><div class="fill" style="width:${p2}%;background:${c}"></div></div><div style="display:flex;justify-content:space-between;font-size:.6rem;color:var(--muted);margin-top:3px"><span>${Math.round(d.epargne_estimee).toLocaleString('fr-FR')} €</span><span>${o.montant.toLocaleString('fr-FR')} €</span></div></div>`; });
+    d.objectifs.forEach(o=>{ const p2=pct(d.epargne_estimee,o.montant),c=col(p2),delta=Math.round(d.epargne_estimee-o.montant); ol.innerHTML+=`<div class="obj"><div class="obj-header"><span>${delta>=0?'✅':'⚠️'} ${o.label}</span><span style="color:${c};font-family:var(--mono)">${delta>=0?'+':''}${delta.toLocaleString('fr-FR')} €</span></div><div class="bar"><div class="fill" style="width:${p2}%;background:${c}"></div></div><div style="display:flex;justify-content:space-between;font-size:.6rem;color:var(--muted);margin-top:3px"><span>${Math.round(d.epargne_estimee).toLocaleString('fr-FR')} €</span><span>${o.montant.toLocaleString('fr-FR')} €</span></div></div>`; });
 
     document.getElementById('upd').textContent='Actualisé à '+new Date().toLocaleTimeString('fr-FR');
   }catch(e){
