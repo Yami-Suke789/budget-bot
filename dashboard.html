@@ -950,6 +950,9 @@ function recalcSimulateur(){
   const epargneBase = parseFloat(epInput?.value) || 0;
   if(epargneBase <= 0){ toast('❌ Saisis ton épargne actuelle',true); return; }
 
+  // Solde actuel du mois (calculé par le backend)
+  const soldeActuel = d.solde || 0;
+
   // Prélèvements restants (jours strictement futurs)
   const aujourd = new Date().getDate();
   const prelsRestants = (d.prelevements_tous||[]).filter(p => p.jour && p.jour > aujourd && !p.suspendu && p.frequence !== 'trimestriel');
