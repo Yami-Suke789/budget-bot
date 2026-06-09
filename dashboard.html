@@ -950,9 +950,6 @@ function recalcSimulateur(){
   const epargneBase = parseFloat(epInput?.value) || 0;
   if(epargneBase <= 0){ toast('❌ Saisis ton épargne actuelle',true); return; }
 
-  // Solde actuel du mois (calculé par le backend)
-  const soldeActuel = d.solde || 0;
-
   // Prélèvements restants (jours strictement futurs)
   const aujourd = new Date().getDate();
   const prelsRestants = (d.prelevements_tous||[]).filter(p => p.jour && p.jour > aujourd && !p.suspendu && p.frequence !== 'trimestriel');
@@ -972,7 +969,7 @@ function recalcSimulateur(){
   const totalExcep = simulDepenses.reduce((s,dep) => s+dep.montant, 0);
 
   // Calcul
-  const soldeProj = soldeActuel + totalCours - totalPrel - complementCourses - complementEssence - complementRestos - totalExcep;
+  const soldeProj = totalCours - totalPrel - complementCourses - complementEssence - complementRestos - totalExcep;
   const epargneFinale = epargneBase + soldeProj;
 
   // Afficher le bloc résultat
