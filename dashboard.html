@@ -264,6 +264,38 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
 .simul-remove-btn:hover{background:rgba(248,113,113,0.1)}
 .simul-reset{background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.2);color:var(--red);border-radius:8px;padding:7px;font-size:.65rem;cursor:pointer;width:100%;margin-top:.3rem;font-family:'Sora',sans-serif;transition:.15s}
 .simul-reset:hover{background:rgba(248,113,113,0.15)}
+
+/* ── VTC ── */
+.vtc-hero{background:linear-gradient(135deg,rgba(242,100,25,0.12),rgba(255,170,68,0.06));border:1px solid rgba(242,100,25,0.22);border-radius:14px;padding:1rem;margin-bottom:.55rem}
+.vtc-hero-label{font-size:.58rem;text-transform:uppercase;letter-spacing:.08em;color:var(--orange);text-align:center;font-weight:700}
+.vtc-hero-main{font-size:2rem;font-weight:700;font-family:var(--mono);text-align:center;margin:.25rem 0}
+.vtc-hero-sub{font-size:.68rem;color:var(--muted);text-align:center}
+.vtc-form-toggle{display:flex;gap:6px;margin-bottom:.6rem}
+.vtc-form-toggle button{flex:1;padding:7px;border-radius:8px;font-size:.65rem;font-weight:700;cursor:pointer;font-family:'Sora',sans-serif;border:1px solid var(--border);background:rgba(255,255,255,0.06);color:var(--muted)}
+.vtc-form-toggle button.active{background:var(--orange);color:#fff;border-color:transparent}
+.vtc-field{margin-bottom:.55rem}
+.vtc-field label{display:block;font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.3rem}
+.vtc-field input,.vtc-field select{width:100%;background:rgba(255,255,255,0.07);border:1px solid var(--border);color:var(--text);font-size:.85rem;padding:8px 10px;border-radius:8px;outline:none;font-family:var(--mono)}
+.vtc-field input:focus,.vtc-field select:focus{border-color:var(--orange)}
+.vtc-field-row{display:flex;gap:8px}
+.vtc-field-row .vtc-field{flex:1}
+.vtc-plat-btns{display:flex;gap:5px}
+.vtc-plat-btn{flex:1;padding:7px;border-radius:7px;font-size:.65rem;font-weight:700;cursor:pointer;font-family:'Sora',sans-serif;background:rgba(255,255,255,0.05);color:var(--muted);border:1px solid var(--border)}
+.vtc-plat-btn.active{background:rgba(242,100,25,0.18);color:var(--orange);border-color:rgba(242,100,25,0.4)}
+.vtc-submit{width:100%;background:var(--orange);color:#fff;border:none;border-radius:9px;padding:11px;font-size:.78rem;font-weight:700;cursor:pointer;font-family:'Sora',sans-serif;margin-top:.3rem}
+.vtc-submit:hover{opacity:.9}
+.vtc-session-row{display:flex;justify-content:space-between;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--border);font-size:.73rem}
+.vtc-session-row:last-child{border-bottom:none}
+.vtc-plat-tag{font-size:.55rem;text-transform:uppercase;font-weight:700;padding:2px 7px;border-radius:5px;display:inline-block;margin-bottom:2px}
+.vtc-plat-uber{background:rgba(96,165,250,0.15);color:var(--blue)}
+.vtc-plat-bolt{background:rgba(74,222,128,0.15);color:var(--green)}
+.vtc-plat-heetch{background:rgba(167,139,250,0.15);color:var(--purple)}
+.vtc-plat-autre{background:rgba(255,255,255,0.08);color:var(--muted)}
+.vtc-charge-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:.74rem}
+.vtc-charge-row:last-child{border-bottom:none}
+.vtc-charge-add{display:flex;gap:6px;margin-top:.6rem}
+.vtc-charge-add input{flex:1;background:rgba(255,255,255,0.07);border:1px solid var(--border);color:var(--text);font-size:.75rem;padding:7px 9px;border-radius:7px;outline:none;font-family:'Sora',sans-serif}
+.vtc-charge-add input.amt{flex:0 0 80px;font-family:var(--mono);text-align:right}
 </style>
 </head>
 <body>
@@ -319,6 +351,35 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
   </div>
 </div>
 
+<!-- MODAL VTC : MODIFIER UNE SESSION -->
+<div class="modal modal-center" id="modal-vtc-edit" onclick="closeModalVtcEdit(event)">
+  <div class="modal-box">
+    <div class="modal-box-title">✏️ Modifier la session VTC</div>
+    <div class="vtc-field-row">
+      <div class="vtc-field"><label>Date</label><input type="date" id="vex-date"></div>
+      <div class="vtc-field"><label>Plateforme</label>
+        <select id="vex-plateforme">
+          <option value="uber">Uber</option><option value="bolt">Bolt</option>
+          <option value="heetch">Heetch</option><option value="autre">Autre</option>
+        </select>
+      </div>
+    </div>
+    <div class="vtc-field-row">
+      <div class="vtc-field"><label>Heure début</label><input type="time" id="vex-debut"></div>
+      <div class="vtc-field"><label>Heure fin</label><input type="time" id="vex-fin"></div>
+    </div>
+    <div class="vtc-field-row">
+      <div class="vtc-field"><label>CA brut (€)</label><input type="number" step="0.01" id="vex-ca"></div>
+      <div class="vtc-field"><label>Courses</label><input type="number" id="vex-courses"></div>
+    </div>
+    <div class="vtc-field"><label>Carburant (€)</label><input type="number" step="0.01" id="vex-carburant"></div>
+    <div class="modal-box-actions">
+      <button class="btn-confirm-cancel" onclick="closeModalVtcEdit()">Annuler</button>
+      <button class="btn-save-edit" id="vex-btn-save">✅ Enregistrer</button>
+    </div>
+  </div>
+</div>
+
 <div class="header">
   <div class="header-top">
     <div class="brand">
@@ -346,6 +407,7 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
 <div class="tabs">
   <div class="tab active" onclick="setTab('apercu')">Aperçu</div>
   <div class="tab" onclick="setTab('cours')">Cours</div>
+  <div class="tab" onclick="setTab('vtc')">🚗 VTC</div>
   <div class="tab" onclick="setTab('budgets')">Dépenses</div>
   <div class="tab" onclick="setTab('revenus')">Revenus</div>
   <div class="tab" onclick="setTab('prelevements')">Prélèv.</div>
@@ -434,6 +496,86 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
     <div class="card-label" style="margin-bottom:.5rem;color:var(--red)">Cours manqués ce mois</div>
     <div id="c-ml">—</div>
   </div>
+</div>
+
+<!-- VTC -->
+<div class="section" id="tab-vtc">
+
+  <div class="vtc-hero">
+    <div class="vtc-hero-label">💰 Net réel — <span id="vtc-mois-label">ce mois</span></div>
+    <div class="vtc-hero-main" id="vtc-net">—</div>
+    <div class="vtc-hero-sub" id="vtc-objectif-sub">—</div>
+    <div class="bar" style="height:6px;margin-top:.6rem"><div class="fill" id="vtc-obj-bar" style="width:0%"></div></div>
+  </div>
+
+  <div class="grid" style="margin-bottom:.55rem">
+    <div class="card"><div class="card-label">CA brut</div><div class="card-value" id="vtc-ca-brut" style="font-size:1.15rem">—</div></div>
+    <div class="card"><div class="card-label">CA encaissé</div><div class="card-value green" id="vtc-ca-enc" style="font-size:1.15rem">—</div></div>
+    <div class="card"><div class="card-label">Heures travaillées</div><div class="card-value" id="vtc-heures" style="font-size:1.15rem">—</div></div>
+    <div class="card"><div class="card-label">Taux horaire net</div><div class="card-value amber" id="vtc-taux" style="font-size:1.15rem">—</div></div>
+    <div class="card"><div class="card-label">Carburant</div><div class="card-value red" id="vtc-carburant" style="font-size:1.1rem">—</div></div>
+    <div class="card"><div class="card-label">URSSAF estimé</div><div class="card-value red" id="vtc-urssaf" style="font-size:1.1rem">—</div></div>
+  </div>
+
+  <!-- Formulaire ajout session -->
+  <div class="card full" style="margin-bottom:.55rem">
+    <div class="card-label" style="margin-bottom:.7rem">➕ Enregistrer une session</div>
+
+    <div class="vtc-field">
+      <label>Plateforme</label>
+      <div class="vtc-plat-btns">
+        <button class="vtc-plat-btn active" data-plat="uber" onclick="setVtcPlateforme('uber')">Uber</button>
+        <button class="vtc-plat-btn" data-plat="bolt" onclick="setVtcPlateforme('bolt')">Bolt</button>
+        <button class="vtc-plat-btn" data-plat="heetch" onclick="setVtcPlateforme('heetch')">Heetch</button>
+        <button class="vtc-plat-btn" data-plat="autre" onclick="setVtcPlateforme('autre')">Autre</button>
+      </div>
+    </div>
+
+    <div class="vtc-field-row">
+      <div class="vtc-field"><label>Date</label><input type="date" id="vtc-f-date"></div>
+    </div>
+    <div class="vtc-field-row">
+      <div class="vtc-field"><label>Heure début</label><input type="time" id="vtc-f-debut"></div>
+      <div class="vtc-field"><label>Heure fin</label><input type="time" id="vtc-f-fin"></div>
+    </div>
+    <div class="vtc-field-row">
+      <div class="vtc-field"><label>CA brut (€)</label><input type="number" step="0.01" min="0" id="vtc-f-ca" placeholder="Ex: 120"></div>
+      <div class="vtc-field"><label>Nb courses</label><input type="number" min="0" id="vtc-f-courses" placeholder="Ex: 8"></div>
+    </div>
+    <div class="vtc-field"><label>Carburant (€)</label><input type="number" step="0.01" min="0" id="vtc-f-carburant" placeholder="Ex: 15"></div>
+
+    <button class="vtc-submit" onclick="enregistrerSessionVtc()">▶ Enregistrer la session</button>
+  </div>
+
+  <!-- Top créneaux -->
+  <div class="card full" style="margin-bottom:.55rem">
+    <div class="card-label" style="margin-bottom:.5rem">🏆 Top créneaux (taux horaire)</div>
+    <div id="vtc-top-list">—</div>
+  </div>
+
+  <!-- Charges fixes -->
+  <div class="card full" style="margin-bottom:.55rem">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
+      <div class="card-label" style="margin:0">🏦 Charges fixes hebdo</div>
+      <span style="font-size:.58rem;color:var(--muted)">✏️ · 🗑️</span>
+    </div>
+    <div id="vtc-charges-list">—</div>
+    <div class="vtc-charge-add">
+      <input type="text" id="vtc-charge-nom" placeholder="Libellé (ex: Clicar)">
+      <input type="number" step="0.01" class="amt" id="vtc-charge-montant" placeholder="€/sem">
+      <button class="simul-add-btn" onclick="ajouterChargeVtcUI()">+</button>
+    </div>
+  </div>
+
+  <!-- Historique sessions -->
+  <div class="card full" style="margin-bottom:.55rem">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
+      <div class="card-label" style="margin:0">📋 Sessions du mois</div>
+      <span style="font-size:.58rem;color:var(--muted)">✏️ modifier · 🗑️ supprimer</span>
+    </div>
+    <div id="vtc-sessions-list">—</div>
+  </div>
+
 </div>
 
 <!-- DEPENSES -->
@@ -620,6 +762,9 @@ let editingField = null;
 let simulData = null;
 let simulDepenses = []; // [{label, montant}]
 
+// ── VTC STATE ──
+let vtcPlateforme = 'uber';
+
 const JOURS = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
 const NIVEAUX = {CP:'CP',CE1:'CE1',CE2:'CE2',CM1:'CM1',CM2:'CM2','6e':'6ème','5e':'5ème','4e':'4ème','3e':'3ème','2nde':'2nde','1ère':'1ère',Terminale:'Terminale'};
 
@@ -656,7 +801,7 @@ function toast(msg, isError=false){
 }
 
 function setTab(t){
-  const tabs=['apercu','cours','budgets','revenus','prelevements','invest','objectifs','simul','config'];
+  const tabs=['apercu','cours','vtc','budgets','revenus','prelevements','invest','objectifs','simul','config'];
   document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',tabs[i]===t));
   document.querySelectorAll('.section').forEach(el=>el.classList.remove('active'));
   document.getElementById('tab-'+t).classList.add('active');
@@ -799,6 +944,231 @@ function renderConfig(d){
 }
 
 function encodeId(s){ return s.replace(/[^a-zA-Z0-9]/g,'-'); }
+
+// ══════════════════════════════════════════════════════════
+// ── VTC ──
+// ══════════════════════════════════════════════════════════
+
+function setVtcPlateforme(p){
+  vtcPlateforme = p;
+  document.querySelectorAll('.vtc-plat-btn').forEach(btn=>{
+    btn.classList.toggle('active', btn.dataset.plat===p);
+  });
+}
+
+function initVtcForm(){
+  const dateInput = document.getElementById('vtc-f-date');
+  if(dateInput && !dateInput.value){
+    dateInput.value = new Date().toISOString().slice(0,10);
+  }
+}
+
+async function enregistrerSessionVtc(){
+  const date = document.getElementById('vtc-f-date').value;
+  const debut = document.getElementById('vtc-f-debut').value;
+  const fin = document.getElementById('vtc-f-fin').value;
+  const ca = parseFloat(document.getElementById('vtc-f-ca').value);
+  const courses = document.getElementById('vtc-f-courses').value;
+  const carburant = document.getElementById('vtc-f-carburant').value;
+
+  if(!date || !debut || !fin){ toast('❌ Renseigne la date et les heures',true); return; }
+  if(!ca || ca<=0){ toast('❌ CA brut invalide',true); return; }
+
+  toast('⏳ Enregistrement...');
+  try{
+    const r = await fetch('/api/vtc/session', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        date, heure_debut: debut, heure_fin: fin,
+        plateforme: vtcPlateforme, ca_brut: ca,
+        nb_courses: courses || null, carburant: carburant || 0,
+      })
+    });
+    const j = await r.json();
+    if(j.ok){
+      toast('✅ Session enregistrée');
+      document.getElementById('vtc-f-ca').value='';
+      document.getElementById('vtc-f-courses').value='';
+      document.getElementById('vtc-f-carburant').value='';
+      document.getElementById('vtc-f-debut').value='';
+      document.getElementById('vtc-f-fin').value='';
+      charger();
+    } else toast('❌ '+j.error,true);
+  }catch{ toast('❌ Erreur réseau',true); }
+}
+
+function openModalVtcEdit(s){
+  document.getElementById('vex-date').value = s.date;
+  document.getElementById('vex-plateforme').value = s.plateforme;
+  document.getElementById('vex-debut').value = (s.heure_debut||'').slice(0,5);
+  document.getElementById('vex-fin').value = (s.heure_fin||'').slice(0,5);
+  document.getElementById('vex-ca').value = s.ca_brut;
+  document.getElementById('vex-courses').value = s.nb_courses || '';
+  document.getElementById('vex-carburant').value = s.carburant || 0;
+  document.getElementById('vex-btn-save').onclick = async ()=>{
+    const update = {
+      date: document.getElementById('vex-date').value,
+      plateforme: document.getElementById('vex-plateforme').value,
+      heure_debut: document.getElementById('vex-debut').value,
+      heure_fin: document.getElementById('vex-fin').value,
+      ca_brut: parseFloat(document.getElementById('vex-ca').value),
+      nb_courses: document.getElementById('vex-courses').value || 0,
+      carburant: document.getElementById('vex-carburant').value || 0,
+    };
+    if(!update.ca_brut || update.ca_brut<=0){ toast('❌ CA brut invalide',true); return; }
+    try{
+      const r = await fetch(`/api/vtc/session/${s.id}`, {method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(update)});
+      const j = await r.json();
+      if(j.ok){ toast('✅ Session modifiée'); closeModalVtcEdit(); charger(); }
+      else toast('❌ '+j.error,true);
+    }catch{ toast('❌ Erreur réseau',true); }
+  };
+  document.getElementById('modal-vtc-edit').classList.add('open');
+}
+function closeModalVtcEdit(e){
+  if(e && e.target !== document.getElementById('modal-vtc-edit')) return;
+  document.getElementById('modal-vtc-edit').classList.remove('open');
+}
+
+async function supprimerSessionVtc(id, plateforme, ca){
+  showConfirm('🗑️ Supprimer cette session ?',`${plateforme} — ${Number(ca).toFixed(0)} € CA brut`,async()=>{
+    try{ const r=await fetch(`/api/vtc/session/${id}`,{method:'DELETE'}); const j=await r.json(); if(j.ok){toast('✅ Session supprimée');charger();}else toast('❌ '+j.error,true); }catch{toast('❌ Erreur réseau',true);}
+  });
+}
+
+async function ajouterChargeVtcUI(){
+  const nom = document.getElementById('vtc-charge-nom').value.trim();
+  const montant = parseFloat(document.getElementById('vtc-charge-montant').value);
+  if(!nom){ toast('❌ Saisis un libellé',true); return; }
+  if(!montant || montant<=0){ toast('❌ Montant invalide',true); return; }
+  try{
+    const r = await fetch('/api/vtc/charge', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nom,montant})});
+    const j = await r.json();
+    if(j.ok){ toast('✅ Charge ajoutée'); document.getElementById('vtc-charge-nom').value=''; document.getElementById('vtc-charge-montant').value=''; charger(); }
+    else toast('❌ '+j.error,true);
+  }catch{ toast('❌ Erreur réseau',true); }
+}
+
+async function modifierChargeVtc(nom, montantActuel){
+  showModif(`✏️ Modifier "${nom}" (€/semaine)`,montantActuel,async(val)=>{
+    try{
+      const r = await fetch(`/api/vtc/charge/${encodeURIComponent(nom)}`, {method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({montant:val})});
+      const j = await r.json();
+      if(j.ok){ toast('✅ Charge modifiée'); charger(); } else toast('❌ '+j.error,true);
+    }catch{ toast('❌ Erreur réseau',true); }
+  });
+}
+
+async function supprimerChargeVtc(nom, montant){
+  showConfirm('🗑️ Supprimer cette charge ?',`"${nom}" — ${montant} €/semaine`,async()=>{
+    try{ const r=await fetch(`/api/vtc/charge/${encodeURIComponent(nom)}`,{method:'DELETE'}); const j=await r.json(); if(j.ok){toast('✅ Charge supprimée');charger();}else toast('❌ '+j.error,true); }catch{toast('❌ Erreur réseau',true);}
+  });
+}
+
+function dureeHeuresVtc(hd, hf){
+  if(!hd || !hf) return 0;
+  const [h1,m1] = hd.split(':').map(Number);
+  const [h2,m2] = hf.split(':').map(Number);
+  let minutes = (h2*60+(m2||0)) - (h1*60+(m1||0));
+  if(minutes < 0) minutes += 24*60;
+  return minutes/60;
+}
+
+function renderVtc(d){
+  const isCurrent = d.mois_offset===0;
+  document.getElementById('vtc-mois-label').textContent = isCurrent ? 'ce mois' : 'mois archivé';
+
+  const net = d.vtc_net||0;
+  const obj = d.vtc_objectif_mensuel||3892;
+  const netEl = document.getElementById('vtc-net');
+  netEl.textContent = fmt(net);
+  netEl.style.color = net>=obj?'var(--green)':net>=0?'var(--amber)':'var(--red)';
+  const p = pct(net,obj);
+  document.getElementById('vtc-obj-bar').style.cssText = `width:${p}%;background:${col(p)}`;
+  document.getElementById('vtc-objectif-sub').textContent = `${p}% de l'objectif (${obj.toLocaleString('fr-FR')} €)`;
+
+  document.getElementById('vtc-ca-brut').textContent = fmt(d.vtc_ca_brut||0);
+  document.getElementById('vtc-ca-enc').textContent = fmt(d.vtc_ca_encaisse||0);
+  document.getElementById('vtc-heures').textContent = (d.vtc_heures||0).toFixed(1)+' h';
+  document.getElementById('vtc-taux').textContent = (d.vtc_heures>0) ? (d.vtc_taux_horaire||0).toFixed(1)+' €/h' : '—';
+  document.getElementById('vtc-carburant').textContent = '-'+fmt(d.vtc_carburant||0);
+  document.getElementById('vtc-urssaf').textContent = '-'+fmt(d.vtc_urssaf||0);
+
+  // Charges fixes
+  const charges = d.vtc_charges||[];
+  const chList = document.getElementById('vtc-charges-list');
+  if(!charges.length){
+    chList.innerHTML = '<div style="color:var(--muted);font-size:.7rem;padding:6px 0">Aucune charge fixe enregistrée</div>';
+  } else {
+    chList.innerHTML = charges.map(c=>`
+      <div class="vtc-charge-row">
+        <span>${c.nom}</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-family:var(--mono)">${c.montant.toFixed(2)} €/sem</span>
+          <button class="action-btn edit" onclick='modifierChargeVtc(${JSON.stringify(c.nom)},${c.montant})' title="Modifier">✏️</button>
+          <button class="action-btn del" onclick='supprimerChargeVtc(${JSON.stringify(c.nom)},${c.montant})' title="Supprimer">🗑️</button>
+        </div>
+      </div>`).join('');
+  }
+
+  // Top créneaux (calculé côté client à partir des sessions du mois)
+  const sessions = d.vtc_sessions||[];
+  const JOURS_V = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+  const groupes = {};
+  sessions.forEach(s=>{
+    const jourSemaine = new Date(s.date).getDay();
+    const heureDebut = parseInt((s.heure_debut||'0').split(':')[0],10);
+    const tranche = Math.floor(heureDebut/3)*3;
+    const cle = `${jourSemaine}_${tranche}`;
+    if(!groupes[cle]) groupes[cle] = {jourSemaine,tranche,caTotal:0,heuresTotal:0,count:0};
+    groupes[cle].caTotal += Number(s.ca_brut);
+    groupes[cle].heuresTotal += dureeHeuresVtc(s.heure_debut,s.heure_fin);
+    groupes[cle].count++;
+  });
+  const classement = Object.values(groupes).filter(g=>g.heuresTotal>0).map(g=>({...g,tauxHoraire:g.caTotal/g.heuresTotal})).sort((a,b)=>b.tauxHoraire-a.tauxHoraire).slice(0,5);
+  const topList = document.getElementById('vtc-top-list');
+  if(!classement.length){
+    topList.innerHTML = '<div style="color:var(--muted);font-size:.7rem;padding:6px 0">Pas encore assez de données</div>';
+  } else {
+    topList.innerHTML = classement.map((g,i)=>`
+      <div class="row">
+        <span>${i+1}. ${JOURS_V[g.jourSemaine]} ${g.tranche}h-${g.tranche+3}h</span>
+        <div style="text-align:right">
+          <div style="font-family:var(--mono);color:var(--amber)">${g.tauxHoraire.toFixed(1)} €/h</div>
+          <div style="font-size:.58rem;color:var(--muted)">${g.count} session${g.count>1?'s':''}</div>
+        </div>
+      </div>`).join('');
+  }
+
+  // Sessions du mois
+  const sessList = document.getElementById('vtc-sessions-list');
+  if(!sessions.length){
+    sessList.innerHTML = '<div style="color:var(--muted);font-size:.72rem;padding:6px 0">Aucune session ce mois</div>';
+  } else {
+    const sorted = [...sessions].sort((a,b)=>new Date(b.created_at||b.date)-new Date(a.created_at||a.date));
+    sessList.innerHTML = sorted.map(s=>{
+      const date = new Date(s.date).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
+      const heures = dureeHeuresVtc(s.heure_debut,s.heure_fin);
+      const caEnc = s.ca_brut - (s.commission_plateforme||0);
+      const sData = JSON.stringify(s).replace(/'/g,"&#39;");
+      return `<div class="vtc-session-row">
+        <div>
+          <span class="vtc-plat-tag vtc-plat-${s.plateforme}">${s.plateforme}</span>
+          <div style="margin-top:2px">${date} · ${(s.heure_debut||'').slice(0,5)}-${(s.heure_fin||'').slice(0,5)} · ${heures.toFixed(1)}h</div>
+          ${s.nb_courses?`<div style="font-size:.6rem;color:var(--muted)">${s.nb_courses} courses${s.carburant?` · ⛽ ${Number(s.carburant).toFixed(0)}€`:''}</div>`:''}
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:6px">
+          <div style="text-align:right">
+            <div style="font-family:var(--mono)">${Number(s.ca_brut).toFixed(0)} €</div>
+            <div style="font-size:.6rem;color:var(--green)">${caEnc.toFixed(0)} € net</div>
+          </div>
+          <button class="action-btn edit" onclick='openModalVtcEdit(${sData})' title="Modifier">✏️</button>
+          <button class="action-btn del" onclick="supprimerSessionVtc('${s.id}','${s.plateforme}',${s.ca_brut})" title="Supprimer">🗑️</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+}
 
 // ── INVESTISSEMENTS (watchlist mise à jour : ETF islamiques) ──
 function renderInvest(d){
@@ -1357,11 +1727,13 @@ async function charger(){
     document.getElementById('c-mn').textContent=d.nb_cours_manques;
     document.getElementById('c-mv').textContent='-'+fmt(d.total_manque)+' manqués';
 
+    initVtcForm();
     renderCalendrier(d);
     renderRevenus(d);
     renderBudgets(d);
     renderPrelevements(d);
     renderInvest(d);
+    renderVtc(d);
     renderConfig(d);
 
     // Simulateur : init seulement si mois courant
