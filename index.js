@@ -85,6 +85,16 @@ const OBJECTIFS = [
   { label: 'Janvier 2027',  montant: 20000 },
 ];
 
+// ============================================================
+// VTC — CONSTANTES
+// ============================================================
+const OBJECTIF_VTC_MENSUEL = 3892;
+const SEMAINES_PAR_MOIS = 4.357;
+let VTC_CHARGES_FIXES = { 'Clicar': 167 }; // €/semaine
+const VTC_COMMISSION_DEFAUT = 0.21; // 21%
+const VTC_URSSAF_TAUX = 0.212; // 21.2%
+const VTC_PLATEFORMES_VALIDES = ['uber', 'bolt', 'heetch', 'autre'];
+
 let ELEVES = {};
 
 async function chargerElevesCustom() {
@@ -117,6 +127,7 @@ const sessionsEpargne = {};
 const sessionsModifConfig = {};
 const sessionsModifPrel = {};
 const sessionsInvest = {};
+const sessionsVtc = {};
 
 // ============================================================
 // PERSISTANCE CONFIG SUPABASE
@@ -150,6 +161,10 @@ async function chargerConfig() {
       if (row.cle.startsWith('budget_')) {
         const cat = row.cle.replace('budget_', '');
         if (BUDGETS[cat]) BUDGETS[cat].max = row.valeur;
+      }
+      if (row.cle.startsWith('vtc_charge_')) {
+        const nom = row.cle.replace('vtc_charge_', '');
+        VTC_CHARGES_FIXES[nom] = row.valeur;
       }
     });
     console.log('✅ Config chargée depuis Supabase');
@@ -268,6 +283,153 @@ async function afficherPortefeuille(chatId) {
     msg += `${pv >= 0 ? '📈' : '📉'} +/-value: *${pv >= 0 ? '+' : ''}${pv.toFixed(0)}€*`;
   }
   await send(chatId, msg);
+}
+
+// ============================================================
+// VTC
+// ============================================================
+function getTotalChargesFixesVtc() {
+  return Object.values(VTC_CHARGES_FIXES).reduce((a, b) => a + b, 0);
+}
+
+function dureeHeuresVtc(heureDebut, heureFin) {
+  const [h1, m1] = heureDebut.split(':').map(Number);
+  const [h2, m2] = heureFin.split(':').map(Number);
+  let minutes = (h2 * 60 + (m2 || 0)) - (h1 * 60 + (m1 || 0));
+  if (minutes < 0) minutes += 24 * 60; // session passant minuit
+  return minutes / 60;
+}
+
+async function saveVtcSession(chatId, s) {
+  const commission = s.caBrut * VTC_COMMISSION_DEFAUT;
+  const { error } = await supabase.from('vtc_sessions').insert({
+    chat_id: chatId,
+    date: s.date,
+    heure_debut: s.heureDebut,
+    heure_fin: s.heureFin,
+    plateforme: s.plateforme,
+    ca_brut: s.caBrut,
+    commission_plateforme: commission,
+    nb_courses: s.nbCourses || 0,
+    carburant: s.carburant || 0,
+  });
+  if (error) console.error('saveVtcSession error:', error.message);
+}
+
+async function getDataVtc(chatId, moisOffset = 0) {
+  const debut = getDebutMois(moisOffset);
+  const fin = getFinMois(moisOffset);
+  const { data, error } = await supabase.from('vtc_sessions').select('*')
+    .eq('chat_id', chatId)
+    .gte('created_at', debut).lt('created_at', fin);
+  if (error) { console.error('getDataVtc error:', error.message); return null; }
+
+  const sessions = data || [];
+  const caBrut = sessions.reduce((s, x) => s + Number(x.ca_brut), 0);
+  const commission = sessions.reduce((s, x) => s + Number(x.commission_plateforme || 0), 0);
+  const carburant = sessions.reduce((s, x) => s + Number(x.carburant || 0), 0);
+  const heures = sessions.reduce((s, x) => s + dureeHeuresVtc(x.heure_debut, x.heure_fin), 0);
+  const caEncaisse = caBrut - commission;
+  const chargesFixesHebdo = getTotalChargesFixesVtc() * SEMAINES_PAR_MOIS;
+  const urssaf = caEncaisse * VTC_URSSAF_TAUX;
+  const net = caEncaisse - carburant - chargesFixesHebdo - urssaf;
+
+  return {
+    sessions, caBrut, caEncaisse, carburant, chargesFixesHebdo, urssaf, net, heures,
+    tauxHoraire: heures > 0 ? net / heures : 0,
+  };
+}
+
+async function resumeVtc(chatId) {
+  const d = await getDataVtc(chatId, 0);
+  if (!d || d.sessions.length === 0) { await send(chatId, '🚗 Aucune session VTC ce mois.'); return; }
+  const pct = Math.min(100, Math.round((d.net / OBJECTIF_VTC_MENSUEL) * 100));
+  await send(chatId,
+    `🚗 *VTC — ${new Date().toLocaleString('fr-FR', { month: 'long' })}*\n\n` +
+    `CA brut: *${d.caBrut.toFixed(0)}€*\n` +
+    `CA encaissé: *${d.caEncaisse.toFixed(0)}€*\n` +
+    `Carburant: *${d.carburant.toFixed(0)}€*\n` +
+    `Charges fixes: *${d.chargesFixesHebdo.toFixed(0)}€*\n` +
+    `URSSAF estimé: *${d.urssaf.toFixed(0)}€*\n` +
+    `— — —\n` +
+    `💰 *Net réel: ${d.net.toFixed(0)}€*\n` +
+    `⏱ Heures: ${d.heures.toFixed(1)}h${d.heures > 0 ? ` — *${d.tauxHoraire.toFixed(1)}€/h*` : ''}\n` +
+    `🎯 Objectif: ${OBJECTIF_VTC_MENSUEL}€ (${pct}%)`
+  );
+}
+
+async function resumeVtcSemaine(chatId) {
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
+  const jour = now.getDay();
+  const diff = now.getDate() - jour + (jour === 0 ? -6 : 1);
+  const lundi = new Date(now.getFullYear(), now.getMonth(), diff);
+  const lundiISO = lundi.toISOString().slice(0, 10);
+
+  const { data: sessions, error } = await supabase.from('vtc_sessions').select('*')
+    .eq('chat_id', chatId).gte('date', lundiISO);
+  if (error) { await send(chatId, '❌ Erreur de lecture des sessions VTC.'); return; }
+  if (!sessions || sessions.length === 0) { await send(chatId, '🚗 Aucune session VTC cette semaine.'); return; }
+
+  const caBrut = sessions.reduce((s, x) => s + Number(x.ca_brut), 0);
+  const commission = sessions.reduce((s, x) => s + Number(x.commission_plateforme || 0), 0);
+  const carburant = sessions.reduce((s, x) => s + Number(x.carburant || 0), 0);
+  const heures = sessions.reduce((s, x) => s + dureeHeuresVtc(x.heure_debut, x.heure_fin), 0);
+  const caEncaisse = caBrut - commission;
+  const chargesFixes = getTotalChargesFixesVtc();
+  const net = caEncaisse - carburant - chargesFixes;
+  const tauxHoraire = heures > 0 ? net / heures : 0;
+
+  await send(chatId,
+    `📊 *VTC — Semaine en cours*\n\n` +
+    `CA brut: *${caBrut.toFixed(0)}€*\n` +
+    `CA encaissé: *${caEncaisse.toFixed(0)}€*\n` +
+    `Carburant: *${carburant.toFixed(0)}€*\n` +
+    `Charges fixes (Clicar etc.): *${chargesFixes.toFixed(0)}€*\n` +
+    `— — —\n` +
+    `💰 *Net réel: ${net.toFixed(0)}€*\n` +
+    `⏱ Heures: ${heures.toFixed(1)}h${heures > 0 ? ` — *${tauxHoraire.toFixed(1)}€/h*` : ''}`
+  );
+}
+
+const JOURS_VTC = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+
+async function resumeVtcTop(chatId) {
+  const { data: sessions, error } = await supabase.from('vtc_sessions').select('*').eq('chat_id', chatId);
+  if (error || !sessions || sessions.length === 0) {
+    await send(chatId, '🚗 Pas encore assez de données pour établir un classement.');
+    return;
+  }
+
+  const groupes = {};
+  for (const s of sessions) {
+    const jourSemaine = new Date(s.date).getDay();
+    const heureDebut = parseInt(s.heure_debut.split(':')[0], 10);
+    const tranche = Math.floor(heureDebut / 3) * 3;
+    const cle = `${jourSemaine}_${tranche}`;
+    if (!groupes[cle]) groupes[cle] = { jourSemaine, tranche, caTotal: 0, heuresTotal: 0, count: 0 };
+    groupes[cle].caTotal += Number(s.ca_brut);
+    groupes[cle].heuresTotal += dureeHeuresVtc(s.heure_debut, s.heure_fin);
+    groupes[cle].count += 1;
+  }
+
+  const classement = Object.values(groupes)
+    .filter(g => g.heuresTotal > 0)
+    .map(g => ({ ...g, tauxHoraire: g.caTotal / g.heuresTotal }))
+    .sort((a, b) => b.tauxHoraire - a.tauxHoraire)
+    .slice(0, 5);
+
+  if (classement.length === 0) { await send(chatId, '🚗 Pas encore assez de données pour établir un classement.'); return; }
+
+  const lignes = classement.map((g, i) =>
+    `${i + 1}. ${JOURS_VTC[g.jourSemaine]} ${g.tranche}h-${g.tranche + 3}h — *${g.tauxHoraire.toFixed(1)}€/h* (${g.count} session${g.count > 1 ? 's' : ''})`
+  );
+
+  await send(chatId, `🏆 *Top créneaux VTC*\n\n${lignes.join('\n')}`);
+}
+
+async function ajouterChargeVtc(chatId, libelle, montant) {
+  VTC_CHARGES_FIXES[libelle] = montant;
+  await sauvegarderConfig(`vtc_charge_${libelle}`, montant);
 }
 
 // ============================================================
@@ -1143,6 +1305,15 @@ async function traiterCallback(cb) {
     return;
   }
 
+  if (data.startsWith('vtc_plat_')) {
+    const sess = sessionsVtc[chatId];
+    if (!sess) return;
+    sess.plateforme = data.replace('vtc_plat_', '');
+    sess.etape = 'date';
+    await send(chatId, `🚗 *${sess.plateforme}*\n\nDate ? (JJ/MM ou "ajd")`);
+    return;
+  }
+
   if (data.startsWith('inv_ticker_')) {
     const ticker = data.replace('inv_ticker_', '');
     if (ticker === 'autre') {
@@ -1196,6 +1367,10 @@ app.post('/webhook', async (req, res) => {
         `💎 /epargne → mettre à jour ton épargne\n` +
         `📈 /investir → enregistrer un achat ETF/or\n` +
         `💼 /portefeuille → voir ton portefeuille\n` +
+        `🚗 /vtc → enregistrer une session VTC\n` +
+        `📊 /vtc_bilan → bilan VTC du mois\n` +
+        `📅 /vtc_semaine → bilan VTC de la semaine\n` +
+        `🏆 /vtc_top → meilleurs créneaux VTC\n` +
         `👤 /ajouteleve → nouvel élève\n` +
         `⏸️ /suspendre → mettre un élève en pause\n` +
         `▶️ /reactiver → réactiver un élève suspendu\n` +
@@ -1273,6 +1448,34 @@ app.post('/webhook', async (req, res) => {
         [{ t: '📝 Autre ticker',             d: 'inv_ticker_autre' }],
         [{ t: '↩️ Annuler', d: 'annuler' }]
       ]);
+      return;
+    }
+
+    if (texte === '/vtc') {
+      sessionsVtc[chatId] = { etape: 'plateforme' };
+      await sendBtns(chatId, '🚗 *Nouvelle session VTC*\n\nPlateforme ?', [
+        [{ t: 'Uber', d: 'vtc_plat_uber' }, { t: 'Bolt', d: 'vtc_plat_bolt' }],
+        [{ t: 'Heetch', d: 'vtc_plat_heetch' }, { t: 'Autre', d: 'vtc_plat_autre' }],
+        [{ t: '↩️ Annuler', d: 'annuler' }]
+      ]);
+      return;
+    }
+
+    if (texte === '/vtc_bilan' || texte === '/vtc_mois') { await resumeVtc(chatId); return; }
+    if (texte === '/vtc_semaine') { await resumeVtcSemaine(chatId); return; }
+    if (texte === '/vtc_top') { await resumeVtcTop(chatId); return; }
+
+    if (texte.startsWith('/vtc_charge')) {
+      const args = texte.split(' ').slice(1);
+      if (args.length < 2) {
+        await send(chatId, 'Usage : /vtc_charge [libellé] [montant hebdo]\nEx: /vtc_charge Clicar 167');
+        return;
+      }
+      const montant = parseFloat(args[args.length - 1].replace(',', '.'));
+      const libelle = args.slice(0, -1).join(' ');
+      if (isNaN(montant) || montant <= 0) { await send(chatId, '❌ Montant invalide.'); return; }
+      await ajouterChargeVtc(chatId, libelle, montant);
+      await send(chatId, `✅ Charge VTC ajoutée : *${libelle}* — ${montant}€/semaine\n_Total charges fixes: *${getTotalChargesFixesVtc().toFixed(0)}€/semaine*_`);
       return;
     }
 
@@ -1392,6 +1595,56 @@ app.post('/webhook', async (req, res) => {
         await saveInvestissement(chatId, sess.ticker, montant, prix);
         delete sessionsInvest[chatId];
         await send(chatId, `✅ *Achat enregistré !*\n\n📈 ${sess.ticker}\n💶 Montant: *${montant}€*\n📊 Prix au moment de l'achat: *${prix} ${marche.currency}*\n🔢 Parts achetées: *${nb_parts.toFixed(4)}*\n\n_/portefeuille pour voir ta situation complète_`);
+        return;
+      }
+    }
+
+    if (sessionsVtc[chatId]) {
+      const sess = sessionsVtc[chatId];
+      if (sess.etape === 'date') {
+        sess.date = texte.toLowerCase() === 'ajd'
+          ? new Date().toISOString().slice(0, 10)
+          : (() => { const [j, m] = texte.split('/').map(Number); return `${new Date().getFullYear()}-${String(m).padStart(2,'0')}-${String(j).padStart(2,'0')}`; })();
+        sess.etape = 'heure_debut';
+        await send(chatId, 'Heure de début ? (ex: 18:00)');
+        return;
+      }
+      if (sess.etape === 'heure_debut') {
+        if (!/^\d{1,2}:\d{2}$/.test(texte)) { await send(chatId, '❌ Format invalide. Ex: *18:00*'); return; }
+        sess.heureDebut = texte; sess.etape = 'heure_fin';
+        await send(chatId, 'Heure de fin ?');
+        return;
+      }
+      if (sess.etape === 'heure_fin') {
+        if (!/^\d{1,2}:\d{2}$/.test(texte)) { await send(chatId, '❌ Format invalide. Ex: *01:00*'); return; }
+        sess.heureFin = texte; sess.etape = 'ca_brut';
+        await send(chatId, 'CA brut encaissé sur la session (€) ?');
+        return;
+      }
+      if (sess.etape === 'ca_brut') {
+        const ca = parseFloat(texte.replace(',', '.'));
+        if (isNaN(ca) || ca <= 0) { await send(chatId, '❌ Montant invalide.'); return; }
+        sess.caBrut = ca; sess.etape = 'nb_courses';
+        await send(chatId, 'Nombre de courses ? ("skip" pour passer)');
+        return;
+      }
+      if (sess.etape === 'nb_courses') {
+        sess.nbCourses = texte === 'skip' ? null : parseInt(texte, 10);
+        sess.etape = 'carburant';
+        await send(chatId, 'Carburant dépensé (€) ? ("skip" si non applicable)');
+        return;
+      }
+      if (sess.etape === 'carburant') {
+        sess.carburant = texte === 'skip' ? 0 : parseFloat(texte.replace(',', '.'));
+        await saveVtcSession(chatId, sess);
+        const heures = dureeHeuresVtc(sess.heureDebut, sess.heureFin);
+        const caEncaisse = sess.caBrut * (1 - VTC_COMMISSION_DEFAUT);
+        delete sessionsVtc[chatId];
+        await send(chatId,
+          `✅ Session VTC enregistrée\n\n` +
+          `CA brut: *${sess.caBrut}€* — Encaissé: *${caEncaisse.toFixed(0)}€*\n` +
+          `Durée: *${heures.toFixed(1)}h*${heures > 0 ? ` — Taux: *${(caEncaisse/heures).toFixed(1)}€/h*` : ''}`
+        );
         return;
       }
     }
