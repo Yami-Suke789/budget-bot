@@ -1957,6 +1957,107 @@ app.patch('/api/investissement/:id', async (req, res) => {
   } catch (err) { res.json({ ok: false, error: err.message }); }
 });
 
+// ============================================================
+// API VTC — CRUD SESSIONS
+// ============================================================
+app.post('/api/vtc/session', async (req, res) => {
+  try {
+    const { date, heure_debut, heure_fin, plateforme, ca_brut, nb_courses, carburant } = req.body;
+    if (!date || !heure_debut || !heure_fin || !plateforme || !ca_brut) {
+      return res.json({ ok: false, error: 'Champs manquants' });
+    }
+    const caBrut = parseFloat(ca_brut);
+    if (isNaN(caBrut) || caBrut <= 0) return res.json({ ok: false, error: 'CA brut invalide' });
+    const commission = caBrut * VTC_COMMISSION_DEFAUT;
+    const { error } = await supabase.from('vtc_sessions').insert({
+      chat_id: CHAT_ID,
+      date,
+      heure_debut,
+      heure_fin,
+      plateforme: String(plateforme).toLowerCase(),
+      ca_brut: caBrut,
+      commission_plateforme: commission,
+      nb_courses: nb_courses ? parseInt(nb_courses, 10) : 0,
+      carburant: carburant ? parseFloat(carburant) : 0,
+    });
+    if (error) return res.json({ ok: false, error: error.message });
+    res.json({ ok: true });
+  } catch (err) { res.json({ ok: false, error: err.message }); }
+});
+
+app.patch('/api/vtc/session/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { date, heure_debut, heure_fin, plateforme, ca_brut, nb_courses, carburant } = req.body;
+    if (!id) return res.json({ ok: false, error: 'ID manquant' });
+    const update = {};
+    if (date !== undefined) update.date = date;
+    if (heure_debut !== undefined) update.heure_debut = heure_debut;
+    if (heure_fin !== undefined) update.heure_fin = heure_fin;
+    if (plateforme !== undefined) update.plateforme = String(plateforme).toLowerCase();
+    if (ca_brut !== undefined) {
+      const v = parseFloat(ca_brut);
+      if (isNaN(v) || v <= 0) return res.json({ ok: false, error: 'CA brut invalide' });
+      update.ca_brut = v;
+      update.commission_plateforme = v * VTC_COMMISSION_DEFAUT;
+    }
+    if (nb_courses !== undefined) update.nb_courses = nb_courses ? parseInt(nb_courses, 10) : 0;
+    if (carburant !== undefined) update.carburant = carburant ? parseFloat(carburant) : 0;
+    const { error } = await supabase.from('vtc_sessions').update(update).eq('id', id);
+    if (error) return res.json({ ok: false, error: error.message });
+    res.json({ ok: true });
+  } catch (err) { res.json({ ok: false, error: err.message }); }
+});
+
+app.delete('/api/vtc/session/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id) return res.json({ ok: false, error: 'ID manquant' });
+    const { data: item, error: fetchErr } = await supabase.from('vtc_sessions').select('id, ca_brut, plateforme').eq('id', id).single();
+    if (fetchErr || !item) return res.json({ ok: false, error: 'Session introuvable' });
+    const { error } = await supabase.from('vtc_sessions').delete().eq('id', id);
+    if (error) return res.json({ ok: false, error: error.message });
+    res.json({ ok: true, deleted: item });
+  } catch (err) { res.json({ ok: false, error: err.message }); }
+});
+
+// ============================================================
+// API VTC — CRUD CHARGES FIXES
+// ============================================================
+app.post('/api/vtc/charge', async (req, res) => {
+  try {
+    const { nom, montant } = req.body;
+    if (!nom || montant === undefined) return res.json({ ok: false, error: 'Champs manquants' });
+    const v = parseFloat(montant);
+    if (isNaN(v) || v <= 0) return res.json({ ok: false, error: 'Montant invalide' });
+    await ajouterChargeVtc(CHAT_ID, nom, v);
+    res.json({ ok: true });
+  } catch (err) { res.json({ ok: false, error: err.message }); }
+});
+
+app.patch('/api/vtc/charge/:nom', async (req, res) => {
+  try {
+    const nom = decodeURIComponent(req.params.nom);
+    const { montant } = req.body;
+    const v = parseFloat(montant);
+    if (isNaN(v) || v <= 0) return res.json({ ok: false, error: 'Montant invalide' });
+    if (!(nom in VTC_CHARGES_FIXES)) return res.json({ ok: false, error: 'Charge introuvable' });
+    await ajouterChargeVtc(CHAT_ID, nom, v);
+    res.json({ ok: true });
+  } catch (err) { res.json({ ok: false, error: err.message }); }
+});
+
+app.delete('/api/vtc/charge/:nom', async (req, res) => {
+  try {
+    const nom = decodeURIComponent(req.params.nom);
+    if (!(nom in VTC_CHARGES_FIXES)) return res.json({ ok: false, error: 'Charge introuvable' });
+    delete VTC_CHARGES_FIXES[nom];
+    const { error } = await supabase.from('config').delete().eq('cle', `vtc_charge_${nom}`);
+    if (error) console.error('delete vtc charge config error:', error.message);
+    res.json({ ok: true });
+  } catch (err) { res.json({ ok: false, error: err.message }); }
+});
+
 app.get('/api/dashboard', async (req, res) => {
   try {
     const moisOffset = parseInt(req.query.mois || '0');
@@ -1988,6 +2089,8 @@ app.get('/api/dashboard', async (req, res) => {
       if (p) prixActuels[t] = p;
     }));
 
+    const vtcData = await getDataVtc(CHAT_ID, moisOffset);
+
     res.json({
       salaire: data.salaire, beau_frere: BEAU_FRERE, completude: data.completude,
       objectif_completude: OBJECTIF_COMPLETUDE, total_revenus: data.totalRevenus,
@@ -2008,6 +2111,19 @@ app.get('/api/dashboard', async (req, res) => {
       investissements,
       prix_actuels: prixActuels,
       market_watchlist: MARKET_WATCHLIST,
+      vtc_sessions: vtcData ? vtcData.sessions : [],
+      vtc_ca_brut: vtcData ? vtcData.caBrut : 0,
+      vtc_ca_encaisse: vtcData ? vtcData.caEncaisse : 0,
+      vtc_carburant: vtcData ? vtcData.carburant : 0,
+      vtc_charges_fixes_mois: vtcData ? vtcData.chargesFixesHebdo : 0,
+      vtc_urssaf: vtcData ? vtcData.urssaf : 0,
+      vtc_net: vtcData ? vtcData.net : 0,
+      vtc_heures: vtcData ? vtcData.heures : 0,
+      vtc_taux_horaire: vtcData ? vtcData.tauxHoraire : 0,
+      vtc_objectif_mensuel: OBJECTIF_VTC_MENSUEL,
+      vtc_charges: Object.entries(VTC_CHARGES_FIXES).map(([nom, montant]) => ({ nom, montant })),
+      vtc_commission_pct: VTC_COMMISSION_DEFAUT,
+      vtc_urssaf_pct: VTC_URSSAF_TAUX,
     });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
