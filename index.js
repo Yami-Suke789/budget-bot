@@ -58,6 +58,7 @@ let PRELEVEMENTS_DATES = [
   { nom: 'Canal+ frère',        montant: 13.00,  jour: 24,   suspendu: false },
   { nom: 'Claude.ai',           montant: 21.60,  jour: 27,   suspendu: false },
   { nom: 'Bouygues box',        montant: 24.00,  jour: 30,   suspendu: false },
+  { nom: 'Location VTC + Assurance',        montant: 987,  jour: 30,   suspendu: false },
   { nom: 'Cotisation bancaire', montant: 18.30,  jour: null, suspendu: false, frequence: 'trimestriel' },
 ];
 
@@ -77,6 +78,7 @@ const BUDGETS = {
   shopping: { label: '👗 Shopping', max: 50  },
   loisirs:  { label: '🎉 Loisirs',  max: 50  },
   divers:   { label: '📦 Divers',   max: 50  },
+  VTC:   { label: '🚕 VTC',   max: 1200  },
 };
 
 const OBJECTIFS = [
