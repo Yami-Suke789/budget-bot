@@ -92,9 +92,15 @@ const OBJECTIFS = [
 const OBJECTIF_VTC_MENSUEL = 3892;
 const SEMAINES_PAR_MOIS = 4.357;
 let VTC_CHARGES_FIXES = { 'Clicar': 167 }; // euros/semaine
-const VTC_COMMISSION_DEFAUT = 0.21; // 21%
 const VTC_URSSAF_TAUX = 0.212; // 21.2%
+let VTC_RATTACHEMENT_MENSUEL = 60; // euros/mois, tant que non auto-entrepreneur
 const VTC_PLATEFORMES_VALIDES = ['uber', 'bolt', 'heetch', 'autre'];
+const VTC_DEP_CATEGORIES = {
+  essence:   { label: 'Essence' },
+  nettoyage: { label: 'Nettoyage' },
+  peage:     { label: 'Peage/Parking' },
+  autre:     { label: 'Autre' },
+};
 
 // ============================================================
 // TURO — CONSTANTES
@@ -146,6 +152,7 @@ const sessionsModifConfig = {};
 const sessionsModifPrel = {};
 const sessionsInvest = {};
 const sessionsVtc = {};
+const sessionsVtcDep = {};
 
 // ============================================================
 // PERSISTANCE CONFIG SUPABASE
@@ -184,6 +191,7 @@ async function chargerConfig() {
         const nom = row.cle.replace('vtc_charge_', '');
         VTC_CHARGES_FIXES[nom] = row.valeur;
       }
+      if (row.cle === 'vtc_rattachement_mensuel') VTC_RATTACHEMENT_MENSUEL = row.valeur;
     });
     console.log('Config chargee depuis Supabase');
   } catch (err) {
@@ -318,19 +326,24 @@ function dureeHeuresVtc(heureDebut, heureFin) {
 }
 
 async function saveVtcSession(chatId, s) {
-  const commission = s.caBrut * VTC_COMMISSION_DEFAUT;
   const { error } = await supabase.from('vtc_sessions').insert({
     chat_id: chatId,
     date: s.date,
     heure_debut: s.heureDebut,
     heure_fin: s.heureFin,
     plateforme: s.plateforme,
-    ca_brut: s.caBrut,
-    commission_plateforme: commission,
+    ca_net: s.caNet,
     nb_courses: s.nbCourses || 0,
-    carburant: s.carburant || 0,
+    regime: s.regime || 'rattachement',
   });
   if (error) console.error('saveVtcSession error:', error.message);
+}
+
+async function saveVtcDepenseDiverse(chatId, montant, categorie, libelle) {
+  const { error } = await supabase.from('vtc_depenses_diverses').insert({
+    chat_id: String(chatId), montant, categorie, libelle,
+  });
+  if (error) console.error('saveVtcDepenseDiverse error:', error.message);
 }
 
 async function getDataVtc(chatId, moisOffset = 0) {
@@ -341,18 +354,29 @@ async function getDataVtc(chatId, moisOffset = 0) {
     .gte('created_at', debut).lt('created_at', fin);
   if (error) { console.error('getDataVtc error:', error.message); return null; }
 
+  const { data: depData, error: depErr } = await supabase.from('vtc_depenses_diverses').select('*')
+    .eq('chat_id', String(chatId))
+    .gte('created_at', debut).lt('created_at', fin);
+  if (depErr) console.error('getDataVtc depenses error:', depErr.message);
+
   const sessions = data || [];
-  const caBrut = sessions.reduce((s, x) => s + Number(x.ca_brut), 0);
-  const commission = sessions.reduce((s, x) => s + Number(x.commission_plateforme || 0), 0);
-  const carburant = sessions.reduce((s, x) => s + Number(x.carburant || 0), 0);
+  const depensesDiverses = depData || [];
+
+  const caNet = sessions.reduce((s, x) => s + Number(x.ca_net), 0);
   const heures = sessions.reduce((s, x) => s + dureeHeuresVtc(x.heure_debut, x.heure_fin), 0);
-  const caEncaisse = caBrut - commission;
+  const totalDepensesDiverses = depensesDiverses.reduce((s, x) => s + Number(x.montant), 0);
   const chargesFixesHebdo = getTotalChargesFixesVtc() * SEMAINES_PAR_MOIS;
-  const urssaf = caEncaisse * VTC_URSSAF_TAUX;
-  const net = caEncaisse - carburant - chargesFixesHebdo - urssaf;
+
+  const sessionsUrssaf = sessions.filter(s => s.regime === 'urssaf');
+  const sessionsRattachement = sessions.filter(s => s.regime !== 'urssaf');
+  const urssaf = sessionsUrssaf.reduce((s, x) => s + Number(x.ca_net), 0) * VTC_URSSAF_TAUX;
+  const rattachement = sessionsRattachement.length > 0 ? VTC_RATTACHEMENT_MENSUEL : 0;
+
+  const net = caNet - totalDepensesDiverses - chargesFixesHebdo - urssaf - rattachement;
 
   return {
-    sessions, caBrut, caEncaisse, carburant, chargesFixesHebdo, urssaf, net, heures,
+    sessions, depensesDiverses, caNet, totalDepensesDiverses, chargesFixesHebdo,
+    urssaf, rattachement, net, heures,
     tauxHoraire: heures > 0 ? net / heures : 0,
   };
 }
@@ -363,11 +387,10 @@ async function resumeVtc(chatId) {
   const pct = Math.min(100, Math.round((d.net / OBJECTIF_VTC_MENSUEL) * 100));
   await send(chatId,
     `VTC — ${new Date().toLocaleString('fr-FR', { month: 'long' })}\n\n` +
-    `CA brut: *${d.caBrut.toFixed(0)}€*\n` +
-    `CA encaisse: *${d.caEncaisse.toFixed(0)}€*\n` +
-    `Carburant: *${d.carburant.toFixed(0)}€*\n` +
+    `CA net: *${d.caNet.toFixed(0)}€*\n` +
+    `Depenses diverses: *${d.totalDepensesDiverses.toFixed(0)}€*\n` +
     `Charges fixes: *${d.chargesFixesHebdo.toFixed(0)}€*\n` +
-    `URSSAF estime: *${d.urssaf.toFixed(0)}€*\n` +
+    `URSSAF: *${d.urssaf.toFixed(0)}€* — Rattachement: *${d.rattachement.toFixed(0)}€*\n` +
     `— — —\n` +
     `Net reel: ${d.net.toFixed(0)}€\n` +
     `Heures: ${d.heures.toFixed(1)}h${d.heures > 0 ? ` — *${d.tauxHoraire.toFixed(1)}€/h*` : ''}\n` +
@@ -387,20 +410,15 @@ async function resumeVtcSemaine(chatId) {
   if (error) { await send(chatId, 'Erreur de lecture des sessions VTC.'); return; }
   if (!sessions || sessions.length === 0) { await send(chatId, 'Aucune session VTC cette semaine.'); return; }
 
-  const caBrut = sessions.reduce((s, x) => s + Number(x.ca_brut), 0);
-  const commission = sessions.reduce((s, x) => s + Number(x.commission_plateforme || 0), 0);
-  const carburant = sessions.reduce((s, x) => s + Number(x.carburant || 0), 0);
+  const caNet = sessions.reduce((s, x) => s + Number(x.ca_net), 0);
   const heures = sessions.reduce((s, x) => s + dureeHeuresVtc(x.heure_debut, x.heure_fin), 0);
-  const caEncaisse = caBrut - commission;
   const chargesFixes = getTotalChargesFixesVtc();
-  const net = caEncaisse - carburant - chargesFixes;
+  const net = caNet - chargesFixes;
   const tauxHoraire = heures > 0 ? net / heures : 0;
 
   await send(chatId,
     `VTC — Semaine en cours\n\n` +
-    `CA brut: *${caBrut.toFixed(0)}€*\n` +
-    `CA encaisse: *${caEncaisse.toFixed(0)}€*\n` +
-    `Carburant: *${carburant.toFixed(0)}€*\n` +
+    `CA net: *${caNet.toFixed(0)}€*\n` +
     `Charges fixes (Clicar etc.): *${chargesFixes.toFixed(0)}€*\n` +
     `— — —\n` +
     `Net reel: ${net.toFixed(0)}€\n` +
@@ -424,7 +442,7 @@ async function resumeVtcTop(chatId) {
     const tranche = Math.floor(heureDebut / 3) * 3;
     const cle = `${jourSemaine}_${tranche}`;
     if (!groupes[cle]) groupes[cle] = { jourSemaine, tranche, caTotal: 0, heuresTotal: 0, count: 0 };
-    groupes[cle].caTotal += Number(s.ca_brut);
+    groupes[cle].caTotal += Number(s.ca_net);
     groupes[cle].heuresTotal += dureeHeuresVtc(s.heure_debut, s.heure_fin);
     groupes[cle].count += 1;
   }
@@ -1433,6 +1451,29 @@ async function traiterCallback(cb) {
     return;
   }
 
+  if (data === 'vtc_regime_rattachement' || data === 'vtc_regime_urssaf') {
+    const sess = sessionsVtc[chatId];
+    if (!sess) return;
+    sess.regime = data === 'vtc_regime_urssaf' ? 'urssaf' : 'rattachement';
+    await saveVtcSession(chatId, sess);
+    const heures = dureeHeuresVtc(sess.heureDebut, sess.heureFin);
+    delete sessionsVtc[chatId];
+    await send(chatId,
+      `Session VTC enregistree\n\n` +
+      `CA net: *${sess.caNet}€*\n` +
+      `Regime: *${sess.regime === 'urssaf' ? 'URSSAF' : 'Rattachement'}*\n` +
+      `Duree: *${heures.toFixed(1)}h*${heures > 0 ? ` — Taux: *${(sess.caNet/heures).toFixed(1)}€/h*` : ''}`
+    );
+    return;
+  }
+
+  if (data.startsWith('vtc_dep_cat_')) {
+    const cat = data.replace('vtc_dep_cat_', '');
+    sessionsVtcDep[chatId] = { etape: 'montant', categorie: cat };
+    await send(chatId, `*${VTC_DEP_CATEGORIES[cat].label}*\n\nMontant ? (ex: *40*)`);
+    return;
+  }
+
   if (data.startsWith('turo_dep_cat_')) {
     const cat = data.replace('turo_dep_cat_', '');
     sessionsTuroDep[chatId] = { etape: 'montant', categorie: cat };
@@ -1506,6 +1547,7 @@ app.post('/webhook', async (req, res) => {
         `/vtc_bilan → bilan VTC du mois\n` +
         `/vtc_semaine → bilan VTC de la semaine\n` +
         `/vtc_top → meilleurs creneaux VTC\n` +
+        `/vtc_depense → depense diverse (essence, nettoyage...)\n` +
         `/turo_depense → enregistrer une depense vehicule\n` +
         `/turo_location → enregistrer une location Turo\n` +
         `/turo_bilan → bilan Turo du mois\n` +
@@ -1602,6 +1644,16 @@ app.post('/webhook', async (req, res) => {
     if (texte === '/vtc_bilan' || texte === '/vtc_mois') { await resumeVtc(chatId); return; }
     if (texte === '/vtc_semaine') { await resumeVtcSemaine(chatId); return; }
     if (texte === '/vtc_top') { await resumeVtcTop(chatId); return; }
+
+    if (texte === '/vtc_depense' || texte === '/vtcdep') {
+      const cats = Object.entries(VTC_DEP_CATEGORIES);
+      const rows = [];
+      for (let i = 0; i < cats.length; i += 2)
+        rows.push(cats.slice(i, i + 2).map(([k, c]) => ({ t: c.label, d: `vtc_dep_cat_${k}` })));
+      rows.push([{ t: 'Annuler', d: 'annuler' }]);
+      await sendBtns(chatId, 'Nouvelle depense diverse (essence, nettoyage...)\n\nCategorie ?', rows);
+      return;
+    }
 
     if (texte.startsWith('/vtc_charge')) {
       const args = texte.split(' ').slice(1);
@@ -1774,36 +1826,35 @@ app.post('/webhook', async (req, res) => {
       }
       if (sess.etape === 'heure_fin') {
         if (!/^\d{1,2}:\d{2}$/.test(texte)) { await send(chatId, 'Format invalide. Ex: *01:00*'); return; }
-        sess.heureFin = texte; sess.etape = 'ca_brut';
-        await send(chatId, 'CA brut encaisse sur la session (€) ?');
+        sess.heureFin = texte; sess.etape = 'ca_net';
+        await send(chatId, 'CA net (celui affiche sur Uber/Bolt) (€) ?');
         return;
       }
-      if (sess.etape === 'ca_brut') {
+      if (sess.etape === 'ca_net') {
         const ca = parseFloat(texte.replace(',', '.'));
         if (isNaN(ca) || ca <= 0) { await send(chatId, 'Montant invalide.'); return; }
-        sess.caBrut = ca; sess.etape = 'nb_courses';
+        sess.caNet = ca; sess.etape = 'nb_courses';
         await send(chatId, 'Nombre de courses ? ("skip" pour passer)');
         return;
       }
       if (sess.etape === 'nb_courses') {
         sess.nbCourses = texte === 'skip' ? null : parseInt(texte, 10);
-        sess.etape = 'carburant';
-        await send(chatId, 'Carburant depense (€) ? ("skip" si non applicable)');
+        sess.etape = 'regime';
+        await sendBtns(chatId, 'Cette session est faite sous quel regime ?', [
+          [{ t: 'Rattachement', d: 'vtc_regime_rattachement' }, { t: 'URSSAF', d: 'vtc_regime_urssaf' }],
+        ]);
         return;
       }
-      if (sess.etape === 'carburant') {
-        sess.carburant = texte === 'skip' ? 0 : parseFloat(texte.replace(',', '.'));
-        await saveVtcSession(chatId, sess);
-        const heures = dureeHeuresVtc(sess.heureDebut, sess.heureFin);
-        const caEncaisse = sess.caBrut * (1 - VTC_COMMISSION_DEFAUT);
-        delete sessionsVtc[chatId];
-        await send(chatId,
-          `Session VTC enregistree\n\n` +
-          `CA brut: *${sess.caBrut}€* — Encaisse: *${caEncaisse.toFixed(0)}€*\n` +
-          `Duree: *${heures.toFixed(1)}h*${heures > 0 ? ` — Taux: *${(caEncaisse/heures).toFixed(1)}€/h*` : ''}`
-        );
-        return;
-      }
+    }
+
+    if (sessionsVtcDep[chatId]?.etape === 'montant') {
+      const montant = parseFloat(texte.replace(',', '.'));
+      if (isNaN(montant) || montant <= 0) { await send(chatId, 'Montant invalide.'); return; }
+      const sess = sessionsVtcDep[chatId];
+      await saveVtcDepenseDiverse(chatId, montant, sess.categorie, VTC_DEP_CATEGORIES[sess.categorie].label);
+      delete sessionsVtcDep[chatId];
+      await send(chatId, `Depense diverse enregistree : *${montant}€* — ${VTC_DEP_CATEGORIES[sess.categorie].label}`);
+      return;
     }
 
     if (sessionsTuroDep[chatId]?.etape === 'montant') {
@@ -2172,23 +2223,21 @@ app.patch('/api/investissement/:id', async (req, res) => {
 // ============================================================
 app.post('/api/vtc/session', async (req, res) => {
   try {
-    const { date, heure_debut, heure_fin, plateforme, ca_brut, nb_courses, carburant } = req.body;
-    if (!date || !heure_debut || !heure_fin || !plateforme || !ca_brut) {
+    const { date, heure_debut, heure_fin, plateforme, ca_net, nb_courses, regime } = req.body;
+    if (!date || !heure_debut || !heure_fin || !plateforme || !ca_net) {
       return res.json({ ok: false, error: 'Champs manquants' });
     }
-    const caBrut = parseFloat(ca_brut);
-    if (isNaN(caBrut) || caBrut <= 0) return res.json({ ok: false, error: 'CA brut invalide' });
-    const commission = caBrut * VTC_COMMISSION_DEFAUT;
+    const caNet = parseFloat(ca_net);
+    if (isNaN(caNet) || caNet <= 0) return res.json({ ok: false, error: 'CA net invalide' });
     const { error } = await supabase.from('vtc_sessions').insert({
       chat_id: CHAT_ID,
       date,
       heure_debut,
       heure_fin,
       plateforme: String(plateforme).toLowerCase(),
-      ca_brut: caBrut,
-      commission_plateforme: commission,
+      ca_net: caNet,
       nb_courses: nb_courses ? parseInt(nb_courses, 10) : 0,
-      carburant: carburant ? parseFloat(carburant) : 0,
+      regime: regime === 'urssaf' ? 'urssaf' : 'rattachement',
     });
     if (error) return res.json({ ok: false, error: error.message });
     res.json({ ok: true });
@@ -2198,21 +2247,20 @@ app.post('/api/vtc/session', async (req, res) => {
 app.patch('/api/vtc/session/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { date, heure_debut, heure_fin, plateforme, ca_brut, nb_courses, carburant } = req.body;
+    const { date, heure_debut, heure_fin, plateforme, ca_net, nb_courses, regime } = req.body;
     if (!id) return res.json({ ok: false, error: 'ID manquant' });
     const update = {};
     if (date !== undefined) update.date = date;
     if (heure_debut !== undefined) update.heure_debut = heure_debut;
     if (heure_fin !== undefined) update.heure_fin = heure_fin;
     if (plateforme !== undefined) update.plateforme = String(plateforme).toLowerCase();
-    if (ca_brut !== undefined) {
-      const v = parseFloat(ca_brut);
-      if (isNaN(v) || v <= 0) return res.json({ ok: false, error: 'CA brut invalide' });
-      update.ca_brut = v;
-      update.commission_plateforme = v * VTC_COMMISSION_DEFAUT;
+    if (ca_net !== undefined) {
+      const v = parseFloat(ca_net);
+      if (isNaN(v) || v <= 0) return res.json({ ok: false, error: 'CA net invalide' });
+      update.ca_net = v;
     }
     if (nb_courses !== undefined) update.nb_courses = nb_courses ? parseInt(nb_courses, 10) : 0;
-    if (carburant !== undefined) update.carburant = carburant ? parseFloat(carburant) : 0;
+    if (regime !== undefined) update.regime = regime === 'urssaf' ? 'urssaf' : 'rattachement';
     const { error } = await supabase.from('vtc_sessions').update(update).eq('id', id);
     if (error) return res.json({ ok: false, error: error.message });
     res.json({ ok: true });
@@ -2223,9 +2271,55 @@ app.delete('/api/vtc/session/:id', async (req, res) => {
   try {
     const { id } = req.params;
     if (!id) return res.json({ ok: false, error: 'ID manquant' });
-    const { data: item, error: fetchErr } = await supabase.from('vtc_sessions').select('id, ca_brut, plateforme').eq('id', id).single();
+    const { data: item, error: fetchErr } = await supabase.from('vtc_sessions').select('id, ca_net, plateforme').eq('id', id).single();
     if (fetchErr || !item) return res.json({ ok: false, error: 'Session introuvable' });
     const { error } = await supabase.from('vtc_sessions').delete().eq('id', id);
+    if (error) return res.json({ ok: false, error: error.message });
+    res.json({ ok: true, deleted: item });
+  } catch (err) { res.json({ ok: false, error: err.message }); }
+});
+
+// ============================================================
+// API VTC — CRUD DEPENSES DIVERSES
+// ============================================================
+app.post('/api/vtc/depense', async (req, res) => {
+  try {
+    const { montant, categorie, libelle } = req.body;
+    if (!montant || !categorie) return res.json({ ok: false, error: 'Champs manquants' });
+    const v = parseFloat(montant);
+    if (isNaN(v) || v <= 0) return res.json({ ok: false, error: 'Montant invalide' });
+    if (!VTC_DEP_CATEGORIES[categorie]) return res.json({ ok: false, error: 'Categorie inconnue' });
+    await saveVtcDepenseDiverse(CHAT_ID, v, categorie, libelle || VTC_DEP_CATEGORIES[categorie].label);
+    res.json({ ok: true });
+  } catch (err) { res.json({ ok: false, error: err.message }); }
+});
+
+app.patch('/api/vtc/depense/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { montant, categorie, libelle } = req.body;
+    if (!id) return res.json({ ok: false, error: 'ID manquant' });
+    const update = {};
+    if (montant !== undefined) {
+      const v = parseFloat(montant);
+      if (isNaN(v) || v <= 0) return res.json({ ok: false, error: 'Montant invalide' });
+      update.montant = v;
+    }
+    if (categorie !== undefined) update.categorie = categorie;
+    if (libelle !== undefined) update.libelle = libelle;
+    const { error } = await supabase.from('vtc_depenses_diverses').update(update).eq('id', id);
+    if (error) return res.json({ ok: false, error: error.message });
+    res.json({ ok: true });
+  } catch (err) { res.json({ ok: false, error: err.message }); }
+});
+
+app.delete('/api/vtc/depense/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id) return res.json({ ok: false, error: 'ID manquant' });
+    const { data: item, error: fetchErr } = await supabase.from('vtc_depenses_diverses').select('id, montant, categorie').eq('id', id).single();
+    if (fetchErr || !item) return res.json({ ok: false, error: 'Depense introuvable' });
+    const { error } = await supabase.from('vtc_depenses_diverses').delete().eq('id', id);
     if (error) return res.json({ ok: false, error: error.message });
     res.json({ ok: true, deleted: item });
   } catch (err) { res.json({ ok: false, error: err.message }); }
@@ -2431,18 +2525,20 @@ app.get('/api/dashboard', async (req, res) => {
       prix_actuels: prixActuels,
       market_watchlist: MARKET_WATCHLIST,
       vtc_sessions: vtcData ? vtcData.sessions : [],
-      vtc_ca_brut: vtcData ? vtcData.caBrut : 0,
-      vtc_ca_encaisse: vtcData ? vtcData.caEncaisse : 0,
-      vtc_carburant: vtcData ? vtcData.carburant : 0,
+      vtc_depenses_diverses: vtcData ? vtcData.depensesDiverses : [],
+      vtc_ca_net: vtcData ? vtcData.caNet : 0,
+      vtc_dep_diverses_total: vtcData ? vtcData.totalDepensesDiverses : 0,
       vtc_charges_fixes_mois: vtcData ? vtcData.chargesFixesHebdo : 0,
       vtc_urssaf: vtcData ? vtcData.urssaf : 0,
+      vtc_rattachement: vtcData ? vtcData.rattachement : 0,
       vtc_net: vtcData ? vtcData.net : 0,
       vtc_heures: vtcData ? vtcData.heures : 0,
       vtc_taux_horaire: vtcData ? vtcData.tauxHoraire : 0,
       vtc_objectif_mensuel: OBJECTIF_VTC_MENSUEL,
       vtc_charges: Object.entries(VTC_CHARGES_FIXES).map(([nom, montant]) => ({ nom, montant })),
-      vtc_commission_pct: VTC_COMMISSION_DEFAUT,
       vtc_urssaf_pct: VTC_URSSAF_TAUX,
+      vtc_rattachement_mensuel: VTC_RATTACHEMENT_MENSUEL,
+      vtc_dep_categories: VTC_DEP_CATEGORIES,
       turo_locations: data.turo.locations,
       turo_depenses_ponctuelles: data.turo.depensesPonctuelles,
       turo_depenses_recurrentes: data.turo.depensesRecurrentes,
@@ -2470,6 +2566,7 @@ app.post('/api/config', async (req, res) => {
     if (cle === 'salaire_lgm')        SALAIRE_LGM_DEFAULT = v;
     else if (cle === 'beau_frere')     BEAU_FRERE = v;
     else if (cle === 'objectif_completude') OBJECTIF_COMPLETUDE = v;
+    else if (cle === 'vtc_rattachement_mensuel') VTC_RATTACHEMENT_MENSUEL = v;
     await sauvegarderConfig(cle, v);
     res.json({ ok: true });
   } catch (err) { res.json({ ok: false, error: err.message }); }
