@@ -78,6 +78,7 @@ const BUDGETS = {
   loisirs:  { label: 'Loisirs',  max: 50  },
   divers:   { label: 'Divers',   max: 50  },
   VTC:   { label: 'VTC',   max: 1200  },
+  Turo:  { label: 'Turo',  max: 200  },
 };
 
 const OBJECTIFS = [
@@ -683,18 +684,21 @@ async function getData(moisOffset = 0) {
   const totalManque = coursManques.reduce((s, c) => s + c.gain_manque, 0);
   const revenusSupp = revenus.reduce((s, r) => s + r.montant, 0);
 
-  // Turo — impacte le total revenus / solde global
+  // Turo et VTC — impactent le total revenus / solde global via leur net final
   const turo = await getDataTuro(CHAT_ID, moisOffset);
+  const vtc = await getDataVtc(CHAT_ID, moisOffset);
+  const turoNet = turo.rentabiliteNette;
+  const vtcNet = vtc ? vtc.net : 0;
 
-  const totalRevenus = salaire + BEAU_FRERE + completude + revenusSupp + turo.partMoiTotal;
-  const solde = totalRevenus - TOTAL_CHARGES_FIXES - totalDep - turo.totalDepenses;
+  const totalRevenus = salaire + BEAU_FRERE + completude + revenusSupp + turoNet + vtcNet;
+  const solde = totalRevenus - TOTAL_CHARGES_FIXES - totalDep;
   const epargneEstimee = epargneBase + solde;
 
   return {
     depenses, cours, coursManques, revenus, totaux, detail, totalDep,
     completude, totalManque, revenusSupp, totalRevenus, solde,
     epargneEstimee, salaire, epargneBase, moisOffset,
-    chargesFixes: TOTAL_CHARGES_FIXES, turo
+    chargesFixes: TOTAL_CHARGES_FIXES, turo, vtc, turoNet, vtcNet
   };
 }
 
@@ -975,6 +979,8 @@ function trouverCategorie(texte) {
   if (/\bshopping\b/.test(t)) return 'shopping';
   if (/\bdivers\b/.test(t)) return 'divers';
   if (/\bloisirs?\b/.test(t)) return 'loisirs';
+  if (/\bturo\b/.test(t)) return 'Turo';
+  if (/\bvtc\b/.test(t)) return 'VTC';
   if (/plein|carburant|station|total|esso/.test(t)) return 'essence';
   if (/leclerc|carrefour|lidl|cora|supermarche|aldi/.test(t)) return 'courses';
   if (/restaurant|mcdo|burger|pizza|kebab|sushi/.test(t)) return 'restos';
@@ -1490,18 +1496,6 @@ async function traiterCallback(cb) {
     return;
   }
 
-  if (data.startsWith('inv_ticker_')) {
-    const ticker = data.replace('inv_ticker_', '');
-    if (ticker === 'autre') {
-      sessionsInvest[chatId] = { etape: 'ticker_autre' };
-      await send(chatId, `Quel ticker ? (ex: AAPL, MSFT, AMZN)`);
-    } else {
-      sessionsInvest[chatId] = { ticker, etape: 'montant' };
-      await send(chatId, `*${ticker}*\n\nMontant investi en € ? (ex: *200*)`);
-    }
-    return;
-  }
-
   if (data.startsWith('rev_type_')) {
     const type = data.replace('rev_type_', '');
     if (type === '__autre__') {
@@ -1621,13 +1615,8 @@ app.post('/webhook', async (req, res) => {
     }
 
     if (texte === '/investir') {
-      await sendBtns(chatId, 'Quel actif as-tu achete ?', [
-        [{ t: 'ISWD — World Islamic (65%)', d: 'inv_ticker_ISWD' }],
-        [{ t: 'HIEU — Europe Islamic (25%)', d: 'inv_ticker_HIEU' }],
-        [{ t: 'HIEM — EM Islamic (10%)',     d: 'inv_ticker_HIEM' }],
-        [{ t: 'Autre ticker',             d: 'inv_ticker_autre' }],
-        [{ t: 'Annuler', d: 'annuler' }]
-      ]);
+      sessionsInvest[chatId] = { etape: 'montant_dca' };
+      await send(chatId, 'Montant total investi (EUR) ?\nRepartition automatique : 65% ISWD (World) - 25% HIEU (Europe) - 10% HIEM (Emergents)\n_Ex: 100_');
       return;
     }
 
@@ -1780,32 +1769,29 @@ app.post('/webhook', async (req, res) => {
       return;
     }
 
-    if (sessionsInvest[chatId]) {
-      const sess = sessionsInvest[chatId];
-      if (sess.etape === 'ticker_autre') {
-        const ticker = texte.trim().toUpperCase();
-        if (ticker.length < 2 || ticker.length > 10) { await send(chatId, 'Ticker invalide. Ex: AAPL, MSFT'); return; }
-        sess.ticker = ticker; sess.etape = 'montant';
-        await send(chatId, `*${ticker}*\n\nMontant investi en € ? (ex: *200*)`);
-        return;
-      }
-      if (sess.etape === 'montant') {
-        const montant = parseFloat(texte.replace(',', '.'));
-        if (isNaN(montant) || montant <= 0) { await send(chatId, 'Montant invalide. Ex: *200*'); return; }
-        await send(chatId, `Recuperation du prix *${sess.ticker}*...`);
-        const marche = await getPrixActuelETF(sess.ticker);
-        if (!marche || !marche.prix) {
-          await send(chatId, `Impossible de recuperer le prix de *${sess.ticker}*.\nReessaie dans quelques secondes.`);
-          delete sessionsInvest[chatId];
-          return;
+    if (sessionsInvest[chatId]?.etape === 'montant_dca') {
+      const montant = parseFloat(texte.replace(',', '.'));
+      if (isNaN(montant) || montant <= 0) { await send(chatId, 'Montant invalide. Ex: *100*'); return; }
+      delete sessionsInvest[chatId];
+      await send(chatId, 'Repartition en cours...');
+      const parts = [
+        { ticker: 'ISWD', pct: 0.65 },
+        { ticker: 'HIEU', pct: 0.25 },
+        { ticker: 'HIEM', pct: 0.10 },
+      ];
+      let recap = '';
+      for (const p of parts) {
+        const m = montant * p.pct;
+        const marche = await getPrixActuelETF(p.ticker);
+        if (marche && marche.prix) {
+          await saveInvestissement(chatId, p.ticker, m, marche.prix);
+          recap += `${p.ticker}: *${m.toFixed(2)}EUR* @ ${marche.prix}${marche.currency}\n`;
+        } else {
+          recap += `${p.ticker}: echec recuperation du prix, reessaie\n`;
         }
-        const prix = marche.prix;
-        const nb_parts = montant / prix;
-        await saveInvestissement(chatId, sess.ticker, montant, prix);
-        delete sessionsInvest[chatId];
-        await send(chatId, `Achat enregistre !\n\n${sess.ticker}\nMontant: *${montant}€*\nPrix au moment de l'achat: *${prix} ${marche.currency}*\nParts achetees: *${nb_parts.toFixed(4)}*\n\n_/portefeuille pour voir ta situation complete_`);
-        return;
       }
+      await send(chatId, `DCA enregistre — *${montant}EUR* repartis :\n${recap}\n_/portefeuille pour voir ta situation complete_`);
+      return;
     }
 
     if (sessionsVtc[chatId]) {
@@ -2075,6 +2061,8 @@ app.post('/webhook', async (req, res) => {
         else if (/cinéma|concert|spectacle|théâtre|musée|sortie|bowling|karting|escape|parc|zoo|aquarium|netflix|amazon|spotify|jeu|jeux/i.test(texte)) catNLP = 'loisirs';
         else if (/ikea|leroy|castorama|brico|déco|meuble|rideau|ampoule|outil|plomberie|électricité|peinture|rénovation/i.test(texte)) catNLP = 'maison';
         else if (/garage|mécanicien|pneu|vidange|révision|contrôle.technique|péage|autoroute|parking|horodateur|pv |amende|stationnement|lavage.voiture/i.test(texte)) catNLP = 'voiture';
+        else if (/\bturo\b/i.test(texte)) catNLP = 'Turo';
+        else if (/\bvtc\b/i.test(texte)) catNLP = 'VTC';
       }
       if (catNLP) {
         await saveDepense(chatId, montantNLP, catNLP, texte);
@@ -2502,13 +2490,22 @@ app.get('/api/dashboard', async (req, res) => {
       if (p) prixActuels[t] = p;
     }));
 
-    const vtcData = await getDataVtc(CHAT_ID, moisOffset);
+    const vtcData = data.vtc;
+
+    const totalInvesti = investissements.reduce((s, i) => s + Number(i.montant), 0);
+    const totalInvestiActuel = investissements.reduce((s, i) => {
+      const p = prixActuels[i.ticker];
+      return s + (p ? p.prix * Number(i.nb_parts) : Number(i.montant));
+    }, 0);
+    const patrimoineTotal = data.epargneEstimee + totalInvestiActuel;
 
     res.json({
       salaire: data.salaire, beau_frere: BEAU_FRERE, completude: data.completude,
       objectif_completude: OBJECTIF_COMPLETUDE, total_revenus: data.totalRevenus,
       charges_fixes: TOTAL_CF, total_dep: data.totalDep, solde: data.solde,
       epargne_base: data.epargneBase, epargne_estimee: data.epargneEstimee,
+      total_investi: totalInvesti, total_investi_actuel: totalInvestiActuel,
+      patrimoine_total: patrimoineTotal,
       total_manque: data.totalManque, nb_cours: data.cours.length, nb_cours_manques: data.coursManques.length,
       cours: data.cours, cours_manques: data.coursManques, totaux: data.totaux, detail: data.detail,
       budgets: BUDGETS, objectifs: OBJECTIFS, revenus_supp: data.revenus,
