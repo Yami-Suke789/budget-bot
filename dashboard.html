@@ -406,10 +406,15 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
       <div class="vtc-field"><label>Heure fin</label><input type="time" id="vex-fin"></div>
     </div>
     <div class="vtc-field-row">
-      <div class="vtc-field"><label>CA brut (€)</label><input type="number" step="0.01" id="vex-ca"></div>
+      <div class="vtc-field"><label>CA net (€)</label><input type="number" step="0.01" id="vex-ca"></div>
       <div class="vtc-field"><label>Courses</label><input type="number" id="vex-courses"></div>
     </div>
-    <div class="vtc-field"><label>Carburant (€)</label><input type="number" step="0.01" id="vex-carburant"></div>
+    <div class="vtc-field"><label>Regime</label>
+      <select id="vex-regime">
+        <option value="rattachement">Rattachement</option>
+        <option value="urssaf">URSSAF</option>
+      </select>
+    </div>
     <div class="modal-box-actions">
       <button class="btn-confirm-cancel" onclick="closeModalVtcEdit()">Annuler</button>
       <button class="btn-save-edit" id="vex-btn-save">✅ Enregistrer</button>
@@ -565,7 +570,7 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
     <div class="vtc-hero-sub" id="vtc-objectif-sub">—</div>
     <div class="bar" style="height:6px;margin-top:.6rem"><div class="fill" id="vtc-obj-bar" style="width:0%"></div></div>
     <div class="vtc-stats-row">
-      <div class="vtc-stat"><div class="vtc-stat-val" id="vtc-ca-brut">—</div><div class="vtc-stat-lbl">CA brut</div></div>
+      <div class="vtc-stat"><div class="vtc-stat-val" id="vtc-ca-net">—</div><div class="vtc-stat-lbl">CA net</div></div>
       <div class="vtc-stat"><div class="vtc-stat-val" id="vtc-heures">—</div><div class="vtc-stat-lbl">Heures</div></div>
       <div class="vtc-stat"><div class="vtc-stat-val amber" id="vtc-taux">—</div><div class="vtc-stat-lbl">€/h net</div></div>
     </div>
@@ -593,10 +598,16 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
       <div class="vtc-field"><label>Heure fin</label><input type="time" id="vtc-f-fin"></div>
     </div>
     <div class="vtc-field-row">
-      <div class="vtc-field"><label>CA brut (€)</label><input type="number" step="0.01" min="0" id="vtc-f-ca" placeholder="Ex: 120"></div>
+      <div class="vtc-field"><label>CA net (€)</label><input type="number" step="0.01" min="0" id="vtc-f-ca" placeholder="Ce qu'affiche Uber/Bolt"></div>
       <div class="vtc-field"><label>Nb courses</label><input type="number" min="0" id="vtc-f-courses" placeholder="Ex: 8"></div>
     </div>
-    <div class="vtc-field"><label>Carburant (€)</label><input type="number" step="0.01" min="0" id="vtc-f-carburant" placeholder="Ex: 15"></div>
+    <div class="vtc-field">
+      <label>Régime de la session</label>
+      <div class="vtc-plat-btns">
+        <button class="vtc-plat-btn active" data-regime="rattachement" onclick="setVtcRegime('rattachement')">🔗 Rattachement</button>
+        <button class="vtc-plat-btn" data-regime="urssaf" onclick="setVtcRegime('urssaf')">🏛️ URSSAF</button>
+      </div>
+    </div>
 
     <button class="vtc-submit" onclick="enregistrerSessionVtc()">▶ Enregistrer la session</button>
   </div>
@@ -616,16 +627,28 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
     <div id="vtc-sessions-list">—</div>
   </div>
 
+  <!-- Dépenses diverses (essence, nettoyage...) -->
+  <div class="card full" style="margin-bottom:.55rem">
+    <div class="card-label" style="margin-bottom:.7rem">🧾 Dépenses diverses (essence, nettoyage...)</div>
+    <div class="turo-cat-btns" id="vtc-dep-cat-btns" style="margin-bottom:.55rem"></div>
+    <div style="display:flex;gap:8px">
+      <input type="number" step="0.01" min="0" id="vtc-dep-montant" placeholder="Montant €" style="flex:1;background:rgba(255,255,255,0.07);border:1px solid var(--border);color:var(--text);font-size:.85rem;padding:8px 10px;border-radius:8px;outline:none;font-family:var(--mono)">
+      <button class="simul-add-btn" onclick="enregistrerDepenseDiverseVtc()">+ Ajouter</button>
+    </div>
+    <div id="vtc-dep-list" style="margin-top:.5rem">—</div>
+  </div>
+
   <!-- Détail secondaire (bookkeeping) -->
   <div class="simul-acc" id="acc-vtc-detail">
     <div class="simul-acc-head" onclick="toggleAcc('acc-vtc-detail')">
-      <div class="simul-acc-head-left">📎 Détail (encaissé, carburant, URSSAF)</div>
+      <div class="simul-acc-head-left">📎 Détail (charges, URSSAF, rattachement)</div>
       <div class="simul-acc-head-right"><span class="simul-acc-chev">›</span></div>
     </div>
     <div class="simul-acc-body">
-      <div class="row"><span style="color:var(--muted)">CA encaissé (après commission)</span><span style="font-family:var(--mono)" id="vtc-ca-enc">—</span></div>
-      <div class="row"><span style="color:var(--muted)">Carburant</span><span style="font-family:var(--mono);color:var(--red)" id="vtc-carburant">—</span></div>
-      <div class="row"><span style="color:var(--muted)">URSSAF estimé</span><span style="font-family:var(--mono);color:var(--red)" id="vtc-urssaf">—</span></div>
+      <div class="row"><span style="color:var(--muted)">Dépenses diverses</span><span style="font-family:var(--mono);color:var(--red)" id="vtc-dep-total-detail">—</span></div>
+      <div class="row"><span style="color:var(--muted)">Charges fixes (Clicar etc.)</span><span style="font-family:var(--mono);color:var(--red)" id="vtc-charges-fixes-detail">—</span></div>
+      <div class="row"><span style="color:var(--muted)">URSSAF</span><span style="font-family:var(--mono);color:var(--red)" id="vtc-urssaf">—</span></div>
+      <div class="row"><span style="color:var(--muted)">Rattachement</span><span style="font-family:var(--mono);color:var(--red)" id="vtc-rattachement">—</span></div>
     </div>
   </div>
 
@@ -881,6 +904,10 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
         <input type="number" step="0.01" class="amt" id="vtc-charge-montant" placeholder="€/sem">
         <button class="simul-add-btn" onclick="ajouterChargeVtcUI()">+</button>
       </div>
+      <div class="row" id="after-cfg-vtc_rattachement_mensuel" style="margin-top:.4rem">
+        <div><div style="font-size:.75rem">🔗 Rattachement mensuel</div><div style="font-size:.6rem;color:var(--muted)">Tant que non auto-entrepreneur</div></div>
+        <div style="display:flex;align-items:center;gap:8px" id="cfg-rattachement-val"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -901,6 +928,11 @@ let simulDepenses = []; // [{label, montant}]
 
 // ── VTC STATE ──
 let vtcPlateforme = 'uber';
+let vtcRegime = 'rattachement';
+let vtcDepCategorie = null;
+const VTC_DEP_CATEGORIES = {
+  essence:'Essence', nettoyage:'Nettoyage', peage:'Péage/Parking', autre:'Autre'
+};
 
 // ── TURO STATE ──
 let turoCategorie = null;
@@ -1107,6 +1139,11 @@ function renderConfig(d){
         </div>
       </div>`).join('');
   }
+
+  const rattVal = d.vtc_rattachement_mensuel||60;
+  document.getElementById('cfg-rattachement-val').innerHTML =
+    `<span style="font-family:var(--mono);font-size:.82rem">${rattVal} €/mois</span>
+     <button class="edit-btn" onclick="showInlineEdit('cfg-vtc_rattachement_mensuel','Nouveau montant rattachement mensuel',${rattVal},(v)=>saveConfig('vtc_rattachement_mensuel',v))">✏️</button>`;
 }
 
 function encodeId(s){ return s.replace(/[^a-zA-Z0-9]/g,'-'); }
@@ -1117,15 +1154,34 @@ function encodeId(s){ return s.replace(/[^a-zA-Z0-9]/g,'-'); }
 
 function setVtcPlateforme(p){
   vtcPlateforme = p;
-  document.querySelectorAll('.vtc-plat-btn').forEach(btn=>{
+  document.querySelectorAll('#tab-vtc .vtc-plat-btns .vtc-plat-btn[data-plat]').forEach(btn=>{
     btn.classList.toggle('active', btn.dataset.plat===p);
   });
+}
+
+function setVtcRegime(r){
+  vtcRegime = r;
+  document.querySelectorAll('#tab-vtc .vtc-plat-btns .vtc-plat-btn[data-regime]').forEach(btn=>{
+    btn.classList.toggle('active', btn.dataset.regime===r);
+  });
+}
+
+function setVtcDepCategorie(cat){
+  vtcDepCategorie = cat;
+  document.querySelectorAll('#vtc-dep-cat-btns .turo-cat-btn').forEach(btn=>btn.classList.toggle('active', btn.dataset.cat===cat));
 }
 
 function initVtcForm(){
   const dateInput = document.getElementById('vtc-f-date');
   if(dateInput && !dateInput.value){
     dateInput.value = new Date().toISOString().slice(0,10);
+  }
+  const catCont = document.getElementById('vtc-dep-cat-btns');
+  if(catCont && !catCont.dataset.built){
+    catCont.dataset.built='1';
+    catCont.innerHTML = Object.entries(VTC_DEP_CATEGORIES).map(([k,label])=>
+      `<button class="turo-cat-btn" data-cat="${k}" onclick="setVtcDepCategorie('${k}')">${label}</button>`
+    ).join('');
   }
 }
 
@@ -1135,10 +1191,9 @@ async function enregistrerSessionVtc(){
   const fin = document.getElementById('vtc-f-fin').value;
   const ca = parseFloat(document.getElementById('vtc-f-ca').value);
   const courses = document.getElementById('vtc-f-courses').value;
-  const carburant = document.getElementById('vtc-f-carburant').value;
 
   if(!date || !debut || !fin){ toast('❌ Renseigne la date et les heures',true); return; }
-  if(!ca || ca<=0){ toast('❌ CA brut invalide',true); return; }
+  if(!ca || ca<=0){ toast('❌ CA net invalide',true); return; }
 
   toast('⏳ Enregistrement...');
   try{
@@ -1146,8 +1201,8 @@ async function enregistrerSessionVtc(){
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
         date, heure_debut: debut, heure_fin: fin,
-        plateforme: vtcPlateforme, ca_brut: ca,
-        nb_courses: courses || null, carburant: carburant || 0,
+        plateforme: vtcPlateforme, ca_net: ca,
+        nb_courses: courses || null, regime: vtcRegime,
       })
     });
     const j = await r.json();
@@ -1155,7 +1210,6 @@ async function enregistrerSessionVtc(){
       toast('✅ Session enregistrée');
       document.getElementById('vtc-f-ca').value='';
       document.getElementById('vtc-f-courses').value='';
-      document.getElementById('vtc-f-carburant').value='';
       document.getElementById('vtc-f-debut').value='';
       document.getElementById('vtc-f-fin').value='';
       charger();
@@ -1163,25 +1217,47 @@ async function enregistrerSessionVtc(){
   }catch{ toast('❌ Erreur réseau',true); }
 }
 
+async function enregistrerDepenseDiverseVtc(){
+  const montant = parseFloat(document.getElementById('vtc-dep-montant').value);
+  if(!vtcDepCategorie){ toast('❌ Choisis une catégorie',true); return; }
+  if(!montant || montant<=0){ toast('❌ Montant invalide',true); return; }
+  toast('⏳ Enregistrement...');
+  try{
+    const r = await fetch('/api/vtc/depense', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ montant, categorie: vtcDepCategorie, libelle: VTC_DEP_CATEGORIES[vtcDepCategorie] })
+    });
+    const j = await r.json();
+    if(j.ok){ toast('✅ Dépense enregistrée'); document.getElementById('vtc-dep-montant').value=''; charger(); }
+    else toast('❌ '+j.error,true);
+  }catch{ toast('❌ Erreur réseau',true); }
+}
+
+async function supprimerDepenseDiverseVtc(id, categorie, montant){
+  showConfirm('🗑️ Supprimer cette dépense ?',`${VTC_DEP_CATEGORIES[categorie]||categorie} — ${Number(montant).toFixed(0)} €`,async()=>{
+    try{ const r=await fetch(`/api/vtc/depense/${id}`,{method:'DELETE'}); const j=await r.json(); if(j.ok){toast('✅ Dépense supprimée');charger();}else toast('❌ '+j.error,true); }catch{toast('❌ Erreur réseau',true);}
+  });
+}
+
 function openModalVtcEdit(s){
   document.getElementById('vex-date').value = s.date;
   document.getElementById('vex-plateforme').value = s.plateforme;
   document.getElementById('vex-debut').value = (s.heure_debut||'').slice(0,5);
   document.getElementById('vex-fin').value = (s.heure_fin||'').slice(0,5);
-  document.getElementById('vex-ca').value = s.ca_brut;
+  document.getElementById('vex-ca').value = s.ca_net;
   document.getElementById('vex-courses').value = s.nb_courses || '';
-  document.getElementById('vex-carburant').value = s.carburant || 0;
+  document.getElementById('vex-regime').value = s.regime || 'rattachement';
   document.getElementById('vex-btn-save').onclick = async ()=>{
     const update = {
       date: document.getElementById('vex-date').value,
       plateforme: document.getElementById('vex-plateforme').value,
       heure_debut: document.getElementById('vex-debut').value,
       heure_fin: document.getElementById('vex-fin').value,
-      ca_brut: parseFloat(document.getElementById('vex-ca').value),
+      ca_net: parseFloat(document.getElementById('vex-ca').value),
       nb_courses: document.getElementById('vex-courses').value || 0,
-      carburant: document.getElementById('vex-carburant').value || 0,
+      regime: document.getElementById('vex-regime').value,
     };
-    if(!update.ca_brut || update.ca_brut<=0){ toast('❌ CA brut invalide',true); return; }
+    if(!update.ca_net || update.ca_net<=0){ toast('❌ CA net invalide',true); return; }
     try{
       const r = await fetch(`/api/vtc/session/${s.id}`, {method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(update)});
       const j = await r.json();
@@ -1197,7 +1273,7 @@ function closeModalVtcEdit(e){
 }
 
 async function supprimerSessionVtc(id, plateforme, ca){
-  showConfirm('🗑️ Supprimer cette session ?',`${plateforme} — ${Number(ca).toFixed(0)} € CA brut`,async()=>{
+  showConfirm('🗑️ Supprimer cette session ?',`${plateforme} — ${Number(ca).toFixed(0)} € CA net`,async()=>{
     try{ const r=await fetch(`/api/vtc/session/${id}`,{method:'DELETE'}); const j=await r.json(); if(j.ok){toast('✅ Session supprimée');charger();}else toast('❌ '+j.error,true); }catch{toast('❌ Erreur réseau',true);}
   });
 }
@@ -1253,13 +1329,14 @@ function renderVtc(d){
   document.getElementById('vtc-obj-bar').style.cssText = `width:${p}%;background:${col(p)}`;
   document.getElementById('vtc-objectif-sub').textContent = `${p}% de l'objectif (${obj.toLocaleString('fr-FR')} €)`;
 
-  document.getElementById('vtc-ca-brut').textContent = fmt(d.vtc_ca_brut||0);
+  document.getElementById('vtc-ca-net').textContent = fmt(d.vtc_ca_net||0);
   document.getElementById('vtc-heures').textContent = (d.vtc_heures||0).toFixed(1)+'h';
   document.getElementById('vtc-taux').textContent = (d.vtc_heures>0) ? (d.vtc_taux_horaire||0).toFixed(1) : '—';
 
-  document.getElementById('vtc-ca-enc').textContent = fmt(d.vtc_ca_encaisse||0);
-  document.getElementById('vtc-carburant').textContent = '-'+fmt(d.vtc_carburant||0);
+  document.getElementById('vtc-dep-total-detail').textContent = '-'+fmt(d.vtc_dep_diverses_total||0);
+  document.getElementById('vtc-charges-fixes-detail').textContent = '-'+fmt(d.vtc_charges_fixes_mois||0);
   document.getElementById('vtc-urssaf').textContent = '-'+fmt(d.vtc_urssaf||0);
+  document.getElementById('vtc-rattachement').textContent = '-'+fmt(d.vtc_rattachement||0);
 
   // Top créneaux (calculé côté client à partir des sessions du mois)
   const sessions = d.vtc_sessions||[];
@@ -1271,7 +1348,7 @@ function renderVtc(d){
     const tranche = Math.floor(heureDebut/3)*3;
     const cle = `${jourSemaine}_${tranche}`;
     if(!groupes[cle]) groupes[cle] = {jourSemaine,tranche,caTotal:0,heuresTotal:0,count:0};
-    groupes[cle].caTotal += Number(s.ca_brut);
+    groupes[cle].caTotal += Number(s.ca_net);
     groupes[cle].heuresTotal += dureeHeuresVtc(s.heure_debut,s.heure_fin);
     groupes[cle].count++;
   });
@@ -1299,21 +1376,39 @@ function renderVtc(d){
     sessList.innerHTML = sorted.map(s=>{
       const date = new Date(s.date).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
       const heures = dureeHeuresVtc(s.heure_debut,s.heure_fin);
-      const caEnc = s.ca_brut - (s.commission_plateforme||0);
+      const regimeTag = s.regime==='urssaf' ? 'URSSAF' : 'Rattachement';
       const sData = JSON.stringify(s).replace(/'/g,"&#39;");
       return `<div class="vtc-session-row">
         <div>
           <span class="vtc-plat-tag vtc-plat-${s.plateforme}">${s.plateforme}</span>
+          <span class="turo-dep-tag" style="margin-left:4px">${regimeTag}</span>
           <div style="margin-top:2px">${date} · ${(s.heure_debut||'').slice(0,5)}-${(s.heure_fin||'').slice(0,5)} · ${heures.toFixed(1)}h</div>
-          ${s.nb_courses?`<div style="font-size:.6rem;color:var(--muted)">${s.nb_courses} courses${s.carburant?` · ⛽ ${Number(s.carburant).toFixed(0)}€`:''}</div>`:''}
+          ${s.nb_courses?`<div style="font-size:.6rem;color:var(--muted)">${s.nb_courses} courses</div>`:''}
         </div>
         <div style="display:flex;align-items:flex-start;gap:6px">
           <div style="text-align:right">
-            <div style="font-family:var(--mono)">${Number(s.ca_brut).toFixed(0)} €</div>
-            <div style="font-size:.6rem;color:var(--green)">${caEnc.toFixed(0)} € net</div>
+            <div style="font-family:var(--mono);color:var(--green)">${Number(s.ca_net).toFixed(0)} €</div>
           </div>
           <button class="action-btn edit" onclick='openModalVtcEdit(${sData})' title="Modifier">✏️</button>
-          <button class="action-btn del" onclick="supprimerSessionVtc('${s.id}','${s.plateforme}',${s.ca_brut})" title="Supprimer">🗑️</button>
+          <button class="action-btn del" onclick="supprimerSessionVtc('${s.id}','${s.plateforme}',${s.ca_net})" title="Supprimer">🗑️</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // Dépenses diverses
+  const deps = d.vtc_depenses_diverses||[];
+  const depList = document.getElementById('vtc-dep-list');
+  if(!deps.length){
+    depList.innerHTML = '<div style="color:var(--muted);font-size:.72rem;padding:6px 0">Aucune dépense enregistrée</div>';
+  } else {
+    depList.innerHTML = deps.map(dep=>{
+      const label = VTC_DEP_CATEGORIES[dep.categorie]||dep.categorie;
+      return `<div class="turo-dep-row">
+        <span>${label}</span>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-family:var(--mono);color:var(--red)">${Number(dep.montant).toFixed(0)} €</span>
+          <button class="action-btn del" onclick="supprimerDepenseDiverseVtc('${dep.id}','${dep.categorie}',${dep.montant})" title="Supprimer">🗑️</button>
         </div>
       </div>`;
     }).join('');
