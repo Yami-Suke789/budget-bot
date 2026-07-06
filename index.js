@@ -93,7 +93,7 @@ const SEMAINES_PAR_MOIS = 4.357;
 let VTC_CHARGES_FIXES = { 'Clicar': 167 }; // euros/semaine
 const VTC_URSSAF_TAUX = 0.212; // 21.2%
 let VTC_RATTACHEMENT_MENSUEL = 60; // euros/mois, tant que non auto-entrepreneur
-let VTC_RATTACHEMENT_ACTIF = true; // toggle manuel, independant des sessions
+let VTC_RATTACHEMENT_ACTIF = true; // tant que non auto-entrepreneur : true = rattachement, false = URSSAF
 const VTC_PLATEFORMES_VALIDES = ['uber', 'bolt', 'heetch', 'autre'];
 const VTC_DEP_CATEGORIES = {
   essence:   { label: 'Essence' },
@@ -335,7 +335,6 @@ async function saveVtcSession(chatId, s) {
     plateforme: s.plateforme,
     ca_net: s.caNet,
     nb_courses: s.nbCourses || 0,
-    regime: s.regime || 'rattachement',
   });
   if (error) console.error('saveVtcSession error:', error.message);
 }
@@ -368,12 +367,10 @@ async function getDataVtc(chatId, moisOffset = 0) {
   const totalDepensesDiverses = depensesDiverses.reduce((s, x) => s + Number(x.montant), 0);
   const chargesFixesHebdo = getTotalChargesFixesVtc() * SEMAINES_PAR_MOIS;
 
-  // Le champ "regime" ne sert plus qu'a distinguer les sessions soumises a l'URSSAF.
-  // Le rattachement est desormais un toggle mensuel independant (VTC_RATTACHEMENT_ACTIF),
-  // pilote depuis Config, et non plus deduit du tag d'une session.
-  const sessionsUrssaf = sessions.filter(s => s.regime === 'urssaf');
-  const urssaf = sessionsUrssaf.reduce((s, x) => s + Number(x.ca_net), 0) * VTC_URSSAF_TAUX;
+  // Rattachement (charge fixe mensuelle) OU URSSAF (% du CA net) — jamais les deux, pilote par un
+  // toggle global en Config, independant des sessions individuelles (plus proche de la realite).
   const rattachement = VTC_RATTACHEMENT_ACTIF ? VTC_RATTACHEMENT_MENSUEL : 0;
+  const urssaf = VTC_RATTACHEMENT_ACTIF ? 0 : caNet * VTC_URSSAF_TAUX;
 
   const net = caNet - totalDepensesDiverses - chargesFixesHebdo - urssaf - rattachement;
 
@@ -1457,22 +1454,6 @@ async function traiterCallback(cb) {
     return;
   }
 
-  if (data === 'vtc_regime_rattachement' || data === 'vtc_regime_urssaf') {
-    const sess = sessionsVtc[chatId];
-    if (!sess) return;
-    sess.regime = data === 'vtc_regime_urssaf' ? 'urssaf' : 'rattachement';
-    await saveVtcSession(chatId, sess);
-    const heures = dureeHeuresVtc(sess.heureDebut, sess.heureFin);
-    delete sessionsVtc[chatId];
-    await send(chatId,
-      `Session VTC enregistree\n\n` +
-      `CA net: *${sess.caNet}€*\n` +
-      `Regime: *${sess.regime === 'urssaf' ? 'URSSAF' : 'Rattachement'}*\n` +
-      `Duree: *${heures.toFixed(1)}h*${heures > 0 ? ` — Taux: *${(sess.caNet/heures).toFixed(1)}€/h*` : ''}`
-    );
-    return;
-  }
-
   if (data.startsWith('vtc_dep_cat_')) {
     const cat = data.replace('vtc_dep_cat_', '');
     sessionsVtcDep[chatId] = { etape: 'montant', categorie: cat };
@@ -1825,10 +1806,14 @@ app.post('/webhook', async (req, res) => {
       }
       if (sess.etape === 'nb_courses') {
         sess.nbCourses = texte === 'skip' ? null : parseInt(texte, 10);
-        sess.etape = 'regime';
-        await sendBtns(chatId, 'Cette session est faite sous quel regime ?', [
-          [{ t: 'Rattachement', d: 'vtc_regime_rattachement' }, { t: 'URSSAF', d: 'vtc_regime_urssaf' }],
-        ]);
+        await saveVtcSession(chatId, sess);
+        const heures = dureeHeuresVtc(sess.heureDebut, sess.heureFin);
+        delete sessionsVtc[chatId];
+        await send(chatId,
+          `Session VTC enregistree\n\n` +
+          `CA net: *${sess.caNet}€*\n` +
+          `Duree: *${heures.toFixed(1)}h*${heures > 0 ? ` — Taux: *${(sess.caNet/heures).toFixed(1)}€/h*` : ''}`
+        );
         return;
       }
     }
@@ -2151,6 +2136,41 @@ app.patch('/api/depense/:id', async (req, res) => {
   } catch (err) { res.json({ ok: false, error: err.message }); }
 });
 
+// ============================================================
+// API COURS — preparee pour usage futur (pas encore appelee par le dashboard,
+// les cours restent geres via Telegram /annuler pour le moment)
+// ============================================================
+app.patch('/api/cours/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { gain, duree, rattrapage } = req.body;
+    if (!id) return res.json({ ok: false, error: 'ID manquant' });
+    const update = {};
+    if (gain !== undefined) {
+      const v = parseFloat(gain);
+      if (isNaN(v) || v <= 0) return res.json({ ok: false, error: 'Gain invalide' });
+      update.gain = v;
+    }
+    if (duree !== undefined) update.duree = parseFloat(duree);
+    if (rattrapage !== undefined) update.rattrapage = !!rattrapage;
+    const { error } = await supabase.from('cours').update(update).eq('id', id);
+    if (error) return res.json({ ok: false, error: error.message });
+    res.json({ ok: true });
+  } catch (err) { res.json({ ok: false, error: err.message }); }
+});
+
+app.delete('/api/cours/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id) return res.json({ ok: false, error: 'ID manquant' });
+    const { data: item, error: fetchErr } = await supabase.from('cours').select('id, eleve, gain').eq('id', id).single();
+    if (fetchErr || !item) return res.json({ ok: false, error: 'Cours introuvable' });
+    const { error } = await supabase.from('cours').delete().eq('id', id);
+    if (error) return res.json({ ok: false, error: error.message });
+    res.json({ ok: true, deleted: item });
+  } catch (err) { res.json({ ok: false, error: err.message }); }
+});
+
 app.delete('/api/revenu/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -2209,7 +2229,7 @@ app.patch('/api/investissement/:id', async (req, res) => {
 // ============================================================
 app.post('/api/vtc/session', async (req, res) => {
   try {
-    const { date, heure_debut, heure_fin, plateforme, ca_net, nb_courses, regime } = req.body;
+    const { date, heure_debut, heure_fin, plateforme, ca_net, nb_courses } = req.body;
     if (!date || !heure_debut || !heure_fin || !plateforme || !ca_net) {
       return res.json({ ok: false, error: 'Champs manquants' });
     }
@@ -2223,7 +2243,6 @@ app.post('/api/vtc/session', async (req, res) => {
       plateforme: String(plateforme).toLowerCase(),
       ca_net: caNet,
       nb_courses: nb_courses ? parseInt(nb_courses, 10) : 0,
-      regime: regime === 'urssaf' ? 'urssaf' : 'rattachement',
     });
     if (error) return res.json({ ok: false, error: error.message });
     res.json({ ok: true });
@@ -2233,7 +2252,7 @@ app.post('/api/vtc/session', async (req, res) => {
 app.patch('/api/vtc/session/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { date, heure_debut, heure_fin, plateforme, ca_net, nb_courses, regime } = req.body;
+    const { date, heure_debut, heure_fin, plateforme, ca_net, nb_courses } = req.body;
     if (!id) return res.json({ ok: false, error: 'ID manquant' });
     const update = {};
     if (date !== undefined) update.date = date;
@@ -2246,10 +2265,26 @@ app.patch('/api/vtc/session/:id', async (req, res) => {
       update.ca_net = v;
     }
     if (nb_courses !== undefined) update.nb_courses = nb_courses ? parseInt(nb_courses, 10) : 0;
-    if (regime !== undefined) update.regime = regime === 'urssaf' ? 'urssaf' : 'rattachement';
     const { error } = await supabase.from('vtc_sessions').update(update).eq('id', id);
     if (error) return res.json({ ok: false, error: error.message });
     res.json({ ok: true });
+  } catch (err) { res.json({ ok: false, error: err.message }); }
+});
+
+app.post('/api/vtc/rattachement', async (req, res) => {
+  try {
+    const { actif, montant } = req.body;
+    if (actif !== undefined) {
+      VTC_RATTACHEMENT_ACTIF = !!actif;
+      await sauvegarderConfig('vtc_rattachement_actif', VTC_RATTACHEMENT_ACTIF ? 1 : 0);
+    }
+    if (montant !== undefined) {
+      const v = parseFloat(montant);
+      if (isNaN(v) || v <= 0) return res.json({ ok: false, error: 'Montant invalide' });
+      VTC_RATTACHEMENT_MENSUEL = v;
+      await sauvegarderConfig('vtc_rattachement_mensuel', v);
+    }
+    res.json({ ok: true, actif: VTC_RATTACHEMENT_ACTIF, montant: VTC_RATTACHEMENT_MENSUEL });
   } catch (err) { res.json({ ok: false, error: err.message }); }
 });
 
@@ -2496,6 +2531,8 @@ app.get('/api/dashboard', async (req, res) => {
       return s + (p ? p.prix * Number(i.nb_parts) : Number(i.montant));
     }, 0);
     const patrimoineTotal = data.epargneEstimee + totalInvestiActuel;
+    const plusValueLatente = totalInvestiActuel - totalInvesti;
+    const patrimoineEvolutionMois = data.solde + plusValueLatente;
 
     res.json({
       salaire: data.salaire, beau_frere: BEAU_FRERE, completude: data.completude,
@@ -2503,7 +2540,7 @@ app.get('/api/dashboard', async (req, res) => {
       charges_fixes: TOTAL_CF, total_dep: data.totalDep, solde: data.solde,
       epargne_base: data.epargneBase, epargne_estimee: data.epargneEstimee,
       total_investi: totalInvesti, total_investi_actuel: totalInvestiActuel,
-      patrimoine_total: patrimoineTotal,
+      patrimoine_total: patrimoineTotal, patrimoine_evolution_mois: patrimoineEvolutionMois,
       total_manque: data.totalManque, nb_cours: data.cours.length, nb_cours_manques: data.coursManques.length,
       cours: data.cours, cours_manques: data.coursManques, totaux: data.totaux, detail: data.detail,
       budgets: BUDGETS, objectifs: OBJECTIFS, revenus_supp: data.revenus,
@@ -2557,16 +2594,6 @@ app.post('/api/config', async (req, res) => {
   try {
     const { cle, valeur } = req.body;
     if (!cle || valeur === undefined) return res.json({ ok: false, error: 'Parametres manquants' });
-
-    // Cle booleenne particuliere (0 est une valeur valide, donc traitee a part
-    // du parseFloat generique ci-dessous qui rejette les valeurs <= 0)
-    if (cle === 'vtc_rattachement_actif') {
-      const b = parseInt(valeur) === 1 ? 1 : 0;
-      VTC_RATTACHEMENT_ACTIF = b === 1;
-      await sauvegarderConfig(cle, b);
-      return res.json({ ok: true });
-    }
-
     const v = parseFloat(valeur);
     if (isNaN(v) || v <= 0) return res.json({ ok: false, error: 'Valeur invalide' });
     if (cle === 'salaire_lgm')        SALAIRE_LGM_DEFAULT = v;
