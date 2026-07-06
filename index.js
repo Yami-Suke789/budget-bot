@@ -363,9 +363,9 @@ async function getDataVtc(chatId, moisOffset = 0) {
   const sessions = data || [];
   const depensesDiverses = depData || [];
 
-  const caNet = sessions.reduce((s, x) => s + Number(x.ca_net), 0);
+  const caNet = sessions.reduce((s, x) => s + (Number(x.ca_net) || 0), 0);
   const heures = sessions.reduce((s, x) => s + dureeHeuresVtc(x.heure_debut, x.heure_fin), 0);
-  const totalDepensesDiverses = depensesDiverses.reduce((s, x) => s + Number(x.montant), 0);
+  const totalDepensesDiverses = depensesDiverses.reduce((s, x) => s + (Number(x.montant) || 0), 0);
   const chargesFixesHebdo = getTotalChargesFixesVtc() * SEMAINES_PAR_MOIS;
 
   // Rattachement (charge fixe mensuelle) OU URSSAF (% du CA net) — jamais les deux, pilote par un
@@ -522,13 +522,13 @@ async function getDataTuro(chatId, moisOffset = 0) {
   const depsPonct = depPonctuelles || [];
   const depsRecur = depRecurrentes || [];
 
-  const revenuBrutTotal = locs.reduce((s, l) => s + Number(l.revenu_brut), 0);
-  const revenuNetTotal = locs.reduce((s, l) => s + Number(l.revenu_net), 0);
-  const partMoiTotal = locs.reduce((s, l) => s + Number(l.part_moi), 0);
-  const partCousinTotal = locs.reduce((s, l) => s + Number(l.part_cousin), 0);
+  const revenuBrutTotal = locs.reduce((s, l) => s + (Number(l.revenu_brut) || 0), 0);
+  const revenuNetTotal = locs.reduce((s, l) => s + (Number(l.revenu_net) || 0), 0);
+  const partMoiTotal = locs.reduce((s, l) => s + (Number(l.part_moi) || 0), 0);
+  const partCousinTotal = locs.reduce((s, l) => s + (Number(l.part_cousin) || 0), 0);
 
-  const totalDepPonctuelles = depsPonct.reduce((s, d) => s + Number(d.montant), 0);
-  const totalDepRecurrentes = depsRecur.reduce((s, d) => s + Number(d.montant), 0);
+  const totalDepPonctuelles = depsPonct.reduce((s, d) => s + (Number(d.montant) || 0), 0);
+  const totalDepRecurrentes = depsRecur.reduce((s, d) => s + (Number(d.montant) || 0), 0);
   const totalDepenses = totalDepPonctuelles + totalDepRecurrentes;
 
   // Rentabilite nette = ma part des locations - toutes mes depenses (je porte 100% des depenses)
@@ -537,7 +537,7 @@ async function getDataTuro(chatId, moisOffset = 0) {
   const depParCategorie = {};
   Object.keys(TURO_CATEGORIES).forEach(k => depParCategorie[k] = 0);
   [...depsPonct, ...depsRecur].forEach(d => {
-    if (depParCategorie[d.categorie] !== undefined) depParCategorie[d.categorie] += Number(d.montant);
+    if (depParCategorie[d.categorie] !== undefined) depParCategorie[d.categorie] += (Number(d.montant) || 0);
   });
 
   return {
@@ -687,8 +687,8 @@ async function getData(moisOffset = 0) {
   // Turo et VTC — impactent le total revenus / solde global via leur net final
   const turo = await getDataTuro(CHAT_ID, moisOffset);
   const vtc = await getDataVtc(CHAT_ID, moisOffset);
-  const turoNet = turo.rentabiliteNette;
-  const vtcNet = vtc ? vtc.net : 0;
+  const turoNet = Number.isFinite(turo?.rentabiliteNette) ? turo.rentabiliteNette : 0;
+  const vtcNet = Number.isFinite(vtc?.net) ? vtc.net : 0;
 
   const totalRevenus = salaire + BEAU_FRERE + completude + revenusSupp + turoNet + vtcNet;
   const solde = totalRevenus - TOTAL_CHARGES_FIXES - totalDep;
