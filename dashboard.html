@@ -397,12 +397,6 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
       <div class="vtc-field"><label>CA net (€)</label><input type="number" step="0.01" id="vex-ca"></div>
       <div class="vtc-field"><label>Courses</label><input type="number" id="vex-courses"></div>
     </div>
-    <div class="vtc-field"><label>Regime</label>
-      <select id="vex-regime">
-        <option value="rattachement">Rattachement</option>
-        <option value="urssaf">URSSAF</option>
-      </select>
-    </div>
     <div class="modal-box-actions">
       <button class="btn-confirm-cancel" onclick="closeModalVtcEdit()">Annuler</button>
       <button class="btn-save-edit" id="vex-btn-save">✅ Enregistrer</button>
@@ -456,13 +450,12 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
 
 <div class="tabs">
   <div class="tab active" onclick="setTab('apercu')">Aperçu</div>
+  <div class="tab" onclick="setTab('journal')">📰 Journal</div>
   <div class="tab" onclick="setTab('cours')">Cours</div>
   <div class="tab" onclick="setTab('vtc')">🚕 VTC</div>
   <div class="tab" onclick="setTab('turo')">🚙 Turo</div>
   <div class="tab" onclick="setTab('budgets')">Dépenses</div>
-  <div class="tab" onclick="setTab('revenus')">Revenus</div>
   <div class="tab" onclick="setTab('prelevements')">Prélèv.</div>
-  <div class="tab" onclick="setTab('objectifs')">Objectifs</div>
   <div class="tab" onclick="setTab('simul')">🎯 Simul.</div>
   <div class="tab" onclick="setTab('config')">⚙️ Config</div>
 </div>
@@ -490,6 +483,32 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
     <div class="card full"><div class="card-label">Patrimoine total</div><div class="card-value green" id="a-patrimoine">—</div><div class="card-sub" id="a-patrimoine-s">—</div></div>
     <div class="card full"><div class="card-label">Revenu total</div><div class="card-value green" id="a-rv">—</div><div class="card-sub" id="a-rv-det">—</div></div>
     <div class="card full"><div class="card-label">Solde</div><div class="card-value" id="a-sl">—</div><div class="bar"><div class="fill" id="a-sl-b" style="width:0%"></div></div></div>
+    <div class="card full">
+      <div class="card-label">🎯 Prochain objectif</div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:.2rem">
+        <span id="a-obj-label" style="font-weight:700;font-size:.9rem">—</span>
+        <span id="a-obj-pct" style="font-family:var(--mono);font-weight:700">—%</span>
+      </div>
+      <div class="bar" style="margin-top:.5rem"><div class="fill" id="a-obj-bar" style="width:0%"></div></div>
+      <div class="card-sub" id="a-obj-sub" style="margin-top:.35rem">—</div>
+    </div>
+  </div>
+  <div class="simul-acc" id="acc-revenus-supp">
+    <div class="simul-acc-head" onclick="toggleAcc('acc-revenus-supp')">
+      <div class="simul-acc-head-left">💰 Rentrées ponctuelles</div>
+      <div class="simul-acc-head-right"><span class="simul-acc-chev">›</span></div>
+    </div>
+    <div class="simul-acc-body">
+      <div id="a-revenus-supp-list" style="padding-top:.4rem">—</div>
+    </div>
+  </div>
+</div>
+
+<!-- JOURNAL -->
+<div class="section" id="tab-journal">
+  <div class="card full">
+    <div class="card-label" style="margin-bottom:.5rem">📰 Journal du mois</div>
+    <div id="journal-list">Chargement...</div>
   </div>
 </div>
 
@@ -536,7 +555,7 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
   </div>
 </div>
 
-<!-- VTC (epure) -->
+<!-- VTC (lecture seule — saisie via Telegram) -->
 <div class="section" id="tab-vtc">
 
   <div class="vtc-hero">
@@ -551,42 +570,6 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
     </div>
   </div>
 
-  <!-- Formulaire ajout session -->
-  <div class="card full" style="margin-bottom:.55rem">
-    <div class="card-label" style="margin-bottom:.7rem">➕ Enregistrer une session</div>
-
-    <div class="vtc-field">
-      <label>Plateforme</label>
-      <div class="vtc-plat-btns">
-        <button class="vtc-plat-btn active" data-plat="uber" onclick="setVtcPlateforme('uber')">Uber</button>
-        <button class="vtc-plat-btn" data-plat="bolt" onclick="setVtcPlateforme('bolt')">Bolt</button>
-        <button class="vtc-plat-btn" data-plat="heetch" onclick="setVtcPlateforme('heetch')">Heetch</button>
-        <button class="vtc-plat-btn" data-plat="autre" onclick="setVtcPlateforme('autre')">Autre</button>
-      </div>
-    </div>
-
-    <div class="vtc-field-row">
-      <div class="vtc-field"><label>Date</label><input type="date" id="vtc-f-date"></div>
-    </div>
-    <div class="vtc-field-row">
-      <div class="vtc-field"><label>Heure début</label><input type="time" id="vtc-f-debut"></div>
-      <div class="vtc-field"><label>Heure fin</label><input type="time" id="vtc-f-fin"></div>
-    </div>
-    <div class="vtc-field-row">
-      <div class="vtc-field"><label>CA net (€)</label><input type="number" step="0.01" min="0" id="vtc-f-ca" placeholder="Ce qu'affiche Uber/Bolt"></div>
-      <div class="vtc-field"><label>Nb courses</label><input type="number" min="0" id="vtc-f-courses" placeholder="Ex: 8"></div>
-    </div>
-    <div class="vtc-field">
-      <label>Régime de la session</label>
-      <div class="vtc-plat-btns">
-        <button class="vtc-plat-btn active" data-regime="rattachement" onclick="setVtcRegime('rattachement')">🔗 Rattachement</button>
-        <button class="vtc-plat-btn" data-regime="urssaf" onclick="setVtcRegime('urssaf')">🏛️ URSSAF</button>
-      </div>
-    </div>
-
-    <button class="vtc-submit" onclick="enregistrerSessionVtc()">▶ Enregistrer la session</button>
-  </div>
-
   <!-- Top créneaux -->
   <div class="card full" style="margin-bottom:.55rem">
     <div class="card-label" style="margin-bottom:.5rem">🏆 Top créneaux (taux horaire)</div>
@@ -595,36 +578,23 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
 
   <!-- Historique sessions -->
   <div class="card full" style="margin-bottom:.55rem">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
-      <div class="card-label" style="margin:0">📋 Sessions du mois</div>
-      <span style="font-size:.58rem;color:var(--muted)">✏️ · 🗑️</span>
-    </div>
+    <div class="card-label" style="margin-bottom:.5rem">📋 Sessions du mois</div>
     <div id="vtc-sessions-list">—</div>
   </div>
 
   <!-- Dépenses diverses (essence, nettoyage...) -->
   <div class="card full" style="margin-bottom:.55rem">
-    <div class="card-label" style="margin-bottom:.7rem">🧾 Dépenses diverses (essence, nettoyage...)</div>
-    <div class="turo-cat-btns" id="vtc-dep-cat-btns" style="margin-bottom:.55rem"></div>
-    <div style="display:flex;gap:8px">
-      <input type="number" step="0.01" min="0" id="vtc-dep-montant" placeholder="Montant €" style="flex:1;background:rgba(255,255,255,0.07);border:1px solid var(--border);color:var(--text);font-size:.85rem;padding:8px 10px;border-radius:8px;outline:none;font-family:var(--mono)">
-      <button class="simul-add-btn" onclick="enregistrerDepenseDiverseVtc()">+ Ajouter</button>
-    </div>
-    <div id="vtc-dep-list" style="margin-top:.5rem">—</div>
+    <div class="card-label" style="margin-bottom:.5rem">🧾 Dépenses diverses</div>
+    <div id="vtc-dep-list">—</div>
   </div>
 
-  <!-- Détail secondaire (bookkeeping) -->
-  <div class="simul-acc" id="acc-vtc-detail">
-    <div class="simul-acc-head" onclick="toggleAcc('acc-vtc-detail')">
-      <div class="simul-acc-head-left">📎 Détail (charges, URSSAF, rattachement)</div>
-      <div class="simul-acc-head-right"><span class="simul-acc-chev">›</span></div>
-    </div>
-    <div class="simul-acc-body">
-      <div class="row"><span style="color:var(--muted)">Dépenses diverses</span><span style="font-family:var(--mono);color:var(--red)" id="vtc-dep-total-detail">—</span></div>
-      <div class="row"><span style="color:var(--muted)">Charges fixes (Clicar etc.)</span><span style="font-family:var(--mono);color:var(--red)" id="vtc-charges-fixes-detail">—</span></div>
-      <div class="row"><span style="color:var(--muted)">URSSAF</span><span style="font-family:var(--mono);color:var(--red)" id="vtc-urssaf">—</span></div>
-      <div class="row"><span style="color:var(--muted)">Rattachement</span><span style="font-family:var(--mono);color:var(--red)" id="vtc-rattachement">—</span></div>
-    </div>
+  <!-- Détail (déplié par défaut) -->
+  <div class="card full">
+    <div class="card-label" style="margin-bottom:.5rem">📎 Détail (charges, URSSAF, rattachement)</div>
+    <div class="row"><span style="color:var(--muted)">Dépenses diverses</span><span style="font-family:var(--mono);color:var(--red)" id="vtc-dep-total-detail">—</span></div>
+    <div class="row"><span style="color:var(--muted)">Charges fixes (Clicar etc.)</span><span style="font-family:var(--mono);color:var(--red)" id="vtc-charges-fixes-detail">—</span></div>
+    <div class="row"><span style="color:var(--muted)">URSSAF</span><span style="font-family:var(--mono);color:var(--red)" id="vtc-urssaf">—</span></div>
+    <div class="row"><span style="color:var(--muted)">Rattachement</span><span style="font-family:var(--mono);color:var(--red)" id="vtc-rattachement">—</span></div>
   </div>
 
 </div>
@@ -643,60 +613,15 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
     </div>
   </div>
 
-  <!-- Toggle formulaire -->
-  <div class="turo-form-toggle">
-    <button id="turo-btn-loc" class="active" onclick="setTuroFormMode('location')">🚗 Location</button>
-    <button id="turo-btn-dep" onclick="setTuroFormMode('depense')">🔧 Dépense</button>
-  </div>
-
-  <!-- Formulaire LOCATION -->
-  <div class="card full" id="turo-form-location" style="margin-bottom:.55rem">
-    <div class="card-label" style="margin-bottom:.7rem">➕ Enregistrer une location</div>
-    <div class="turo-field"><label>Locataire</label><input type="text" id="turo-f-locataire" placeholder="Ex: Céline"></div>
-    <div class="turo-field-row">
-      <div class="turo-field"><label>Date début</label><input type="date" id="turo-f-debut"></div>
-      <div class="turo-field"><label>Date fin</label><input type="date" id="turo-f-fin"></div>
-    </div>
-    <div class="turo-field-row">
-      <div class="turo-field"><label>Revenu brut (€)</label><input type="number" step="0.01" min="0" id="turo-f-brut" placeholder="Ex: 148"></div>
-      <div class="turo-field"><label>Frais Turo (€)</label><input type="number" step="0.01" min="0" id="turo-f-frais" placeholder="Ex: 18"></div>
-    </div>
-    <button class="turo-submit" onclick="enregistrerLocationTuro()">▶ Enregistrer la location</button>
-  </div>
-
-  <!-- Formulaire DEPENSE -->
-  <div class="card full" id="turo-form-depense" style="margin-bottom:.55rem;display:none">
-    <div class="card-label" style="margin-bottom:.7rem">➕ Enregistrer une dépense véhicule</div>
-    <div class="turo-field">
-      <label>Catégorie</label>
-      <div class="turo-cat-btns" id="turo-cat-btns"></div>
-    </div>
-    <div class="turo-field"><label>Montant (€)</label><input type="number" step="0.01" min="0" id="turo-f-montant" placeholder="Ex: 90"></div>
-    <div class="turo-field">
-      <label>Type</label>
-      <div class="turo-recur-btns">
-        <button class="turo-recur-btn" data-recur="0" onclick="setTuroRecurrent(false)">1️⃣ Ponctuelle</button>
-        <button class="turo-recur-btn" data-recur="1" onclick="setTuroRecurrent(true)">🔁 Récurrente</button>
-      </div>
-    </div>
-    <button class="turo-submit" onclick="enregistrerDepenseTuro()">▶ Enregistrer la dépense</button>
-  </div>
-
   <!-- Historique locations -->
   <div class="card full" style="margin-bottom:.55rem">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
-      <div class="card-label" style="margin:0">📋 Locations du mois</div>
-      <span style="font-size:.58rem;color:var(--muted)">✏️ · 🗑️</span>
-    </div>
+    <div class="card-label" style="margin-bottom:.5rem">📋 Locations du mois</div>
     <div id="turo-locations-list">—</div>
   </div>
 
   <!-- Dépenses par catégorie -->
   <div class="card full">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
-      <div class="card-label" style="margin:0">🔧 Dépenses véhicule</div>
-      <span style="font-size:.58rem;color:var(--muted)">🗑️</span>
-    </div>
+    <div class="card-label" style="margin-bottom:.5rem">🔧 Dépenses véhicule</div>
     <div id="turo-depenses-list">—</div>
   </div>
 
@@ -704,17 +629,8 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
 
 <!-- DEPENSES -->
 <div class="section" id="tab-budgets">
-  <div class="grid"><div class="card full" id="b-ls">Chargement...</div></div>
-</div>
 
-<!-- REVENUS -->
-<div class="section" id="tab-revenus">
-  <div class="grid">
-    <div class="card"><div class="card-label">Total revenus</div><div class="card-value green" id="r-total">—</div></div>
-    <div class="card"><div class="card-label">Complétude</div><div class="card-value" id="r-completude">—</div><div class="card-sub" id="r-co-s">—</div></div>
-    <div class="card full" id="r-sources">Chargement...</div>
-    <div class="card full" id="r-supp" style="display:none"></div>
-  </div>
+  <div class="grid"><div class="card full" id="b-ls">Chargement...</div></div>
 </div>
 
 <!-- PRELEVEMENTS -->
@@ -723,11 +639,6 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
     <div class="card full" id="p-alert" style="display:none"></div>
     <div class="card full" id="p-ls">Chargement...</div>
   </div>
-</div>
-
-<!-- OBJECTIFS -->
-<div class="section" id="tab-objectifs">
-  <div class="grid"><div class="card full" id="o-ls">Chargement...</div></div>
 </div>
 
 <!-- SIMULATEUR -->
@@ -800,6 +711,12 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
 <div class="section" id="tab-config">
   <div class="grid">
     <div class="card full">
+      <div class="card-label" style="margin-bottom:.6rem">🗂️ Modifier des données</div>
+      <div class="turo-cat-btns" id="cfg-cat-btns"></div>
+      <input type="text" id="cfg-cat-search" placeholder="🔍 Rechercher (nom, montant...)" style="width:100%;margin-top:.55rem;display:none;background:rgba(255,255,255,0.07);border:1px solid var(--border);color:var(--text);font-size:.75rem;padding:8px 10px;border-radius:8px;outline:none;font-family:'Sora',sans-serif" oninput="renderCfgCatTable()">
+      <div id="cfg-cat-table" style="margin-top:.5rem"></div>
+    </div>
+    <div class="card full">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem">
         <div class="card-label" style="margin:0">💼 Revenus fixes</div>
       </div>
@@ -829,8 +746,14 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
         <input type="number" step="0.01" class="amt" id="vtc-charge-montant" placeholder="€/sem">
         <button class="simul-add-btn" onclick="ajouterChargeVtcUI()">+</button>
       </div>
-      <div class="row" id="after-cfg-vtc_rattachement_mensuel" style="margin-top:.4rem">
-        <div><div style="font-size:.75rem">🔗 Rattachement mensuel</div><div style="font-size:.6rem;color:var(--muted)">Tant que non auto-entrepreneur</div></div>
+      <div class="row" style="margin-top:.4rem">
+        <div><div style="font-size:.75rem">🔗 Rattachement actif</div><div style="font-size:.6rem;color:var(--muted)">Sinon : URSSAF appliqué au CA net</div></div>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="cfg-rattachement-actif" class="simul-checkbox" onchange="toggleRattachementActif()">
+        </label>
+      </div>
+      <div class="row" id="after-cfg-vtc_rattachement_mensuel">
+        <div><div style="font-size:.75rem">Montant rattachement</div><div style="font-size:.6rem;color:var(--muted)">Tant que non auto-entrepreneur</div></div>
         <div style="display:flex;align-items:center;gap:8px" id="cfg-rattachement-val"></div>
       </div>
     </div>
@@ -851,17 +774,12 @@ let editingField = null;
 let simulData = null;
 let simulDepenses = []; // [{label, montant}]
 
-// ── VTC STATE ──
-let vtcPlateforme = 'uber';
-let vtcRegime = 'rattachement';
-let vtcDepCategorie = null;
+// ── VTC — categories dépenses diverses (lecture) ──
 const VTC_DEP_CATEGORIES = {
   essence:'Essence', nettoyage:'Nettoyage', peage:'Péage/Parking', autre:'Autre'
 };
 
-// ── TURO STATE ──
-let turoCategorie = null;
-let turoRecurrent = false;
+// ── TURO — categories dépenses véhicule (lecture) ──
 const TURO_CATEGORIES = {
   assurance:'Assurance', ct:'Contrôle tech.', reparation:'Réparation',
   entretien:'Entretien', equipement:'Équipement', autre:'Autre'
@@ -903,7 +821,7 @@ function toast(msg, isError=false){
 }
 
 function setTab(t){
-  const tabs=['apercu','cours','vtc','turo','budgets','revenus','prelevements','objectifs','simul','config'];
+  const tabs=['apercu','journal','cours','vtc','turo','budgets','prelevements','simul','config'];
   document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',tabs[i]===t));
   document.querySelectorAll('.section').forEach(el=>el.classList.remove('active'));
   document.getElementById('tab-'+t).classList.add('active');
@@ -986,6 +904,18 @@ async function modifierRevenu(id, libelle, montantActuel){
   });
 }
 
+async function supprimerInvestissement(id, ticker, montant){
+  showConfirm('🗑️ Supprimer cet achat ?',`${ticker} — ${Number(montant).toFixed(0)} €`,async()=>{
+    try{ const r=await fetch(`/api/investissement/${id}`,{method:'DELETE'}); const j=await r.json(); if(j.ok){toast('✅ Achat supprimé');charger();}else toast('❌ '+j.error,true); }catch{toast('❌ Erreur réseau',true);}
+  });
+}
+
+async function modifierInvestissement(id, ticker, montantActuel){
+  showModif(`✏️ Modifier achat ${ticker}`,montantActuel,async(val)=>{
+    try{ const r=await fetch(`/api/investissement/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({montant:val})}); const j=await r.json(); if(j.ok){toast('✅ Achat modifié');charger();}else toast('❌ '+j.error,true); }catch{toast('❌ Erreur réseau',true);}
+  });
+}
+
 // ── SAVE CONFIG ──
 async function saveConfig(cle, valeur){
   try{ const r=await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cle,valeur:parseFloat(valeur)})}); const j=await r.json(); if(j.ok){toast('✅ Sauvegardé');charger();}else toast('❌ Erreur: '+j.error,true); }catch{toast('❌ Erreur réseau',true);}
@@ -1059,98 +989,191 @@ function renderConfig(d){
   document.getElementById('cfg-rattachement-val').innerHTML =
     `<span style="font-family:var(--mono);font-size:.82rem">${rattVal} €/mois</span>
      <button class="edit-btn" onclick="showInlineEdit('cfg-vtc_rattachement_mensuel','Nouveau montant rattachement mensuel',${rattVal},(v)=>saveConfig('vtc_rattachement_mensuel',v))">✏️</button>`;
+  document.getElementById('cfg-rattachement-actif').checked = !!d.vtc_rattachement_actif;
+
+  initCfgCatBtns();
+  renderCfgCatTable();
+}
+
+async function toggleRattachementActif(){
+  const actif = document.getElementById('cfg-rattachement-actif').checked;
+  try{
+    const r = await fetch('/api/vtc/rattachement', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({actif})});
+    const j = await r.json();
+    if(j.ok){ toast(actif?'✅ Rattachement activé':'✅ URSSAF activé'); charger(); }
+    else toast('❌ '+j.error,true);
+  }catch{ toast('❌ Erreur réseau',true); }
 }
 
 function encodeId(s){ return s.replace(/[^a-zA-Z0-9]/g,'-'); }
 
 // ══════════════════════════════════════════════════════════
-// ── VTC (epure) ──
+// ── CONFIG : navigateur de données par catégorie ──
 // ══════════════════════════════════════════════════════════
+const CFG_CATEGORIES = {
+  revenus:         { label: 'Revenus ponctuels', badge: '🟢' },
+  depenses:        { label: 'Dépenses',          badge: '🟢' },
+  vtc_sessions:    { label: 'VTC sessions',      badge: '🔵' },
+  vtc_depenses:    { label: 'VTC dépenses',       badge: '🔵' },
+  turo_locations:  { label: 'Turo locations',    badge: '🟠' },
+  turo_depenses:   { label: 'Turo dépenses',     badge: '🟠' },
+  investissements: { label: 'Investissements',   badge: '🟢' },
+};
+let cfgCatActive = null;
 
-function setVtcPlateforme(p){
-  vtcPlateforme = p;
-  document.querySelectorAll('#tab-vtc .vtc-plat-btns .vtc-plat-btn[data-plat]').forEach(btn=>{
-    btn.classList.toggle('active', btn.dataset.plat===p);
-  });
-}
-
-function setVtcRegime(r){
-  vtcRegime = r;
-  document.querySelectorAll('#tab-vtc .vtc-plat-btns .vtc-plat-btn[data-regime]').forEach(btn=>{
-    btn.classList.toggle('active', btn.dataset.regime===r);
-  });
-}
-
-function setVtcDepCategorie(cat){
-  vtcDepCategorie = cat;
-  document.querySelectorAll('#vtc-dep-cat-btns .turo-cat-btn').forEach(btn=>btn.classList.toggle('active', btn.dataset.cat===cat));
-}
-
-function initVtcForm(){
-  const dateInput = document.getElementById('vtc-f-date');
-  if(dateInput && !dateInput.value){
-    dateInput.value = new Date().toISOString().slice(0,10);
-  }
-  const catCont = document.getElementById('vtc-dep-cat-btns');
-  if(catCont && !catCont.dataset.built){
-    catCont.dataset.built='1';
-    catCont.innerHTML = Object.entries(VTC_DEP_CATEGORIES).map(([k,label])=>
-      `<button class="turo-cat-btn" data-cat="${k}" onclick="setVtcDepCategorie('${k}')">${label}</button>`
+function initCfgCatBtns(){
+  const cont = document.getElementById('cfg-cat-btns');
+  if(cont && !cont.dataset.built){
+    cont.dataset.built='1';
+    cont.innerHTML = Object.entries(CFG_CATEGORIES).map(([k,c])=>
+      `<button class="turo-cat-btn" data-cfgcat="${k}" onclick="setCfgCategorie('${k}')">${c.badge} ${c.label}</button>`
     ).join('');
   }
 }
 
-async function enregistrerSessionVtc(){
-  const date = document.getElementById('vtc-f-date').value;
-  const debut = document.getElementById('vtc-f-debut').value;
-  const fin = document.getElementById('vtc-f-fin').value;
-  const ca = parseFloat(document.getElementById('vtc-f-ca').value);
-  const courses = document.getElementById('vtc-f-courses').value;
-
-  if(!date || !debut || !fin){ toast('❌ Renseigne la date et les heures',true); return; }
-  if(!ca || ca<=0){ toast('❌ CA net invalide',true); return; }
-
-  toast('⏳ Enregistrement...');
-  try{
-    const r = await fetch('/api/vtc/session', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({
-        date, heure_debut: debut, heure_fin: fin,
-        plateforme: vtcPlateforme, ca_net: ca,
-        nb_courses: courses || null, regime: vtcRegime,
-      })
-    });
-    const j = await r.json();
-    if(j.ok){
-      toast('✅ Session enregistrée');
-      document.getElementById('vtc-f-ca').value='';
-      document.getElementById('vtc-f-courses').value='';
-      document.getElementById('vtc-f-debut').value='';
-      document.getElementById('vtc-f-fin').value='';
-      charger();
-    } else toast('❌ '+j.error,true);
-  }catch{ toast('❌ Erreur réseau',true); }
+function setCfgCategorie(cat){
+  cfgCatActive = (cfgCatActive===cat) ? null : cat;
+  document.querySelectorAll('#cfg-cat-btns .turo-cat-btn').forEach(btn=>btn.classList.toggle('active', btn.dataset.cfgcat===cfgCatActive));
+  document.getElementById('cfg-cat-search').style.display = cfgCatActive ? 'block' : 'none';
+  renderCfgCatTable();
 }
 
-async function enregistrerDepenseDiverseVtc(){
-  const montant = parseFloat(document.getElementById('vtc-dep-montant').value);
-  if(!vtcDepCategorie){ toast('❌ Choisis une catégorie',true); return; }
-  if(!montant || montant<=0){ toast('❌ Montant invalide',true); return; }
-  toast('⏳ Enregistrement...');
-  try{
-    const r = await fetch('/api/vtc/depense', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ montant, categorie: vtcDepCategorie, libelle: VTC_DEP_CATEGORIES[vtcDepCategorie] })
-    });
-    const j = await r.json();
-    if(j.ok){ toast('✅ Dépense enregistrée'); document.getElementById('vtc-dep-montant').value=''; charger(); }
-    else toast('❌ '+j.error,true);
-  }catch{ toast('❌ Erreur réseau',true); }
+function cfgLigne(label, sub, montant, editFn, delFn){
+  return `<div class="row"><div><div style="font-size:.73rem">${label}</div>${sub?`<div style="font-size:.6rem;color:var(--muted)">${sub}</div>`:''}</div><div style="display:flex;align-items:center;gap:6px"><span style="font-family:var(--mono);font-size:.75rem">${Number(montant).toFixed(2)} €</span>${editFn?`<button class="action-btn edit" onclick="${editFn}" title="Modifier">✏️</button>`:''}<button class="action-btn del" onclick="${delFn}" title="Supprimer">🗑️</button></div></div>`;
 }
+function cfgVide(){ return '<div style="color:var(--muted);font-size:.72rem;padding:6px 0">Aucune donnée ce mois</div>'; }
+function cfgEsc(s){ return (s||'').replace(/'/g,"\\'"); }
+
+// ══════════════════════════════════════════════════════════
+// ── JOURNAL : fil chronologique de toutes les operations ──
+// ══════════════════════════════════════════════════════════
+function renderJournal(d){
+  const cont = document.getElementById('journal-list');
+  const ops = [];
+
+  Object.values(d.detail||{}).flat().forEach(x=>ops.push({date:x.created_at, label:x.libelle||(d.budgets[x.categorie]||{}).label||x.categorie, montant:-x.montant, badge:'🟢'}));
+  (d.revenus_supp||[]).forEach(x=>ops.push({date:x.created_at, label:x.libelle||'Divers', montant:x.montant, badge:'🟢'}));
+  (d.cours||[]).forEach(x=>ops.push({date:x.created_at, label:'Cours — '+x.eleve, montant:x.gain, badge:'🟢'}));
+  (d.vtc_sessions||[]).forEach(x=>ops.push({date:x.created_at||x.date, label:'VTC — '+x.plateforme, montant:Number(x.ca_net), badge:'🔵'}));
+  (d.vtc_depenses_diverses||[]).forEach(x=>ops.push({date:x.created_at, label:'VTC — '+(VTC_DEP_CATEGORIES[x.categorie]||x.categorie), montant:-Number(x.montant), badge:'🔵'}));
+  (d.turo_locations||[]).forEach(x=>ops.push({date:x.created_at||x.date_debut, label:'Turo — '+(x.locataire||'location'), montant:Number(x.part_moi), badge:'🟠'}));
+  (d.turo_depenses_ponctuelles||[]).forEach(x=>ops.push({date:x.created_at, label:'Turo — '+(TURO_CATEGORIES[x.categorie]||x.categorie), montant:-Number(x.montant), badge:'🟠'}));
+  (d.turo_depenses_recurrentes||[]).forEach(x=>ops.push({date:x.created_at, label:'Turo — '+(TURO_CATEGORIES[x.categorie]||x.categorie), montant:-Number(x.montant), badge:'🟠'}));
+  (d.investissements||[]).forEach(x=>{
+    const created = new Date(x.created_at);
+    const now = new Date();
+    if(created.getMonth()===now.getMonth() && created.getFullYear()===now.getFullYear()){
+      ops.push({date:x.created_at, label:'Investissement — '+x.ticker, montant:-Number(x.montant), badge:'🟢'});
+    }
+  });
+
+  if(!ops.length){ cont.innerHTML = '<div style="color:var(--muted);font-size:.75rem;padding:8px 0">Aucune opération ce mois</div>'; return; }
+
+  ops.sort((a,b)=>new Date(b.date)-new Date(a.date));
+
+  const groupes = {};
+  ops.forEach(op=>{
+    const jour = new Date(op.date).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+    if(!groupes[jour]) groupes[jour]=[];
+    groupes[jour].push(op);
+  });
+
+  let html='';
+  Object.entries(groupes).forEach(([jour,items])=>{
+    const totalJour = items.reduce((s,i)=>s+i.montant,0);
+    html+=`<div style="font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding:10px 0 4px;display:flex;justify-content:space-between"><span>${jour}</span><span style="font-family:var(--mono);color:${totalJour>=0?'var(--green)':'var(--red)'}">${totalJour>=0?'+':''}${totalJour.toFixed(0)} €</span></div>`;
+    items.forEach(op=>{
+      const c = op.montant>=0?'var(--green)':'var(--red)';
+      html+=`<div class="row"><span>${op.badge} ${op.label}</span><span style="font-family:var(--mono);color:${c}">${op.montant>=0?'+':''}${op.montant.toFixed(2)} €</span></div>`;
+    });
+  });
+  cont.innerHTML = html;
+}
+
+function renderCfgCatTable(){
+  const cont = document.getElementById('cfg-cat-table');
+  if(!cfgCatActive || !globalData){ cont.innerHTML=''; return; }
+  const d = globalData;
+  const q = (document.getElementById('cfg-cat-search').value||'').toLowerCase().trim();
+  const match = (txt) => !q || (txt||'').toLowerCase().includes(q);
+  let rows = '';
+
+  if(cfgCatActive==='revenus'){
+    const items = (d.revenus_supp||[]).filter(r=>match(r.libelle)||match(String(r.montant)));
+    rows = !items.length ? cfgVide() : items.map(r=>{
+      const date=new Date(r.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
+      return cfgLigne(r.libelle||'Divers', date, r.montant,
+        `modifierRevenu('${r.id}','${cfgEsc(r.libelle)}',${r.montant})`,
+        `supprimerRevenu('${r.id}','${cfgEsc(r.libelle)}',${r.montant})`);
+    }).join('');
+  } else if(cfgCatActive==='depenses'){
+    const items = Object.values(d.detail||{}).flat().filter(dep=>match(dep.libelle)||match(String(dep.montant)));
+    rows = !items.length ? cfgVide() : items.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).map(dep=>{
+      const date=new Date(dep.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
+      const catLabel = (d.budgets[dep.categorie]||{}).label||dep.categorie;
+      return cfgLigne(dep.libelle||'—', `${catLabel} · ${date}`, dep.montant,
+        `modifierDepense('${dep.id}','${cfgEsc(dep.libelle)}',${dep.montant})`,
+        `supprimerDepense('${dep.id}','${cfgEsc(dep.libelle)}',${dep.montant})`);
+    }).join('');
+  } else if(cfgCatActive==='vtc_sessions'){
+    const items = (d.vtc_sessions||[]).filter(s=>match(s.plateforme)||match(String(s.ca_net)));
+    rows = !items.length ? cfgVide() : items.map(s=>{
+      const date=new Date(s.date).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
+      const sData = JSON.stringify(s).replace(/'/g,"&#39;");
+      return cfgLigne(s.plateforme, date, s.ca_net,
+        `openModalVtcEdit(${sData})`,
+        `supprimerSessionVtc('${s.id}','${s.plateforme}',${s.ca_net})`);
+    }).join('');
+  } else if(cfgCatActive==='vtc_depenses'){
+    const items = (d.vtc_depenses_diverses||[]).filter(dep=>match(VTC_DEP_CATEGORIES[dep.categorie])||match(String(dep.montant)));
+    rows = !items.length ? cfgVide() : items.map(dep=>{
+      const label = VTC_DEP_CATEGORIES[dep.categorie]||dep.categorie;
+      return cfgLigne(label, null, dep.montant,
+        `modifierDepenseDiverseVtc('${dep.id}','${dep.categorie}',${dep.montant})`,
+        `supprimerDepenseDiverseVtc('${dep.id}','${dep.categorie}',${dep.montant})`);
+    }).join('');
+  } else if(cfgCatActive==='turo_locations'){
+    const items = (d.turo_locations||[]).filter(l=>match(l.locataire)||match(String(l.revenu_brut)));
+    rows = !items.length ? cfgVide() : items.map(l=>{
+      const debut=new Date(l.date_debut).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
+      const lData = JSON.stringify(l).replace(/'/g,"&#39;");
+      return cfgLigne(l.locataire||'—', debut, l.revenu_brut,
+        `openModalTuroEdit(${lData})`,
+        `supprimerLocationTuro('${l.id}','${cfgEsc(l.locataire)}',${l.revenu_net})`);
+    }).join('');
+  } else if(cfgCatActive==='turo_depenses'){
+    const items = [...(d.turo_depenses_ponctuelles||[]),...(d.turo_depenses_recurrentes||[])].filter(dep=>match(TURO_CATEGORIES[dep.categorie])||match(String(dep.montant)));
+    rows = !items.length ? cfgVide() : items.map(dep=>{
+      const label = TURO_CATEGORIES[dep.categorie]||dep.categorie;
+      return cfgLigne(label, null, dep.montant,
+        `modifierDepenseTuro('${dep.id}','${dep.categorie}',${dep.montant})`,
+        `supprimerDepenseTuro('${dep.id}','${dep.categorie}',${dep.montant})`);
+    }).join('');
+  } else if(cfgCatActive==='investissements'){
+    const items = (d.investissements||[]).filter(inv=>match(inv.ticker)||match(String(inv.montant)));
+    rows = !items.length ? cfgVide() : items.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).map(inv=>{
+      const date=new Date(inv.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
+      return cfgLigne(inv.ticker, date, inv.montant,
+        `modifierInvestissement('${inv.id}','${inv.ticker}',${inv.montant})`,
+        `supprimerInvestissement('${inv.id}','${inv.ticker}',${inv.montant})`);
+    }).join('');
+  }
+  cont.innerHTML = rows;
+}
+
+// ══════════════════════════════════════════════════════════
+// ── VTC (lecture seule — saisie via Telegram) ──
+// ══════════════════════════════════════════════════════════
 
 async function supprimerDepenseDiverseVtc(id, categorie, montant){
   showConfirm('🗑️ Supprimer cette dépense ?',`${VTC_DEP_CATEGORIES[categorie]||categorie} — ${Number(montant).toFixed(0)} €`,async()=>{
     try{ const r=await fetch(`/api/vtc/depense/${id}`,{method:'DELETE'}); const j=await r.json(); if(j.ok){toast('✅ Dépense supprimée');charger();}else toast('❌ '+j.error,true); }catch{toast('❌ Erreur réseau',true);}
+  });
+}
+
+async function modifierDepenseDiverseVtc(id, categorie, montantActuel){
+  showModif(`✏️ Modifier "${VTC_DEP_CATEGORIES[categorie]||categorie}"`,montantActuel,async(val)=>{
+    try{ const r=await fetch(`/api/vtc/depense/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({montant:val})}); const j=await r.json(); if(j.ok){toast('✅ Dépense modifiée');charger();}else toast('❌ '+j.error,true); }catch{toast('❌ Erreur réseau',true);}
   });
 }
 
@@ -1161,7 +1184,6 @@ function openModalVtcEdit(s){
   document.getElementById('vex-fin').value = (s.heure_fin||'').slice(0,5);
   document.getElementById('vex-ca').value = s.ca_net;
   document.getElementById('vex-courses').value = s.nb_courses || '';
-  document.getElementById('vex-regime').value = s.regime || 'rattachement';
   document.getElementById('vex-btn-save').onclick = async ()=>{
     const update = {
       date: document.getElementById('vex-date').value,
@@ -1170,7 +1192,6 @@ function openModalVtcEdit(s){
       heure_fin: document.getElementById('vex-fin').value,
       ca_net: parseFloat(document.getElementById('vex-ca').value),
       nb_courses: document.getElementById('vex-courses').value || 0,
-      regime: document.getElementById('vex-regime').value,
     };
     if(!update.ca_net || update.ca_net<=0){ toast('❌ CA net invalide',true); return; }
     try{
@@ -1291,21 +1312,14 @@ function renderVtc(d){
     sessList.innerHTML = sorted.map(s=>{
       const date = new Date(s.date).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
       const heures = dureeHeuresVtc(s.heure_debut,s.heure_fin);
-      const regimeTag = s.regime==='urssaf' ? 'URSSAF' : 'Rattachement';
-      const sData = JSON.stringify(s).replace(/'/g,"&#39;");
       return `<div class="vtc-session-row">
         <div>
           <span class="vtc-plat-tag vtc-plat-${s.plateforme}">${s.plateforme}</span>
-          <span class="turo-dep-tag" style="margin-left:4px">${regimeTag}</span>
           <div style="margin-top:2px">${date} · ${(s.heure_debut||'').slice(0,5)}-${(s.heure_fin||'').slice(0,5)} · ${heures.toFixed(1)}h</div>
           ${s.nb_courses?`<div style="font-size:.6rem;color:var(--muted)">${s.nb_courses} courses</div>`:''}
         </div>
-        <div style="display:flex;align-items:flex-start;gap:6px">
-          <div style="text-align:right">
-            <div style="font-family:var(--mono);color:var(--green)">${Number(s.ca_net).toFixed(0)} €</div>
-          </div>
-          <button class="action-btn edit" onclick='openModalVtcEdit(${sData})' title="Modifier">✏️</button>
-          <button class="action-btn del" onclick="supprimerSessionVtc('${s.id}','${s.plateforme}',${s.ca_net})" title="Supprimer">🗑️</button>
+        <div style="text-align:right">
+          <div style="font-family:var(--mono);color:var(--green)">${Number(s.ca_net).toFixed(0)} €</div>
         </div>
       </div>`;
     }).join('');
@@ -1321,99 +1335,15 @@ function renderVtc(d){
       const label = VTC_DEP_CATEGORIES[dep.categorie]||dep.categorie;
       return `<div class="turo-dep-row">
         <span>${label}</span>
-        <div style="display:flex;align-items:center;gap:6px">
-          <span style="font-family:var(--mono);color:var(--red)">${Number(dep.montant).toFixed(0)} €</span>
-          <button class="action-btn del" onclick="supprimerDepenseDiverseVtc('${dep.id}','${dep.categorie}',${dep.montant})" title="Supprimer">🗑️</button>
-        </div>
+        <span style="font-family:var(--mono);color:var(--red)">${Number(dep.montant).toFixed(0)} €</span>
       </div>`;
     }).join('');
   }
 }
 
 // ══════════════════════════════════════════════════════════
-// ── TURO ──
+// ── TURO (lecture seule — saisie via Telegram) ──
 // ══════════════════════════════════════════════════════════
-
-function setTuroFormMode(mode){
-  const isLoc = mode==='location';
-  document.getElementById('turo-form-location').style.display = isLoc?'block':'none';
-  document.getElementById('turo-form-depense').style.display = isLoc?'none':'block';
-  document.getElementById('turo-btn-loc').classList.toggle('active', isLoc);
-  document.getElementById('turo-btn-dep').classList.toggle('active', !isLoc);
-}
-
-function initTuroForm(){
-  const dd = document.getElementById('turo-f-debut');
-  const df = document.getElementById('turo-f-fin');
-  if(dd && !dd.value) dd.value = new Date().toISOString().slice(0,10);
-  if(df && !df.value) df.value = new Date().toISOString().slice(0,10);
-
-  const catCont = document.getElementById('turo-cat-btns');
-  if(catCont && !catCont.dataset.built){
-    catCont.dataset.built='1';
-    catCont.innerHTML = Object.entries(TURO_CATEGORIES).map(([k,label])=>
-      `<button class="turo-cat-btn" data-cat="${k}" onclick="setTuroCategorie('${k}')">${label}</button>`
-    ).join('');
-  }
-}
-
-function setTuroCategorie(cat){
-  turoCategorie = cat;
-  document.querySelectorAll('.turo-cat-btn').forEach(btn=>btn.classList.toggle('active', btn.dataset.cat===cat));
-}
-
-function setTuroRecurrent(val){
-  turoRecurrent = val;
-  document.querySelectorAll('.turo-recur-btn').forEach(btn=>btn.classList.toggle('active', (btn.dataset.recur==='1')===val));
-}
-
-async function enregistrerLocationTuro(){
-  const locataire = document.getElementById('turo-f-locataire').value.trim();
-  const dateDebut = document.getElementById('turo-f-debut').value;
-  const dateFin = document.getElementById('turo-f-fin').value;
-  const brut = parseFloat(document.getElementById('turo-f-brut').value);
-  const frais = parseFloat(document.getElementById('turo-f-frais').value)||0;
-
-  if(!locataire){ toast('❌ Saisis le nom du locataire',true); return; }
-  if(!dateDebut || !dateFin){ toast('❌ Renseigne les dates',true); return; }
-  if(!brut || brut<=0){ toast('❌ Revenu brut invalide',true); return; }
-
-  toast('⏳ Enregistrement...');
-  try{
-    const r = await fetch('/api/turo/location', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ locataire, date_debut: dateDebut, date_fin: dateFin, revenu_brut: brut, frais_turo: frais })
-    });
-    const j = await r.json();
-    if(j.ok){
-      toast('✅ Location enregistrée');
-      document.getElementById('turo-f-locataire').value='';
-      document.getElementById('turo-f-brut').value='';
-      document.getElementById('turo-f-frais').value='';
-      charger();
-    } else toast('❌ '+j.error,true);
-  }catch{ toast('❌ Erreur réseau',true); }
-}
-
-async function enregistrerDepenseTuro(){
-  const montant = parseFloat(document.getElementById('turo-f-montant').value);
-  if(!turoCategorie){ toast('❌ Choisis une catégorie',true); return; }
-  if(!montant || montant<=0){ toast('❌ Montant invalide',true); return; }
-
-  toast('⏳ Enregistrement...');
-  try{
-    const r = await fetch('/api/turo/depense', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ montant, categorie: turoCategorie, libelle: TURO_CATEGORIES[turoCategorie], recurrent: turoRecurrent })
-    });
-    const j = await r.json();
-    if(j.ok){
-      toast('✅ Dépense enregistrée');
-      document.getElementById('turo-f-montant').value='';
-      charger();
-    } else toast('❌ '+j.error,true);
-  }catch{ toast('❌ Erreur réseau',true); }
-}
 
 function openModalTuroEdit(l){
   document.getElementById('tex-locataire').value = l.locataire||'';
@@ -1456,6 +1386,12 @@ async function supprimerDepenseTuro(id, categorie, montant){
   });
 }
 
+async function modifierDepenseTuro(id, categorie, montantActuel){
+  showModif(`✏️ Modifier "${TURO_CATEGORIES[categorie]||categorie}"`,montantActuel,async(val)=>{
+    try{ const r=await fetch(`/api/turo/depense/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({montant:val})}); const j=await r.json(); if(j.ok){toast('✅ Dépense modifiée');charger();}else toast('❌ '+j.error,true); }catch{toast('❌ Erreur réseau',true);}
+  });
+}
+
 function renderTuro(d){
   const isCurrent = d.mois_offset===0;
   document.getElementById('turo-mois-label').textContent = isCurrent ? 'ce mois' : 'mois archivé';
@@ -1479,19 +1415,14 @@ function renderTuro(d){
     locList.innerHTML = sorted.map(l=>{
       const debut = new Date(l.date_debut).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
       const fin = new Date(l.date_fin).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
-      const lData = JSON.stringify(l).replace(/'/g,"&#39;");
       return `<div class="turo-loc-row">
         <div>
           <div style="font-weight:600">${l.locataire||'—'}</div>
           <div style="font-size:.6rem;color:var(--muted)">${debut} → ${fin}</div>
         </div>
-        <div style="display:flex;align-items:flex-start;gap:6px">
-          <div style="text-align:right">
-            <div style="font-family:var(--mono)">${Number(l.revenu_brut).toFixed(0)} €</div>
-            <div style="font-size:.6rem;color:var(--green)">${Number(l.part_moi).toFixed(0)} € ma part</div>
-          </div>
-          <button class="action-btn edit" onclick='openModalTuroEdit(${lData})' title="Modifier">✏️</button>
-          <button class="action-btn del" onclick="supprimerLocationTuro('${l.id}','${(l.locataire||'').replace(/'/g,"\\'")}',${l.revenu_net})" title="Supprimer">🗑️</button>
+        <div style="text-align:right">
+          <div style="font-family:var(--mono)">${Number(l.revenu_brut).toFixed(0)} €</div>
+          <div style="font-size:.6rem;color:var(--green)">${Number(l.part_moi).toFixed(0)} € ma part</div>
         </div>
       </div>`;
     }).join('');
@@ -1512,15 +1443,152 @@ function renderTuro(d){
           <span>${label}</span>
           ${dep._recur?'<span class="turo-dep-tag">mensuel</span>':''}
         </div>
-        <div style="display:flex;align-items:center;gap:6px">
-          <span style="font-family:var(--mono);color:var(--red)">${Number(dep.montant).toFixed(0)} €</span>
-          <button class="action-btn del" onclick="supprimerDepenseTuro('${dep.id}','${dep.categorie}',${dep.montant})" title="Supprimer">🗑️</button>
-        </div>
+        <span style="font-family:var(--mono);color:var(--red)">${Number(dep.montant).toFixed(0)} €</span>
       </div>`;
     }).join('');
   }
 }
 
+
+// ── SIMULATEUR ──
+function initSimulateur(d){
+  simulData = d;
+  const epInput = document.getElementById('simul-ep-input');
+  if(epInput && !epInput._initialized){
+    epInput.value = Math.round(d.epargne_base||0);
+    epInput._initialized = true;
+  }
+}
+
+function addDepenseLibre(){
+  const lbl = document.getElementById('simul-dep-label').value.trim()||'Divers';
+  const mnt = parseFloat(document.getElementById('simul-dep-montant').value);
+  if(!mnt||mnt<=0){ toast('❌ Montant invalide',true); return; }
+  simulDepenses.push({label:lbl, montant:mnt});
+  document.getElementById('simul-dep-label').value='';
+  document.getElementById('simul-dep-montant').value='';
+  renderSimulateurDepenses();
+}
+
+function removeDepense(idx){
+  simulDepenses.splice(idx,1);
+  renderSimulateurDepenses();
+}
+
+function renderSimulateurDepenses(){
+  const cont = document.getElementById('simul-dep-list');
+  const totalRow = document.getElementById('simul-dep-total-row');
+  if(!simulDepenses.length){
+    cont.innerHTML='';
+    if(totalRow) totalRow.style.display='none';
+    return;
+  }
+  cont.innerHTML = simulDepenses.map((dep,i)=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid var(--border);font-size:.72rem">
+      <span style="color:var(--text);flex:1">${dep.label}</span>
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+        <span style="font-family:var(--mono);color:var(--red)">${dep.montant.toFixed(0)} €</span>
+        <button class="simul-remove-btn" onclick="removeDepense(${i})">✕</button>
+      </div>
+    </div>`).join('');
+  const total = simulDepenses.reduce((s,d)=>s+d.montant,0);
+  if(totalRow){ totalRow.style.display='block'; totalRow.textContent='Total : -'+total.toFixed(0)+' €'; }
+}
+
+function recalcSimulateur(){
+  if(!simulData){ toast('⏳ Données non chargées, réessaie',true); return; }
+  const d = simulData;
+
+  const epInput = document.getElementById('simul-ep-input');
+  const epargneBase = parseFloat(epInput?.value) || 0;
+  if(epargneBase <= 0){ toast('❌ Saisis ton épargne actuelle',true); return; }
+
+  const soldeActuel = d.solde || 0;
+
+  const aujourd = new Date().getDate();
+  const prelsRestants = (d.prelevements_tous||[]).filter(p => p.jour && p.jour > aujourd && !p.suspendu && p.frequence !== 'trimestriel');
+  const totalPrel = prelsRestants.reduce((s,p) => s+p.montant, 0);
+
+  const budgets = d.budgets || {};
+  const totaux  = d.totaux  || {};
+  const complementCourses = Math.max(0, (budgets.courses?.max||500) - (totaux.courses||0)) * 0.8;
+  const complementEssence = Math.max(0, (budgets.essence?.max||300) - (totaux.essence||0)) * 0.8;
+  const complementRestos  = Math.max(0, (budgets.restos?.max||100) - (totaux.restos||0))  * 0.8;
+
+  const totalCours = d.potentiel_restant || 0;
+
+  const totalExcep = simulDepenses.reduce((s,dep) => s+dep.montant, 0);
+
+  const soldeProj = totalCours - totalPrel - complementCourses - complementEssence - complementRestos - totalExcep;
+  const epargneFinale = epargneBase + soldeProj;
+
+  document.getElementById('simul-result-block').style.display = 'block';
+
+  const epEl = document.getElementById('simul-epargne-val');
+  epEl.textContent = fmt(epargneFinale);
+  const objPrincipal = (d.objectifs&&d.objectifs[0]) ? d.objectifs[0].montant : 12000;
+  const epPct   = pct(epargneFinale, objPrincipal);
+  const epColor = epargneFinale >= objPrincipal ? 'var(--green)' : epargneFinale > epargneBase ? 'var(--amber)' : 'var(--red)';
+  epEl.style.color = epColor;
+  document.getElementById('simul-gauge-fill').style.cssText = `width:${epPct}%;background:${epColor}`;
+  document.getElementById('simul-gauge-pct').textContent = epPct+'%';
+  if(d.objectifs&&d.objectifs[0]) document.getElementById('simul-obj-label').textContent = 'Obj. '+d.objectifs[0].montant.toLocaleString('fr-FR')+' €';
+  document.getElementById('simul-solde-sub').textContent = 'Solde fin de mois estimé : '+(soldeProj>=0?'+':'')+Math.round(soldeProj).toLocaleString('fr-FR')+' €';
+
+  const detailEl = document.getElementById('simul-detail-list');
+  const lignes = [
+    {label:'Solde actuel (revenus − charges − dépenses à ce jour)', val:soldeActuel, c:soldeActuel>=0?'var(--green)':'var(--red)'},
+    {label:'📚 Cours restants', val:totalCours, c:'var(--green)'},
+    {label:'📅 Prélèvements restants', val:-totalPrel, c:'var(--red)'},
+    {label:`🛒 Courses estimées (80% · ${Math.round(complementCourses)}€)`, val:-complementCourses, c:'var(--amber)'},
+    {label:`⛽ Essence estimée (80% · ${Math.round(complementEssence)}€)`, val:-complementEssence, c:'var(--amber)'},
+    {label:`🍽️ Restos estimés (80% · ${Math.round(complementRestos)}€)`, val:-complementRestos, c:'var(--amber)'},
+    {label:'➕ Dépenses exceptionnelles', val:-totalExcep, c:'var(--red)'},
+  ].filter(l => l.val !== 0);
+
+  detailEl.innerHTML = lignes.map(l=>`
+    <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:.7rem">
+      <span style="color:var(--muted);flex:1;padding-right:8px">${l.label}</span>
+      <span style="font-family:var(--mono);color:${l.c};flex-shrink:0">${l.val>0?'+':''}${Math.round(l.val).toLocaleString('fr-FR')} €</span>
+    </div>`).join('')
+  + `<div style="display:flex;justify-content:space-between;padding:7px 0;font-size:.73rem;font-weight:700;border-top:1px solid rgba(255,255,255,0.1);margin-top:2px">
+      <span>= Solde projeté</span>
+      <span style="font-family:var(--mono);color:${soldeProj>=0?'var(--green)':'var(--red)'}">${soldeProj>=0?'+':''}${Math.round(soldeProj).toLocaleString('fr-FR')} €</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;background:rgba(167,139,250,0.1);border:1px solid rgba(167,139,250,0.25);border-radius:8px;padding:8px 10px;margin-top:6px">
+      <span style="font-size:.75rem;font-weight:700">💰 Épargne finale estimée</span>
+      <span style="font-family:var(--mono);font-size:.9rem;font-weight:700;color:${epColor}">${fmt(epargneFinale)}</span>
+    </div>`;
+
+  const objList = document.getElementById('simul-obj-list');
+  if(d.objectifs&&d.objectifs.length){
+    objList.innerHTML = d.objectifs.map(o=>{
+      const op=pct(epargneFinale,o.montant), oc=op>=100?'var(--green)':op>=80?'var(--amber)':'var(--red)';
+      const delta=Math.round(epargneFinale-o.montant);
+      return `<div class="simul-obj-row">
+        <span>${delta>=0?'✅':'⚠️'} ${o.label}</span>
+        <div style="text-align:right">
+          <div style="font-family:var(--mono);font-size:.72rem;color:${oc}">${delta>=0?'+':''}${delta.toLocaleString('fr-FR')} €</div>
+          <div style="font-size:.58rem;color:var(--muted)">${op}% · cible ${o.montant.toLocaleString('fr-FR')} €</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  document.getElementById('simul-result-block').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function resetSimulateur(){
+  simulDepenses = [];
+  renderSimulateurDepenses();
+  const epInput = document.getElementById('simul-ep-input');
+  if(epInput && simulData){
+    epInput.value = Math.round(simulData.epargne_base||0);
+    epInput._initialized = false;
+  }
+  document.getElementById('simul-result-block').style.display = 'none';
+  toast('↺ Réinitialisé');
+}
 
 
 // ── MODAL FICHE ELEVE ──
@@ -1621,12 +1689,12 @@ function renderBudgets(d){
   const isCurrent=d.mois_offset===0;
   const totalDep=d.total_dep||0,totalMax=Object.values(d.budgets).reduce((s,b)=>s+b.max,0);
   const totalPct=pct(totalDep,totalMax),totalCol=col(totalPct);
-  bl.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem"><div class="card-label" style="margin:0">Dépenses variables${isCurrent?'':' <span class="badge-hist">Archivé</span>'}</div><div style="font-size:.58rem;color:var(--muted)">✏️ modifier · 🗑️ supprimer</div></div>`;
+  bl.innerHTML=`<div class="card-label" style="margin-bottom:.6rem">Dépenses variables${isCurrent?'':' <span class="badge-hist">Archivé</span>'}</div>`;
   Object.entries(d.totaux).forEach(([k,v])=>{
     const b=d.budgets[k],p2=pct(v,b.max),c=col(p2);
     const items=(d.detail||{})[k]||[],hasItems=items.length>0;
     bl.innerHTML+=`<div class="cat-btn${hasItems?' ':'noc'}" id="cat-btn-${k}" onclick="${hasItems?`toggleDetail('${k}')`:''}"><span>${b.label}</span><div style="display:flex;align-items:center;gap:8px"><div class="mini-bar"><div class="mini-fill" style="width:${p2}%;background:${c}"></div></div><span style="color:${c};min-width:82px;text-align:right;font-family:var(--mono);font-size:.7rem">${v.toFixed(0)}€ / ${b.max}€</span><span class="chevron">${hasItems?'›':''}</span></div></div>`;
-    const depHTML=items.length===0?'<div style="color:var(--muted);font-size:.68rem;padding:4px 0">Aucune dépense</div>':items.sort((a,b2)=>new Date(b2.created_at)-new Date(a.created_at)).map(dep=>{ const date=new Date(dep.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}); return `<div class="dep-item"><div class="dep-item-left"><div style="color:var(--text)">${dep.libelle||'—'}</div><div class="dep-date">${date}</div></div><div class="dep-item-right"><span style="color:var(--text);font-family:var(--mono)">${dep.montant.toFixed(2)} €</span><button class="action-btn edit" onclick="modifierDepense('${dep.id}','${(dep.libelle||'').replace(/'/g,"\\'")}',${dep.montant})" title="Modifier">✏️</button><button class="action-btn del" onclick="supprimerDepense('${dep.id}','${(dep.libelle||'').replace(/'/g,"\\'")}',${dep.montant})" title="Supprimer">🗑️</button></div></div>`; }).join('');
+    const depHTML=items.length===0?'<div style="color:var(--muted);font-size:.68rem;padding:4px 0">Aucune dépense</div>':items.sort((a,b2)=>new Date(b2.created_at)-new Date(a.created_at)).map(dep=>{ const date=new Date(dep.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}); return `<div class="dep-item"><div class="dep-item-left"><div style="color:var(--text)">${dep.libelle||'—'}</div><div class="dep-date">${date}</div></div><span style="color:var(--text);font-family:var(--mono)">${dep.montant.toFixed(2)} €</span></div>`; }).join('');
     bl.innerHTML+=`<div class="cat-detail" id="cat-det-${k}">${depHTML}</div>`;
   });
   bl.innerHTML+=`<div class="dep-total-bar"><div><div style="font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Total dépenses</div><div style="font-size:.62rem;color:var(--muted);margin-top:2px">Budget max : ${totalMax} €</div></div><div style="text-align:right"><div style="font-size:1rem;font-weight:700;font-family:var(--mono);color:${totalCol}">${totalDep.toFixed(0)} €</div><div style="font-size:.6rem;color:var(--muted)">(${totalPct}%)</div></div></div>`;
@@ -1660,35 +1728,33 @@ function renderPrelevements(d){
   if(trimest.length){ pl.innerHTML+='<div class="section-title">Trimestriels</div>'; trimest.forEach(p2=>pl.innerHTML+=`<div class="prel-row"><span>${p2.nom}</span><span style="color:var(--muted);font-family:var(--mono)">${p2.montant.toFixed(2)}€/trim</span></div>`); }
 }
 
-// ── REVENUS ──
-function renderRevenus(d){
-  document.getElementById('r-total').textContent=fmt(d.total_revenus);
-  const cp=pct(d.completude,d.objectif_completude);
-  const rco=document.getElementById('r-completude'); rco.textContent=fmt(d.completude); rco.style.color=col(cp);
-  document.getElementById('r-co-s').textContent=`${cp}% objectif ${d.objectif_completude} €`;
-  const sources=[
-    {icon:'💼',label:'Salaire LGM',val:d.salaire,sub:'Mensuel net'},
-    {icon:'👤',label:'Beau-frère',val:d.beau_frere,sub:'Mensuel fixe'},
-    {icon:'📚',label:'Complétude',val:d.completude,sub:`${d.nb_cours} cours ce mois`},
-    {icon:'🚙',label:'Turo (net)',val:d.turo_rentabilite_nette||0,sub:'Ma part − dépenses véhicule'},
-    {icon:'🚕',label:'VTC (net)',val:d.vtc_net||0,sub:'CA net − charges − URSSAF/rattachement'},
-  ];
-  const rs=document.getElementById('r-sources');
-  rs.innerHTML='<div class="card-label" style="margin-bottom:.6rem">Sources de revenus</div>';
-  sources.forEach(s=>{
-    if(!s.val) return;
-    const isNeg = s.val<0;
-    const bw = isNeg ? 0 : Math.min(100,Math.round((s.val/d.total_revenus)*100));
-    const valColor = isNeg ? 'var(--red)' : 'var(--green)';
-    rs.innerHTML+=`<div class="row"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:1rem">${s.icon}</span><div><div style="font-size:.75rem">${s.label}</div><div style="font-size:.6rem;color:var(--muted)">${s.sub}</div></div></div><div style="text-align:right"><div style="font-family:var(--mono);font-size:.82rem;color:${valColor}">${s.val>=0?'':'-'}${Math.round(Math.abs(s.val)).toLocaleString('fr-FR')} €</div><div style="font-size:.58rem;color:var(--muted)">${bw}%</div></div></div><div class="bar" style="margin:.3rem 0 .5rem"><div class="fill" style="width:${bw}%;background:${valColor}"></div></div>`;
+// ── PROCHAIN OBJECTIF + RENTREES PONCTUELLES (Apercu) ──
+function renderProchainObjectif(d){
+  const objectifs = d.objectifs||[];
+  const patrimoine = d.patrimoine_total||0;
+  const prochain = objectifs.find(o=>patrimoine < o.montant) || objectifs[objectifs.length-1];
+  if(!prochain){ return; }
+  const p = pct(patrimoine, prochain.montant);
+  const c = col(p);
+  const reste = Math.max(0, prochain.montant - patrimoine);
+  document.getElementById('a-obj-label').textContent = prochain.label+' — '+prochain.montant.toLocaleString('fr-FR')+' €';
+  document.getElementById('a-obj-pct').textContent = p+'%';
+  document.getElementById('a-obj-pct').style.color = c;
+  document.getElementById('a-obj-bar').style.cssText = `width:${p}%;background:${c}`;
+  document.getElementById('a-obj-sub').textContent = p>=100 ? '🎉 Objectif atteint !' : `Il reste ${Math.round(reste).toLocaleString('fr-FR')} €`;
+}
+
+function renderRevenusSupp(d){
+  const supp=d.revenus_supp||[];
+  const cont=document.getElementById('a-revenus-supp-list');
+  if(!supp.length){ cont.innerHTML='<div style="color:var(--muted);font-size:.72rem;padding:6px 0">Aucune rentrée ponctuelle ce mois</div>'; return; }
+  const ts=supp.reduce((s,r)=>s+r.montant,0);
+  let html=`<div style="display:flex;justify-content:space-between;font-size:.68rem;color:var(--muted);margin-bottom:.4rem"><span>Total</span><span style="font-family:var(--mono);color:var(--green)">+${Math.round(ts).toLocaleString('fr-FR')} €</span></div>`;
+  supp.forEach(r=>{
+    const date=new Date(r.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
+    html+=`<div class="row"><div><div style="font-size:.75rem">${r.libelle||'Divers'}</div><div style="font-size:.6rem;color:var(--muted)">${date}</div></div><span style="font-family:var(--mono);color:var(--green);font-size:.75rem">+${r.montant.toFixed(2)} €</span></div>`;
   });
-  const supp=d.revenus_supp||[],rsupp=document.getElementById('r-supp');
-  if(supp.length){
-    rsupp.style.display='block';
-    const ts=supp.reduce((s,r)=>s+r.montant,0);
-    rsupp.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem"><div class="card-label" style="margin:0">Rentrées supplémentaires</div><div style="display:flex;align-items:center;gap:8px"><span style="font-family:var(--mono);font-size:.8rem;color:var(--green)">+${Math.round(ts).toLocaleString('fr-FR')} €</span><span style="font-size:.58rem;color:var(--muted)">✏️ · 🗑️</span></div></div>`;
-    supp.forEach(r=>{ const date=new Date(r.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}); rsupp.innerHTML+=`<div class="row" style="align-items:flex-start"><div style="flex:1"><div style="font-size:.75rem">${r.libelle||'Divers'}</div><div style="font-size:.6rem;color:var(--muted)">${date}</div></div><div style="display:flex;align-items:center;gap:4px"><span style="font-family:var(--mono);color:var(--green);font-size:.75rem">+${r.montant.toFixed(2)} €</span><button class="action-btn edit" onclick="modifierRevenu('${r.id}','${(r.libelle||'').replace(/'/g,"\\'")}',${r.montant})" title="Modifier">✏️</button><button class="action-btn del" onclick="supprimerRevenu('${r.id}','${(r.libelle||'').replace(/'/g,"\\'")}',${r.montant})" title="Supprimer">🗑️</button></div></div>`; });
-  } else rsupp.style.display='none';
+  cont.innerHTML=html;
 }
 
 // ── CHARGEMENT PRINCIPAL ──
@@ -1728,7 +1794,8 @@ async function charger(){
     document.getElementById('a-inv-s').textContent = investi>0 ? `${investi.toFixed(0)}€ investi · ${pv>=0?'+':''}${pv.toFixed(0)}€` : 'Aucun investissement';
     const patrimoineActuel = (d.epargne_base||0) + investiActuel;
     document.getElementById('a-patrimoine').textContent=fmt(patrimoineActuel);
-    document.getElementById('a-patrimoine-s').textContent='Projeté fin de mois : '+fmt(d.patrimoine_total||0);
+    const evolution = d.patrimoine_evolution_mois||0;
+    document.getElementById('a-patrimoine-s').textContent = `Projeté fin de mois : ${fmt(d.patrimoine_total||0)} · ${evolution>=0?'+':''}${Math.round(evolution).toLocaleString('fr-FR')} € ce mois`;
     document.getElementById('a-rv').textContent=fmt(d.total_revenus);
     const sp=[]; if(d.salaire)sp.push('LGM '+d.salaire+'€'); if(d.beau_frere)sp.push('Beau-frère '+d.beau_frere+'€'); if(d.completude)sp.push('Cours '+Math.round(d.completude)+'€'); if(d.turo_rentabilite_nette)sp.push('Turo net '+Math.round(d.turo_rentabilite_nette)+'€'); if(d.vtc_net)sp.push('VTC net '+Math.round(d.vtc_net)+'€'); if((d.revenus_supp||[]).length)sp.push('+divers');
     document.getElementById('a-rv-det').textContent=sp.join(' · ');
@@ -1744,10 +1811,10 @@ async function charger(){
     document.getElementById('c-mn').textContent=d.nb_cours_manques;
     document.getElementById('c-mv').textContent='-'+fmt(d.total_manque)+' manqués';
 
-    initVtcForm();
-    initTuroForm();
     renderCalendrier(d);
-    renderRevenus(d);
+    renderProchainObjectif(d);
+    renderJournal(d);
+    renderRevenusSupp(d);
     renderBudgets(d);
     renderPrelevements(d);
     renderVtc(d);
@@ -1755,10 +1822,6 @@ async function charger(){
     renderConfig(d);
 
     if(moisOffset===0) initSimulateur(d);
-
-    const ol=document.getElementById('o-ls');
-    ol.innerHTML='<div class="card-label" style="margin-bottom:.6rem">Progression épargne</div>';
-    d.objectifs.forEach(o=>{ const p2=pct(d.epargne_estimee,o.montant),c=col(p2),delta=Math.round(d.epargne_estimee-o.montant); ol.innerHTML+=`<div class="obj"><div class="obj-header"><span>${delta>=0?'✅':'⚠️'} ${o.label}</span><span style="color:${c};font-family:var(--mono)">${delta>=0?'+':''}${delta.toLocaleString('fr-FR')} €</span></div><div class="bar"><div class="fill" style="width:${p2}%;background:${c}"></div></div><div style="display:flex;justify-content:space-between;font-size:.6rem;color:var(--muted);margin-top:3px"><span>${Math.round(d.epargne_estimee).toLocaleString('fr-FR')} €</span><span>${o.montant.toLocaleString('fr-FR')} €</span></div></div>`; });
 
     document.getElementById('upd').textContent='Actualisé à '+new Date().toLocaleTimeString('fr-FR');
   }catch(e){
