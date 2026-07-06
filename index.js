@@ -77,8 +77,6 @@ const BUDGETS = {
   shopping: { label: 'Shopping', max: 50  },
   loisirs:  { label: 'Loisirs',  max: 50  },
   divers:   { label: 'Divers',   max: 50  },
-  VTC:   { label: 'VTC',   max: 1200  },
-  Turo:  { label: 'Turo',  max: 200  },
 };
 
 const OBJECTIFS = [
@@ -95,6 +93,7 @@ const SEMAINES_PAR_MOIS = 4.357;
 let VTC_CHARGES_FIXES = { 'Clicar': 167 }; // euros/semaine
 const VTC_URSSAF_TAUX = 0.212; // 21.2%
 let VTC_RATTACHEMENT_MENSUEL = 60; // euros/mois, tant que non auto-entrepreneur
+let VTC_RATTACHEMENT_ACTIF = true; // toggle manuel, independant des sessions
 const VTC_PLATEFORMES_VALIDES = ['uber', 'bolt', 'heetch', 'autre'];
 const VTC_DEP_CATEGORIES = {
   essence:   { label: 'Essence' },
@@ -193,6 +192,7 @@ async function chargerConfig() {
         VTC_CHARGES_FIXES[nom] = row.valeur;
       }
       if (row.cle === 'vtc_rattachement_mensuel') VTC_RATTACHEMENT_MENSUEL = row.valeur;
+      if (row.cle === 'vtc_rattachement_actif') VTC_RATTACHEMENT_ACTIF = row.valeur === 1;
     });
     console.log('Config chargee depuis Supabase');
   } catch (err) {
@@ -368,10 +368,12 @@ async function getDataVtc(chatId, moisOffset = 0) {
   const totalDepensesDiverses = depensesDiverses.reduce((s, x) => s + Number(x.montant), 0);
   const chargesFixesHebdo = getTotalChargesFixesVtc() * SEMAINES_PAR_MOIS;
 
+  // Le champ "regime" ne sert plus qu'a distinguer les sessions soumises a l'URSSAF.
+  // Le rattachement est desormais un toggle mensuel independant (VTC_RATTACHEMENT_ACTIF),
+  // pilote depuis Config, et non plus deduit du tag d'une session.
   const sessionsUrssaf = sessions.filter(s => s.regime === 'urssaf');
-  const sessionsRattachement = sessions.filter(s => s.regime !== 'urssaf');
   const urssaf = sessionsUrssaf.reduce((s, x) => s + Number(x.ca_net), 0) * VTC_URSSAF_TAUX;
-  const rattachement = sessionsRattachement.length > 0 ? VTC_RATTACHEMENT_MENSUEL : 0;
+  const rattachement = VTC_RATTACHEMENT_ACTIF ? VTC_RATTACHEMENT_MENSUEL : 0;
 
   const net = caNet - totalDepensesDiverses - chargesFixesHebdo - urssaf - rattachement;
 
@@ -979,8 +981,6 @@ function trouverCategorie(texte) {
   if (/\bshopping\b/.test(t)) return 'shopping';
   if (/\bdivers\b/.test(t)) return 'divers';
   if (/\bloisirs?\b/.test(t)) return 'loisirs';
-  if (/\bturo\b/.test(t)) return 'Turo';
-  if (/\bvtc\b/.test(t)) return 'VTC';
   if (/plein|carburant|station|total|esso/.test(t)) return 'essence';
   if (/leclerc|carrefour|lidl|cora|supermarche|aldi/.test(t)) return 'courses';
   if (/restaurant|mcdo|burger|pizza|kebab|sushi/.test(t)) return 'restos';
@@ -2061,8 +2061,6 @@ app.post('/webhook', async (req, res) => {
         else if (/cinéma|concert|spectacle|théâtre|musée|sortie|bowling|karting|escape|parc|zoo|aquarium|netflix|amazon|spotify|jeu|jeux/i.test(texte)) catNLP = 'loisirs';
         else if (/ikea|leroy|castorama|brico|déco|meuble|rideau|ampoule|outil|plomberie|électricité|peinture|rénovation/i.test(texte)) catNLP = 'maison';
         else if (/garage|mécanicien|pneu|vidange|révision|contrôle.technique|péage|autoroute|parking|horodateur|pv |amende|stationnement|lavage.voiture/i.test(texte)) catNLP = 'voiture';
-        else if (/\bturo\b/i.test(texte)) catNLP = 'Turo';
-        else if (/\bvtc\b/i.test(texte)) catNLP = 'VTC';
       }
       if (catNLP) {
         await saveDepense(chatId, montantNLP, catNLP, texte);
@@ -2535,6 +2533,7 @@ app.get('/api/dashboard', async (req, res) => {
       vtc_charges: Object.entries(VTC_CHARGES_FIXES).map(([nom, montant]) => ({ nom, montant })),
       vtc_urssaf_pct: VTC_URSSAF_TAUX,
       vtc_rattachement_mensuel: VTC_RATTACHEMENT_MENSUEL,
+      vtc_rattachement_actif: VTC_RATTACHEMENT_ACTIF,
       vtc_dep_categories: VTC_DEP_CATEGORIES,
       turo_locations: data.turo.locations,
       turo_depenses_ponctuelles: data.turo.depensesPonctuelles,
@@ -2558,6 +2557,16 @@ app.post('/api/config', async (req, res) => {
   try {
     const { cle, valeur } = req.body;
     if (!cle || valeur === undefined) return res.json({ ok: false, error: 'Parametres manquants' });
+
+    // Cle booleenne particuliere (0 est une valeur valide, donc traitee a part
+    // du parseFloat generique ci-dessous qui rejette les valeurs <= 0)
+    if (cle === 'vtc_rattachement_actif') {
+      const b = parseInt(valeur) === 1 ? 1 : 0;
+      VTC_RATTACHEMENT_ACTIF = b === 1;
+      await sauvegarderConfig(cle, b);
+      return res.json({ ok: true });
+    }
+
     const v = parseFloat(valeur);
     if (isNaN(v) || v <= 0) return res.json({ ok: false, error: 'Valeur invalide' });
     if (cle === 'salaire_lgm')        SALAIRE_LGM_DEFAULT = v;
