@@ -462,6 +462,8 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
 
 <!-- APERCU -->
 <div class="section active" id="tab-apercu">
+
+  <div class="section-title" style="padding-top:0">📅 Ce mois</div>
   <div class="grid">
     <div class="charge-card">
       <div class="card-label" style="margin-bottom:.6rem">⚡ Charge totale du mois</div>
@@ -478,11 +480,20 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
         <span id="ct-pf">—% fixes</span><span id="ct-pd">—% variables</span><span>sur <span id="ct-rev">—</span></span>
       </div>
     </div>
+    <div class="charge-card" style="background:linear-gradient(135deg,rgba(74,222,128,0.08),rgba(74,222,128,0.03));border-color:rgba(74,222,128,0.18)">
+      <div class="card-label" style="margin-bottom:.6rem">💰 Revenu total du mois</div>
+      <div class="card-value green" id="a-rv" style="margin-bottom:.55rem">—</div>
+      <div style="display:flex;gap:2px;height:8px;border-radius:4px;overflow:hidden;margin-bottom:.5rem" id="rv-bar"></div>
+      <div id="rv-legend"></div>
+    </div>
+    <div class="card full"><div class="card-label">Solde</div><div class="card-value" id="a-sl">—</div><div class="bar"><div class="fill" id="a-sl-b" style="width:0%"></div></div></div>
+  </div>
+
+  <div class="section-title">💎 Patrimoine</div>
+  <div class="grid">
     <div class="card"><div class="card-label">Épargne actuelle</div><div class="card-value green" id="a-ep">—</div></div>
     <div class="card"><div class="card-label">Total investi</div><div class="card-value blue" id="a-inv">—</div><div class="card-sub" id="a-inv-s">—</div></div>
     <div class="card full"><div class="card-label">Patrimoine total</div><div class="card-value green" id="a-patrimoine">—</div><div class="card-sub" id="a-patrimoine-s">—</div></div>
-    <div class="card full"><div class="card-label">Revenu total</div><div class="card-value green" id="a-rv">—</div><div class="card-sub" id="a-rv-det">—</div></div>
-    <div class="card full"><div class="card-label">Solde</div><div class="card-value" id="a-sl">—</div><div class="bar"><div class="fill" id="a-sl-b" style="width:0%"></div></div></div>
     <div class="card full">
       <div class="card-label">🎯 Prochain objectif</div>
       <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:.2rem">
@@ -493,6 +504,7 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
       <div class="card-sub" id="a-obj-sub" style="margin-top:.35rem">—</div>
     </div>
   </div>
+
   <div class="simul-acc" id="acc-revenus-supp">
     <div class="simul-acc-head" onclick="toggleAcc('acc-revenus-supp')">
       <div class="simul-acc-head-left">💰 Rentrées ponctuelles</div>
@@ -507,8 +519,15 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
 <!-- JOURNAL -->
 <div class="section" id="tab-journal">
   <div class="card full">
-    <div class="card-label" style="margin-bottom:.5rem">📰 Journal du mois</div>
-    <div id="journal-list">Chargement...</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem">
+      <div class="card-label" style="margin:0">📰 Journal du mois</div>
+      <div style="display:flex;gap:8px;font-size:.58rem"><span style="color:var(--green)">● Gain net</span><span style="color:var(--red)">● Dépense nette</span></div>
+    </div>
+    <div class="cal-grid" id="journal-cal-headers">
+      <div class="cal-day-header">L</div><div class="cal-day-header">M</div><div class="cal-day-header">M</div><div class="cal-day-header">J</div><div class="cal-day-header">V</div><div class="cal-day-header">S</div><div class="cal-day-header">D</div>
+    </div>
+    <div class="cal-grid" id="journal-cal-grid" style="margin-top:3px"><div style="color:var(--muted);font-size:.7rem;padding:8px 0;grid-column:1/-1">Chargement...</div></div>
+    <div class="day-detail" id="journal-day-detail"></div>
   </div>
 </div>
 
@@ -1047,18 +1066,20 @@ function cfgEsc(s){ return (s||'').replace(/'/g,"\\'"); }
 // ══════════════════════════════════════════════════════════
 // ── JOURNAL : fil chronologique de toutes les operations ──
 // ══════════════════════════════════════════════════════════
+let journalSelectedDay = null;
+let journalOpsByDay = {};
+
 function renderJournal(d){
-  const cont = document.getElementById('journal-list');
   const ops = [];
 
-  Object.values(d.detail||{}).flat().forEach(x=>ops.push({date:x.created_at, label:x.libelle||(d.budgets[x.categorie]||{}).label||x.categorie, montant:-x.montant, badge:'🟢'}));
-  (d.revenus_supp||[]).forEach(x=>ops.push({date:x.created_at, label:x.libelle||'Divers', montant:x.montant, badge:'🟢'}));
+  Object.values(d.detail||{}).flat().forEach(x=>ops.push({date:x.created_at, label:'Dépenses — '+((d.budgets[x.categorie]||{}).label||x.categorie), montant:-x.montant, badge:'🟢'}));
+  (d.revenus_supp||[]).forEach(x=>ops.push({date:x.created_at, label:x.libelle||'Rentrée ponctuelle', montant:x.montant, badge:'🟢'}));
   (d.cours||[]).forEach(x=>ops.push({date:x.created_at, label:'Cours — '+x.eleve, montant:x.gain, badge:'🟢'}));
   (d.vtc_sessions||[]).forEach(x=>ops.push({date:x.created_at||x.date, label:'VTC — '+x.plateforme, montant:Number(x.ca_net), badge:'🔵'}));
-  (d.vtc_depenses_diverses||[]).forEach(x=>ops.push({date:x.created_at, label:'VTC — '+(VTC_DEP_CATEGORIES[x.categorie]||x.categorie), montant:-Number(x.montant), badge:'🔵'}));
+  (d.vtc_depenses_diverses||[]).forEach(x=>ops.push({date:x.created_at, label:'Dépenses VTC — '+(VTC_DEP_CATEGORIES[x.categorie]||x.categorie), montant:-Number(x.montant), badge:'🔵'}));
   (d.turo_locations||[]).forEach(x=>ops.push({date:x.created_at||x.date_debut, label:'Turo — '+(x.locataire||'location'), montant:Number(x.part_moi), badge:'🟠'}));
-  (d.turo_depenses_ponctuelles||[]).forEach(x=>ops.push({date:x.created_at, label:'Turo — '+(TURO_CATEGORIES[x.categorie]||x.categorie), montant:-Number(x.montant), badge:'🟠'}));
-  (d.turo_depenses_recurrentes||[]).forEach(x=>ops.push({date:x.created_at, label:'Turo — '+(TURO_CATEGORIES[x.categorie]||x.categorie), montant:-Number(x.montant), badge:'🟠'}));
+  (d.turo_depenses_ponctuelles||[]).forEach(x=>ops.push({date:x.created_at, label:'Dépenses Turo — '+(TURO_CATEGORIES[x.categorie]||x.categorie), montant:-Number(x.montant), badge:'🟠'}));
+  (d.turo_depenses_recurrentes||[]).forEach(x=>ops.push({date:x.created_at, label:'Dépenses Turo — '+(TURO_CATEGORIES[x.categorie]||x.categorie), montant:-Number(x.montant), badge:'🟠'}));
   (d.investissements||[]).forEach(x=>{
     const created = new Date(x.created_at);
     const now = new Date();
@@ -1067,27 +1088,55 @@ function renderJournal(d){
     }
   });
 
-  if(!ops.length){ cont.innerHTML = '<div style="color:var(--muted);font-size:.75rem;padding:8px 0">Aucune opération ce mois</div>'; return; }
-
-  ops.sort((a,b)=>new Date(b.date)-new Date(a.date));
-
-  const groupes = {};
+  journalOpsByDay = {};
   ops.forEach(op=>{
-    const jour = new Date(op.date).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
-    if(!groupes[jour]) groupes[jour]=[];
-    groupes[jour].push(op);
+    const j = new Date(op.date).getDate();
+    if(!journalOpsByDay[j]) journalOpsByDay[j]=[];
+    journalOpsByDay[j].push(op);
   });
+
+  const dernierJour = d.dernier_jour||31;
+  const annee = (d.annee_mois||{}).annee||new Date().getFullYear();
+  const mois = (d.annee_mois||{}).mois||new Date().getMonth();
+  let pjs = new Date(annee,mois,1).getDay(); pjs=(pjs+6)%7;
+  const today = new Date();
+  const isCurrentMonth = today.getFullYear()===annee && today.getMonth()===mois;
 
   let html='';
-  Object.entries(groupes).forEach(([jour,items])=>{
-    const totalJour = items.reduce((s,i)=>s+i.montant,0);
-    html+=`<div style="font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding:10px 0 4px;display:flex;justify-content:space-between"><span>${jour}</span><span style="font-family:var(--mono);color:${totalJour>=0?'var(--green)':'var(--red)'}">${totalJour>=0?'+':''}${totalJour.toFixed(0)} €</span></div>`;
-    items.forEach(op=>{
-      const c = op.montant>=0?'var(--green)':'var(--red)';
-      html+=`<div class="row"><span>${op.badge} ${op.label}</span><span style="font-family:var(--mono);color:${c}">${op.montant>=0?'+':''}${op.montant.toFixed(2)} €</span></div>`;
-    });
+  for(let i=0;i<pjs;i++) html+='<div class="cal-day empty"></div>';
+  for(let j=1;j<=dernierJour;j++){
+    const items = journalOpsByDay[j]||[];
+    const total = items.reduce((s,o)=>s+o.montant,0);
+    let cls='cal-day';
+    if(isCurrentMonth && j===today.getDate()) cls+=' today';
+    if(items.length){ cls += total>=0?' done':' missed'; } else { cls+=' past-empty'; }
+    if(journalSelectedDay===j) cls+=' selected';
+    const amtStr = items.length ? (total>=0?'+':'')+Math.round(total)+'€' : '';
+    html+=`<div class="${cls}" onclick="showJournalDay(${j})"><div class="cal-num">${j}</div>${amtStr?`<div class="cal-amt">${amtStr}</div>`:''}</div>`;
+  }
+  document.getElementById('journal-cal-grid').innerHTML = html;
+
+  if(journalSelectedDay!==null) showJournalDay(journalSelectedDay, true);
+}
+
+function showJournalDay(jour, keepIfSame){
+  if(!keepIfSame) journalSelectedDay = (journalSelectedDay===jour) ? null : jour;
+  document.querySelectorAll('#journal-cal-grid .cal-day').forEach(el=>{
+    el.classList.remove('selected');
+    const n=el.querySelector('.cal-num');
+    if(n && n.textContent===String(journalSelectedDay)) el.classList.add('selected');
   });
-  cont.innerHTML = html;
+  const det = document.getElementById('journal-day-detail');
+  if(journalSelectedDay===null){ det.style.display='none'; return; }
+  const items = journalOpsByDay[journalSelectedDay]||[];
+  if(!items.length){ det.innerHTML='<div style="color:var(--muted)">Aucune opération ce jour</div>'; det.style.display='block'; return; }
+  const total = items.reduce((s,o)=>s+o.montant,0);
+  let html=`<div style="display:flex;justify-content:space-between;font-weight:700;margin-bottom:6px"><span>📅 ${journalSelectedDay} du mois</span><span style="font-family:var(--mono);color:${total>=0?'var(--green)':'var(--red)'}">${total>=0?'+':''}${total.toFixed(2)} €</span></div>`;
+  items.sort((a,b)=>new Date(b.date)-new Date(a.date)).forEach(op=>{
+    const c = op.montant>=0?'var(--green)':'var(--red)';
+    html+=`<div style="display:flex;justify-content:space-between;padding:3px 0"><span>${op.badge} ${op.label}</span><span style="font-family:var(--mono);color:${c}">${op.montant>=0?'+':''}${op.montant.toFixed(2)} €</span></div>`;
+  });
+  det.innerHTML=html; det.style.display='block';
 }
 
 function renderCfgCatTable(){
@@ -1731,17 +1780,17 @@ function renderPrelevements(d){
 // ── PROCHAIN OBJECTIF + RENTREES PONCTUELLES (Apercu) ──
 function renderProchainObjectif(d){
   const objectifs = d.objectifs||[];
-  const patrimoine = d.patrimoine_total||0;
-  const prochain = objectifs.find(o=>patrimoine < o.montant) || objectifs[objectifs.length-1];
+  const epargne = d.epargne_base||0;
+  const prochain = objectifs.find(o=>epargne < o.montant) || objectifs[objectifs.length-1];
   if(!prochain){ return; }
-  const p = pct(patrimoine, prochain.montant);
+  const p = pct(epargne, prochain.montant);
   const c = col(p);
-  const reste = Math.max(0, prochain.montant - patrimoine);
+  const reste = Math.max(0, prochain.montant - epargne);
   document.getElementById('a-obj-label').textContent = prochain.label+' — '+prochain.montant.toLocaleString('fr-FR')+' €';
   document.getElementById('a-obj-pct').textContent = p+'%';
   document.getElementById('a-obj-pct').style.color = c;
   document.getElementById('a-obj-bar').style.cssText = `width:${p}%;background:${c}`;
-  document.getElementById('a-obj-sub').textContent = p>=100 ? '🎉 Objectif atteint !' : `Il reste ${Math.round(reste).toLocaleString('fr-FR')} €`;
+  document.getElementById('a-obj-sub').textContent = p>=100 ? '🎉 Objectif atteint !' : `Épargne ${Math.round(epargne).toLocaleString('fr-FR')} € · il reste ${Math.round(reste).toLocaleString('fr-FR')} €`;
 }
 
 function renderRevenusSupp(d){
@@ -1797,8 +1846,23 @@ async function charger(){
     const evolution = d.patrimoine_evolution_mois||0;
     document.getElementById('a-patrimoine-s').textContent = `Projeté fin de mois : ${fmt(d.patrimoine_total||0)} · ${evolution>=0?'+':''}${Math.round(evolution).toLocaleString('fr-FR')} € ce mois`;
     document.getElementById('a-rv').textContent=fmt(d.total_revenus);
-    const sp=[]; if(d.salaire)sp.push('LGM '+d.salaire+'€'); if(d.beau_frere)sp.push('Beau-frère '+d.beau_frere+'€'); if(d.completude)sp.push('Cours '+Math.round(d.completude)+'€'); if(d.turo_rentabilite_nette)sp.push('Turo net '+Math.round(d.turo_rentabilite_nette)+'€'); if(d.vtc_net)sp.push('VTC net '+Math.round(d.vtc_net)+'€'); if((d.revenus_supp||[]).length)sp.push('+divers');
-    document.getElementById('a-rv-det').textContent=sp.join(' · ');
+    const revSources=[
+      {label:'Salaire LGM',val:d.salaire,color:'var(--blue)'},
+      {label:'Beau-frère',val:d.beau_frere,color:'var(--purple)'},
+      {label:'Complétude',val:d.completude,color:'var(--amber)'},
+      {label:'Turo (net)',val:d.turo_rentabilite_nette||0,color:'var(--orange)'},
+      {label:'VTC (net)',val:d.vtc_net||0,color:'var(--green)'},
+      {label:'Rentrées ponctuelles',val:(d.revenus_supp||[]).reduce((s,r)=>s+r.montant,0),color:'var(--muted)'},
+    ].filter(s=>s.val);
+    const totalPos = revSources.reduce((s,x)=>s+Math.max(0,x.val),0)||1;
+    document.getElementById('rv-bar').innerHTML = revSources.map(s=>{
+      const w = Math.max(0,s.val)/totalPos*100;
+      return `<div style="width:${w}%;background:${s.color}"></div>`;
+    }).join('');
+    document.getElementById('rv-legend').innerHTML = revSources.map(s=>{
+      const isNeg=s.val<0, c=isNeg?'var(--red)':s.color;
+      return `<div class="row"><span><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${s.color};margin-right:6px"></span>${s.label}</span><span style="font-family:var(--mono);color:${c}">${s.val>=0?'':'-'}${Math.round(Math.abs(s.val)).toLocaleString('fr-FR')} €</span></div>`;
+    }).join('') || '<div style="color:var(--muted);font-size:.72rem;padding:6px 0">Aucun revenu ce mois</div>';
     const sl=document.getElementById('a-sl'); sl.textContent=(d.solde>=0?'+':'')+fmt(d.solde); sl.style.color=cs(d.solde);
     document.getElementById('a-sl-b').style.cssText=`width:${Math.min(100,Math.max(0,(d.solde/1500)*100))}%;background:${cs(d.solde)}`;
     const cp2=pct(d.completude,d.objectif_completude);
