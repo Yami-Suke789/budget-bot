@@ -328,15 +328,16 @@ function dureeHeuresVtc(heureDebut, heureFin) {
 
 async function saveVtcSession(chatId, s) {
   const { error } = await supabase.from('vtc_sessions').insert({
-    chat_id: chatId,
+    chat_id: String(chatId),
     date: s.date,
     heure_debut: s.heureDebut,
     heure_fin: s.heureFin,
-    plateforme: s.plateforme,
+    plateforme: s.plateforme || 'vtc',
     ca_net: s.caNet,
     nb_courses: s.nbCourses || 0,
   });
-  if (error) console.error('saveVtcSession error:', error.message);
+  if (error) { console.error('saveVtcSession error:', error.message); return { ok: false, error: error.message }; }
+  return { ok: true };
 }
 
 async function saveVtcDepenseDiverse(chatId, montant, categorie, libelle) {
@@ -1445,15 +1446,6 @@ async function traiterCallback(cb) {
     return;
   }
 
-  if (data.startsWith('vtc_plat_')) {
-    const sess = sessionsVtc[chatId];
-    if (!sess) return;
-    sess.plateforme = data.replace('vtc_plat_', '');
-    sess.etape = 'date';
-    await send(chatId, `*${sess.plateforme}*\n\nDate ? (JJ/MM ou "ajd")`);
-    return;
-  }
-
   if (data.startsWith('vtc_dep_cat_')) {
     const cat = data.replace('vtc_dep_cat_', '');
     sessionsVtcDep[chatId] = { etape: 'montant', categorie: cat };
@@ -1602,12 +1594,8 @@ app.post('/webhook', async (req, res) => {
     }
 
     if (texte === '/vtc') {
-      sessionsVtc[chatId] = { etape: 'plateforme' };
-      await sendBtns(chatId, 'Nouvelle session VTC\n\nPlateforme ?', [
-        [{ t: 'Uber', d: 'vtc_plat_uber' }, { t: 'Bolt', d: 'vtc_plat_bolt' }],
-        [{ t: 'Heetch', d: 'vtc_plat_heetch' }, { t: 'Autre', d: 'vtc_plat_autre' }],
-        [{ t: 'Annuler', d: 'annuler' }]
-      ]);
+      sessionsVtc[chatId] = { etape: 'date', plateforme: 'vtc' };
+      await send(chatId, 'Nouvelle session VTC\n\nDate ? (JJ/MM ou "ajd")');
       return;
     }
 
@@ -1806,9 +1794,13 @@ app.post('/webhook', async (req, res) => {
       }
       if (sess.etape === 'nb_courses') {
         sess.nbCourses = texte === 'skip' ? null : parseInt(texte, 10);
-        await saveVtcSession(chatId, sess);
-        const heures = dureeHeuresVtc(sess.heureDebut, sess.heureFin);
+        const result = await saveVtcSession(chatId, sess);
         delete sessionsVtc[chatId];
+        if (!result.ok) {
+          await send(chatId, `Erreur lors de l'enregistrement : ${result.error}\nVerifie que la table vtc_sessions a bien les colonnes ca_net et plateforme (pas ca_brut obligatoire).`);
+          return;
+        }
+        const heures = dureeHeuresVtc(sess.heureDebut, sess.heureFin);
         await send(chatId,
           `Session VTC enregistree\n\n` +
           `CA net: *${sess.caNet}€*\n` +
@@ -2988,4 +2980,3 @@ app.listen(PORT, async () => {
 });
 
 module.exports = app;
-
