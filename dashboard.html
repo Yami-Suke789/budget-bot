@@ -75,18 +75,6 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
 .charge-bar{display:flex;gap:2px;height:6px;border-radius:3px;overflow:hidden;margin-top:.5rem}
 .charge-bar-seg{height:100%;transition:width .6s}
 
-/* SEUIL ALERTE */
-.alerte-seuil{grid-column:1/-1;background:linear-gradient(135deg,rgba(248,113,113,0.12),rgba(242,100,25,0.08));border:1px solid rgba(248,113,113,0.35);border-radius:12px;padding:.75rem 1rem;font-size:.74rem;display:none}
-.alerte-seuil.visible{display:block}
-.alerte-seuil-title{color:var(--red);font-weight:700;font-size:.82rem;margin-bottom:.3rem}
-
-/* FORECAST */
-.forecast-card{grid-column:1/-1;background:linear-gradient(135deg,rgba(74,222,128,0.08),rgba(255,170,68,0.04));border:1px solid rgba(74,222,128,0.18);border-radius:14px;padding:.85rem;}
-.forecast-title{font-size:.58rem;text-transform:uppercase;letter-spacing:.08em;color:var(--green);margin-bottom:.5rem;font-weight:700}
-.forecast-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);font-size:.73rem}
-.forecast-row:last-child{border-bottom:none}
-.forecast-total{display:flex;justify-content:space-between;align-items:center;margin-top:.5rem;padding-top:.5rem;border-top:1px solid rgba(74,222,128,0.2)}
-
 /* POTENTIEL */
 .potentiel-card{background:linear-gradient(135deg,rgba(242,100,25,0.1),rgba(255,170,68,0.06));border:1px solid rgba(242,100,25,0.2);border-radius:12px;padding:.85rem;margin-bottom:.55rem}
 .potentiel-title{font-size:.6rem;text-transform:uppercase;letter-spacing:.08em;color:var(--orange);margin-bottom:.4rem;font-weight:700}
@@ -221,7 +209,7 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
 .refresh{position:fixed;bottom:calc(1.3rem + env(safe-area-inset-bottom,0px));right:1.3rem;background:linear-gradient(135deg,var(--orange),var(--amber));color:#fff;border:none;border-radius:50%;width:46px;height:46px;font-size:1.15rem;cursor:pointer;box-shadow:0 4px 16px rgba(242,100,25,.4);transition:transform .2s;z-index:10}
 .refresh:active{transform:scale(.92) rotate(30deg)}
 .updated{text-align:center;font-size:.6rem;color:#2a3545;padding:.8rem 0 3rem;position:relative;z-index:1}
-.green{color:var(--green)}.amber{color:var(--amber)}.red{color:var(--red)}.orange{color:var(--orange)}
+.green{color:var(--green)}.amber{color:var(--amber)}.red{color:var(--red)}.orange{color:var(--orange)}.blue{color:var(--blue)}
 .item-actions{display:flex;gap:4px;align-items:center}
 
 /* ── ACCORDEON GENERIQUE (reutilise simul-acc) ── */
@@ -474,7 +462,6 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
   <div class="tab" onclick="setTab('budgets')">Dépenses</div>
   <div class="tab" onclick="setTab('revenus')">Revenus</div>
   <div class="tab" onclick="setTab('prelevements')">Prélèv.</div>
-  <div class="tab" onclick="setTab('invest')">Invest.</div>
   <div class="tab" onclick="setTab('objectifs')">Objectifs</div>
   <div class="tab" onclick="setTab('simul')">🎯 Simul.</div>
   <div class="tab" onclick="setTab('config')">⚙️ Config</div>
@@ -483,10 +470,6 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
 <!-- APERCU -->
 <div class="section active" id="tab-apercu">
   <div class="grid">
-    <div class="alerte-seuil" id="alerte-seuil">
-      <div class="alerte-seuil-title" id="alerte-seuil-title">—</div>
-      <div id="alerte-seuil-body">—</div>
-    </div>
     <div class="charge-card">
       <div class="card-label" style="margin-bottom:.6rem">⚡ Charge totale du mois</div>
       <div class="charge-inner">
@@ -503,25 +486,10 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
       </div>
     </div>
     <div class="card"><div class="card-label">Épargne actuelle</div><div class="card-value green" id="a-ep">—</div></div>
-    <div class="card"><div class="card-label">Projection</div><div class="card-value" id="a-pr">—</div></div>
-    <div class="card"><div class="card-label">Revenus totaux</div><div class="card-value green" id="a-rv">—</div><div class="card-sub" id="a-rv-det">—</div></div>
-    <div class="card"><div class="card-label">Solde estimé</div><div class="card-value" id="a-sl">—</div><div class="bar"><div class="fill" id="a-sl-b" style="width:0%"></div></div></div>
-    <div class="card full">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div><div class="card-label">Complétude</div><div class="card-value" id="a-co" style="font-size:1.2rem">—</div><div class="card-sub" id="a-co-s">—</div></div>
-        <div style="text-align:right"><div id="a-co-pct" style="font-size:1.6rem;font-weight:700;font-family:var(--mono)">—%</div><div style="font-size:.6rem;color:var(--muted)">de l'objectif</div></div>
-      </div>
-      <div class="bar" style="height:5px;margin:.6rem 0 0"><div class="fill" id="a-co-b" style="width:0%"></div></div>
-    </div>
-    <div class="forecast-card">
-      <div class="forecast-title">📚 Potentiel Complétude</div>
-      <div class="forecast-row"><span style="color:var(--muted)">Gagné ce mois</span><span style="font-family:var(--mono);color:var(--green)" id="fc-gagne">—</span></div>
-      <div class="forecast-row"><span style="color:var(--muted)">Cours restants</span><span style="font-family:var(--mono);color:var(--amber)" id="fc-restant">—</span></div>
-      <div class="forecast-row"><span style="color:var(--muted)">Manques</span><span style="font-family:var(--mono);color:var(--red)" id="fc-manques">—</span></div>
-      <div class="forecast-total"><span style="font-weight:700;font-size:.78rem">Projection fin de mois</span><span style="font-family:var(--mono);font-size:1rem;font-weight:700" id="fc-proj">—</span></div>
-      <div class="bar" style="height:5px;margin:.5rem 0 .2rem"><div class="fill" id="fc-bar" style="width:0%"></div></div>
-      <div style="display:flex;justify-content:space-between;font-size:.58rem;color:var(--muted)"><span id="fc-pct">0%</span><span id="fc-obj">Objectif : 1 500 €</span></div>
-    </div>
+    <div class="card"><div class="card-label">Total investi</div><div class="card-value blue" id="a-inv">—</div><div class="card-sub" id="a-inv-s">—</div></div>
+    <div class="card full"><div class="card-label">Patrimoine total</div><div class="card-value green" id="a-patrimoine">—</div><div class="card-sub" id="a-patrimoine-s">—</div></div>
+    <div class="card full"><div class="card-label">Revenu total</div><div class="card-value green" id="a-rv">—</div><div class="card-sub" id="a-rv-det">—</div></div>
+    <div class="card full"><div class="card-label">Solde</div><div class="card-value" id="a-sl">—</div><div class="bar"><div class="fill" id="a-sl-b" style="width:0%"></div></div></div>
   </div>
 </div>
 
@@ -530,6 +498,13 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
   <div class="grid" style="margin-bottom:.55rem">
     <div class="card"><div class="card-label">Cours faits</div><div class="card-value green" id="c-nb">—</div></div>
     <div class="card"><div class="card-label">Cours manqués</div><div class="card-value red" id="c-mn">—</div><div class="card-sub" id="c-mv">—</div></div>
+  </div>
+  <div class="card full" style="margin-bottom:.55rem">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div><div class="card-label">Objectif Complétude</div><div class="card-value" id="a-co" style="font-size:1.2rem">—</div><div class="card-sub" id="a-co-s">—</div></div>
+      <div style="text-align:right"><div id="a-co-pct" style="font-size:1.6rem;font-weight:700;font-family:var(--mono)">—%</div><div style="font-size:.6rem;color:var(--muted)">de l'objectif</div></div>
+    </div>
+    <div class="bar" style="height:5px;margin:.6rem 0 0"><div class="fill" id="a-co-b" style="width:0%"></div></div>
   </div>
   <div class="potentiel-card">
     <div class="potentiel-title">💰 Potentiel restant ce mois</div>
@@ -750,56 +725,6 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
   </div>
 </div>
 
-<!-- INVESTISSEMENTS -->
-<div class="section" id="tab-invest">
-
-  <!-- Formulaire achat -->
-  <div class="card full" style="margin-bottom:.55rem">
-    <div class="card-label" style="margin-bottom:.7rem">➕ Enregistrer un achat</div>
-
-    <!-- Mode DCA mensuel -->
-    <div style="display:flex;gap:6px;margin-bottom:.5rem">
-      <button onclick="setInvestMode('dca')" id="inv-btn-dca" style="flex:1;padding:7px;border-radius:8px;font-size:.65rem;font-weight:700;cursor:pointer;font-family:'Sora',sans-serif;background:var(--purple);color:#fff;border:none">📅 DCA mensuel</button>
-      <button onclick="setInvestMode('ponctuel')" id="inv-btn-ponc" style="flex:1;padding:7px;border-radius:8px;font-size:.65rem;font-weight:700;cursor:pointer;font-family:'Sora',sans-serif;background:rgba(255,255,255,0.06);color:var(--muted);border:1px solid var(--border)">🎯 Ponctuel</button>
-    </div>
-
-    <!-- Mode DCA : montant total réparti auto -->
-    <div id="inv-form-dca">
-      <div style="font-size:.62rem;color:var(--muted);margin-bottom:.5rem">Saisis le montant total — réparti automatiquement (65% ISWD · 25% HIEU · 10% HIEM)</div>
-      <div style="display:flex;gap:8px;align-items:center;margin-bottom:.5rem">
-        <input type="number" id="inv-dca-total" placeholder="Ex: 100" step="1" min="1" style="flex:1;background:rgba(255,255,255,0.07);border:1px solid var(--border);color:var(--text);font-size:.9rem;padding:8px 10px;border-radius:8px;outline:none;font-family:var(--mono);text-align:right" onfocus="this.style.borderColor='var(--purple)'" onblur="this.style.borderColor='var(--border)'" oninput="previewDCA()">
-        <span style="color:var(--muted);font-size:.75rem">€</span>
-      </div>
-      <!-- Prévisualisation répartition -->
-      <div id="inv-dca-preview" style="display:none;background:rgba(167,139,250,0.07);border:1px solid rgba(167,139,250,0.2);border-radius:8px;padding:.6rem .75rem;margin-bottom:.5rem;font-size:.7rem">
-        <div style="display:flex;justify-content:space-between;padding:3px 0"><span style="color:var(--muted)">ISWD (65%)</span><span style="font-family:var(--mono);color:var(--blue)" id="prev-iswd">—</span></div>
-        <div style="display:flex;justify-content:space-between;padding:3px 0"><span style="color:var(--muted)">HIEU (25%)</span><span style="font-family:var(--mono);color:var(--purple)" id="prev-hieu">—</span></div>
-        <div style="display:flex;justify-content:space-between;padding:3px 0"><span style="color:var(--muted)">HIEM (10%)</span><span style="font-family:var(--mono);color:var(--amber)" id="prev-hiem">—</span></div>
-      </div>
-      <button onclick="enregistrerDCA()" style="width:100%;background:var(--purple);color:#fff;border:none;border-radius:8px;padding:10px;font-size:.75rem;font-weight:700;cursor:pointer;font-family:'Sora',sans-serif">▶ Enregistrer le DCA</button>
-    </div>
-
-    <!-- Mode ponctuel : un seul ETF -->
-    <div id="inv-form-ponc" style="display:none">
-      <div style="margin-bottom:.5rem">
-        <div style="font-size:.62rem;color:var(--muted);margin-bottom:.4rem">ETF</div>
-        <div style="display:flex;gap:5px">
-          <button onclick="setInvestTicker('ISWD')" id="inv-t-ISWD" style="flex:1;padding:6px;border-radius:7px;font-size:.62rem;font-weight:700;cursor:pointer;font-family:'Sora',sans-serif;background:rgba(96,165,250,0.15);color:var(--blue);border:1px solid rgba(96,165,250,0.3)">ISWD</button>
-          <button onclick="setInvestTicker('HIEU')" id="inv-t-HIEU" style="flex:1;padding:6px;border-radius:7px;font-size:.62rem;font-weight:700;cursor:pointer;font-family:'Sora',sans-serif;background:rgba(255,255,255,0.05);color:var(--muted);border:1px solid var(--border)">HIEU</button>
-          <button onclick="setInvestTicker('HIEM')" id="inv-t-HIEM" style="flex:1;padding:6px;border-radius:7px;font-size:.62rem;font-weight:700;cursor:pointer;font-family:'Sora',sans-serif;background:rgba(255,255,255,0.05);color:var(--muted);border:1px solid var(--border)">HIEM</button>
-        </div>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center;margin-bottom:.5rem">
-        <input type="number" id="inv-ponc-montant" placeholder="Montant €" step="1" min="1" style="flex:1;background:rgba(255,255,255,0.07);border:1px solid var(--border);color:var(--text);font-size:.9rem;padding:8px 10px;border-radius:8px;outline:none;font-family:var(--mono);text-align:right" onfocus="this.style.borderColor='var(--purple)'" onblur="this.style.borderColor='var(--border)'">
-        <span style="color:var(--muted);font-size:.75rem">€</span>
-      </div>
-      <button onclick="enregistrerPonctuel()" style="width:100%;background:var(--blue);color:#fff;border:none;border-radius:8px;padding:10px;font-size:.75rem;font-weight:700;cursor:pointer;font-family:'Sora',sans-serif">▶ Enregistrer</button>
-    </div>
-  </div>
-
-  <div id="invest-content">Chargement...</div>
-</div>
-
 <!-- OBJECTIFS -->
 <div class="section" id="tab-objectifs">
   <div class="grid"><div class="card full" id="o-ls">Chargement...</div></div>
@@ -978,7 +903,7 @@ function toast(msg, isError=false){
 }
 
 function setTab(t){
-  const tabs=['apercu','cours','vtc','turo','budgets','revenus','prelevements','invest','objectifs','simul','config'];
+  const tabs=['apercu','cours','vtc','turo','budgets','revenus','prelevements','objectifs','simul','config'];
   document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',tabs[i]===t));
   document.querySelectorAll('.section').forEach(el=>el.classList.remove('active'));
   document.getElementById('tab-'+t).classList.add('active');
@@ -1058,16 +983,6 @@ async function supprimerRevenu(id, libelle, montant){
 async function modifierRevenu(id, libelle, montantActuel){
   showModif(`✏️ Modifier "${libelle||'revenu'}"`,montantActuel,async(val)=>{
     try{ const r=await fetch(`/api/revenu/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({montant:val})}); const j=await r.json(); if(j.ok){toast('✅ Revenu modifié');charger();}else toast('❌ '+j.error,true); }catch{toast('❌ Erreur réseau',true);}
-  });
-}
-async function supprimerInvestissement(id, ticker, montant){
-  showConfirm('🗑️ Supprimer cet achat ?',`${ticker} — ${montant.toFixed(0)} €\nCette action est irréversible.`,async()=>{
-    try{ const r=await fetch(`/api/investissement/${id}`,{method:'DELETE'}); const j=await r.json(); if(j.ok){toast('✅ Achat supprimé');charger();}else toast('❌ '+j.error,true); }catch{toast('❌ Erreur réseau',true);}
-  });
-}
-async function modifierInvestissement(id, ticker, montantActuel){
-  showModif(`✏️ Modifier achat ${ticker}`,montantActuel,async(val)=>{
-    try{ const r=await fetch(`/api/investissement/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({montant:val})}); const j=await r.json(); if(j.ok){toast('✅ Achat modifié');charger();}else toast('❌ '+j.error,true); }catch{toast('❌ Erreur réseau',true);}
   });
 }
 
@@ -1606,325 +1521,7 @@ function renderTuro(d){
   }
 }
 
-// ── INVESTISSEMENTS (watchlist mise à jour : ETF islamiques) ──
-function renderInvest(d){
-  const cont=document.getElementById('invest-content');
-  const invs=d.investissements||[];
-  const prix=d.prix_actuels||{};
-  // Watchlist : clés courtes telles que renvoyées par le backend
-  const watchlist=d.market_watchlist||['ISWD','HIEU','HIEM'];
-  const labels={
-    'ISWD':'MSCI World Islamic (iShares)',
-    'HIEU':'MSCI Europe Islamic (HSBC)',
-    'HIEM':'MSCI EM Islamic (HSBC)',
-  };
 
-  let html=`<div class="card full" style="margin-bottom:.55rem">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem">
-      <div class="card-label" style="margin:0">📊 Marché en direct</div>
-      <div style="font-size:.58rem;color:var(--muted)">Yahoo Finance</div>
-    </div>`;
-
-  // Allocation cible
-  const alloc={'ISWD':65,'HIEU':25,'HIEM':10};
-  html+=`<div style="background:rgba(74,222,128,0.05);border:1px solid rgba(74,222,128,0.12);border-radius:9px;padding:.6rem .75rem;margin-bottom:.6rem">
-    <div style="font-size:.55rem;text-transform:uppercase;letter-spacing:.06em;color:var(--green);font-weight:700;margin-bottom:.35rem">🕌 Allocation DCA cible</div>
-    <div style="display:flex;gap:3px;height:6px;border-radius:3px;overflow:hidden;margin-bottom:.35rem">
-      <div style="width:65%;background:var(--blue)"></div>
-      <div style="width:25%;background:var(--purple)"></div>
-      <div style="width:10%;background:var(--amber)"></div>
-    </div>
-    <div style="display:flex;gap:10px;font-size:.6rem">
-      <span style="color:var(--blue)">● ISWD 65%</span>
-      <span style="color:var(--purple)">● HSBC EU 25%</span>
-      <span style="color:var(--amber)">● HIEM 10%</span>
-    </div>
-  </div>`;
-
-  watchlist.forEach(ticker=>{
-    const p=prix[ticker];
-    const label=labels[ticker]||ticker;
-    const allocPct=alloc[ticker];
-    if(p){
-      const varPct=p.variation;
-      const varColor=varPct===null?'var(--muted)':varPct>=0?'var(--green)':'var(--red)';
-      const varStr=varPct===null?'—':(varPct>=0?'+':'')+varPct.toFixed(2)+'%';
-      const arrow=varPct===null?'':varPct>=0?' ▲':' ▼';
-      const stateColor=p.marketState==='REGULAR'?'var(--green)':'var(--muted)';
-      html+=`<div class="row"><div><div style="font-size:.78rem;font-weight:600">${ticker} <span style="font-size:.58rem;color:var(--muted);font-weight:400">${label}</span></div><div style="display:flex;gap:6px;margin-top:2px"><span style="font-size:.55rem;background:rgba(74,222,128,0.1);color:var(--green);border:1px solid rgba(74,222,128,0.25);padding:1px 6px;border-radius:4px">Halal ✓</span>${allocPct?`<span style="font-size:.55rem;color:var(--muted)">${allocPct}% cible</span>`:''}<span style="font-size:.55rem;color:${stateColor}">${p.marketState==='REGULAR'?'● Live':'● Fermé'}</span></div></div><div style="text-align:right"><div style="font-family:var(--mono);font-size:.88rem;font-weight:600">${p.prix.toLocaleString('fr-FR')} <span style="font-size:.65rem;color:var(--muted)">${p.currency}</span></div><div style="font-size:.72rem;color:${varColor};font-weight:600">${varStr}${arrow}</div></div></div>`;
-    } else {
-      html+=`<div class="row"><div><div style="font-size:.78rem">${ticker} — ${label}</div><div style="font-size:.55rem;color:var(--green)">Halal ✓</div></div><div style="color:var(--muted);font-size:.7rem">Indisponible</div></div>`;
-    }
-  });
-  html+=`<div style="font-size:.6rem;color:var(--muted);margin-top:.5rem;text-align:right">Actualisé à ${new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</div></div>`;
-
-  if(!invs||invs.length===0){
-    html+=`<div class="invest-card"><div class="invest-title">💼 Mon portefeuille</div><div style="color:var(--muted);font-size:.78rem;padding:.4rem 0">Aucun achat enregistré.</div><div style="font-size:.72rem;color:var(--muted);margin-top:.4rem">Utilise <strong style="color:var(--orange)">/investir [montant]</strong> sur Telegram pour ton premier achat.</div></div>`;
-    cont.innerHTML=html; return;
-  }
-
-  const tickersDispo = Object.keys(prix);
-
-  const parTicker={};
-  invs.forEach(inv=>{ if(!parTicker[inv.ticker])parTicker[inv.ticker]={montant_investi:0,nb_parts:0,achats:[]}; parTicker[inv.ticker].montant_investi+=inv.montant; parTicker[inv.ticker].nb_parts+=inv.nb_parts; parTicker[inv.ticker].achats.push(inv); });
-
-  let totalInvesti=0,totalActuel=0;
-  let portfolioHtml=`<div class="invest-card"><div class="invest-title">💼 Mon portefeuille</div>`;
-  if(tickersDispo.length===0){
-    portfolioHtml+=`<div style="font-size:.62rem;color:var(--amber);margin-bottom:.5rem">⚠️ Prix marché indisponibles (Yahoo Finance)</div>`;
-  }
-  Object.entries(parTicker).forEach(([ticker,data])=>{
-    const prixMoyen=data.montant_investi/data.nb_parts;
-    const marche=prix[ticker]||prix[ticker.toUpperCase()]||null;
-    totalInvesti+=data.montant_investi;
-    let pvHtml='';
-    if(marche){ const valeur=marche.prix*data.nb_parts; const pv=valeur-data.montant_investi; const pvPct=(pv/data.montant_investi*100); totalActuel+=valeur; const pvColor=pv>=0?'var(--green)':'var(--red)'; pvHtml=`<div style="font-size:.7rem;color:${pvColor};font-family:var(--mono);margin-top:2px">${pv>=0?'▲ +':'▼ '}${pv.toFixed(0)}€ (${pvPct>=0?'+':''}${pvPct.toFixed(1)}%)</div>`; }
-    else totalActuel+=data.montant_investi;
-    portfolioHtml+=`<div class="row"><div><div style="font-size:.78rem;font-weight:600">${ticker}</div><div style="font-size:.62rem;color:var(--muted)">${data.nb_parts.toFixed(4)} parts · P.moy ${prixMoyen.toFixed(2)}</div>${pvHtml}</div><div style="text-align:right"><div style="font-family:var(--mono);font-size:.82rem">${data.montant_investi.toFixed(0)} €</div>${marche?`<div style="font-size:.68rem;color:var(--green);font-family:var(--mono)">${(marche.prix*data.nb_parts).toFixed(0)} €</div>`:''}</div></div>`;
-  });
-  if(Object.keys(parTicker).length>1){ const pv=totalActuel-totalInvesti; const pvColor=pv>=0?'var(--green)':'var(--red)'; portfolioHtml+=`<div style="border-top:1px solid var(--border);margin-top:.5rem;padding-top:.5rem;display:flex;justify-content:space-between;align-items:center"><div style="font-size:.75rem;font-weight:700">Total</div><div style="text-align:right"><div style="font-family:var(--mono);font-size:.82rem">${totalInvesti.toFixed(0)} € investi</div><div style="font-family:var(--mono);font-size:.75rem;color:${pvColor}">${pv>=0?'+':''}${pv.toFixed(0)} € (${((pv/totalInvesti)*100).toFixed(1)}%)</div></div></div>`; }
-  portfolioHtml+=`<div style="font-size:.65rem;color:var(--muted);margin-top:.6rem">📅 DCA le 1er du mois · <strong style="color:var(--orange)">/investir [montant]</strong> pour ajouter</div></div>`;
-
-  let histHtml=`<div class="card full" style="margin-top:.3rem"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem"><div class="card-label" style="margin:0">Historique achats</div><div style="font-size:.58rem;color:var(--muted)">✏️ modifier · 🗑️ supprimer</div></div>`;
-  invs.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).forEach(inv=>{
-    const date=new Date(inv.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit'});
-    histHtml+=`<div class="row" style="align-items:flex-start"><div style="flex:1"><div style="font-size:.72rem;font-weight:600">${inv.ticker}</div><div style="font-size:.6rem;color:var(--muted)">${date} · @ ${inv.prix_unitaire.toFixed(2)} ${(prix[inv.ticker]||{}).currency||''}</div></div><div style="display:flex;align-items:center;gap:4px"><div style="text-align:right;margin-right:4px"><div style="font-family:var(--mono);font-size:.72rem">${inv.montant.toFixed(0)} €</div><div style="font-size:.6rem;color:var(--muted)">${inv.nb_parts.toFixed(4)} parts</div></div><button class="action-btn edit" onclick="modifierInvestissement('${inv.id}','${inv.ticker}',${inv.montant})" title="Modifier">✏️</button><button class="action-btn del" onclick="supprimerInvestissement('${inv.id}','${inv.ticker}',${inv.montant})" title="Supprimer">🗑️</button></div></div>`;
-  });
-  histHtml+=`</div>`;
-  cont.innerHTML=html+portfolioHtml+histHtml;
-}
-
-// ── SIMULATEUR ──
-function initSimulateur(d){
-  simulData = d;
-  const epInput = document.getElementById('simul-ep-input');
-  if(epInput && !epInput._initialized){
-    epInput.value = Math.round(d.epargne_base||0);
-    epInput._initialized = true;
-  }
-}
-
-function addDepenseLibre(){
-  const lbl = document.getElementById('simul-dep-label').value.trim()||'Divers';
-  const mnt = parseFloat(document.getElementById('simul-dep-montant').value);
-  if(!mnt||mnt<=0){ toast('❌ Montant invalide',true); return; }
-  simulDepenses.push({label:lbl, montant:mnt});
-  document.getElementById('simul-dep-label').value='';
-  document.getElementById('simul-dep-montant').value='';
-  renderSimulateurDepenses();
-}
-
-function removeDepense(idx){
-  simulDepenses.splice(idx,1);
-  renderSimulateurDepenses();
-}
-
-function renderSimulateurDepenses(){
-  const cont = document.getElementById('simul-dep-list');
-  const totalRow = document.getElementById('simul-dep-total-row');
-  if(!simulDepenses.length){
-    cont.innerHTML='';
-    if(totalRow) totalRow.style.display='none';
-    return;
-  }
-  cont.innerHTML = simulDepenses.map((dep,i)=>`
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid var(--border);font-size:.72rem">
-      <span style="color:var(--text);flex:1">${dep.label}</span>
-      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-        <span style="font-family:var(--mono);color:var(--red)">${dep.montant.toFixed(0)} €</span>
-        <button class="simul-remove-btn" onclick="removeDepense(${i})">✕</button>
-      </div>
-    </div>`).join('');
-  const total = simulDepenses.reduce((s,d)=>s+d.montant,0);
-  if(totalRow){ totalRow.style.display='block'; totalRow.textContent='Total : -'+total.toFixed(0)+' €'; }
-}
-
-function recalcSimulateur(){
-  if(!simulData){ toast('⏳ Données non chargées, réessaie',true); return; }
-  const d = simulData;
-
-  const epInput = document.getElementById('simul-ep-input');
-  const epargneBase = parseFloat(epInput?.value) || 0;
-  if(epargneBase <= 0){ toast('❌ Saisis ton épargne actuelle',true); return; }
-
-  const soldeActuel = d.solde || 0;
-
-  const aujourd = new Date().getDate();
-  const prelsRestants = (d.prelevements_tous||[]).filter(p => p.jour && p.jour > aujourd && !p.suspendu && p.frequence !== 'trimestriel');
-  const totalPrel = prelsRestants.reduce((s,p) => s+p.montant, 0);
-
-  const budgets = d.budgets || {};
-  const totaux  = d.totaux  || {};
-  const complementCourses = Math.max(0, (budgets.courses?.max||500) - (totaux.courses||0)) * 0.8;
-  const complementEssence = Math.max(0, (budgets.essence?.max||300) - (totaux.essence||0)) * 0.8;
-  const complementRestos  = Math.max(0, (budgets.restos?.max||100) - (totaux.restos||0))  * 0.8;
-
-  const totalCours = d.potentiel_restant || 0;
-
-  const totalExcep = simulDepenses.reduce((s,dep) => s+dep.montant, 0);
-
-  const soldeProj = totalCours - totalPrel - complementCourses - complementEssence - complementRestos - totalExcep;
-  const epargneFinale = epargneBase + soldeProj;
-
-  document.getElementById('simul-result-block').style.display = 'block';
-
-  const epEl = document.getElementById('simul-epargne-val');
-  epEl.textContent = fmt(epargneFinale);
-  const objPrincipal = (d.objectifs&&d.objectifs[0]) ? d.objectifs[0].montant : 12000;
-  const epPct   = pct(epargneFinale, objPrincipal);
-  const epColor = epargneFinale >= objPrincipal ? 'var(--green)' : epargneFinale > epargneBase ? 'var(--amber)' : 'var(--red)';
-  epEl.style.color = epColor;
-  document.getElementById('simul-gauge-fill').style.cssText = `width:${epPct}%;background:${epColor}`;
-  document.getElementById('simul-gauge-pct').textContent = epPct+'%';
-  if(d.objectifs&&d.objectifs[0]) document.getElementById('simul-obj-label').textContent = 'Obj. '+d.objectifs[0].montant.toLocaleString('fr-FR')+' €';
-  document.getElementById('simul-solde-sub').textContent = 'Solde fin de mois estimé : '+(soldeProj>=0?'+':'')+Math.round(soldeProj).toLocaleString('fr-FR')+' €';
-
-  const detailEl = document.getElementById('simul-detail-list');
-  const lignes = [
-    {label:'Solde actuel (revenus − charges − dépenses à ce jour)', val:soldeActuel, c:soldeActuel>=0?'var(--green)':'var(--red)'},
-    {label:'📚 Cours restants', val:totalCours, c:'var(--green)'},
-    {label:'📅 Prélèvements restants', val:-totalPrel, c:'var(--red)'},
-    {label:`🛒 Courses estimées (80% · ${Math.round(complementCourses)}€)`, val:-complementCourses, c:'var(--amber)'},
-    {label:`⛽ Essence estimée (80% · ${Math.round(complementEssence)}€)`, val:-complementEssence, c:'var(--amber)'},
-    {label:`🍽️ Restos estimés (80% · ${Math.round(complementRestos)}€)`, val:-complementRestos, c:'var(--amber)'},
-    {label:'➕ Dépenses exceptionnelles', val:-totalExcep, c:'var(--red)'},
-  ].filter(l => l.val !== 0);
-
-  detailEl.innerHTML = lignes.map(l=>`
-    <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:.7rem">
-      <span style="color:var(--muted);flex:1;padding-right:8px">${l.label}</span>
-      <span style="font-family:var(--mono);color:${l.c};flex-shrink:0">${l.val>0?'+':''}${Math.round(l.val).toLocaleString('fr-FR')} €</span>
-    </div>`).join('')
-  + `<div style="display:flex;justify-content:space-between;padding:7px 0;font-size:.73rem;font-weight:700;border-top:1px solid rgba(255,255,255,0.1);margin-top:2px">
-      <span>= Solde projeté</span>
-      <span style="font-family:var(--mono);color:${soldeProj>=0?'var(--green)':'var(--red)'}">${soldeProj>=0?'+':''}${Math.round(soldeProj).toLocaleString('fr-FR')} €</span>
-    </div>
-    <div style="display:flex;justify-content:space-between;align-items:center;background:rgba(167,139,250,0.1);border:1px solid rgba(167,139,250,0.25);border-radius:8px;padding:8px 10px;margin-top:6px">
-      <span style="font-size:.75rem;font-weight:700">💰 Épargne finale estimée</span>
-      <span style="font-family:var(--mono);font-size:.9rem;font-weight:700;color:${epColor}">${fmt(epargneFinale)}</span>
-    </div>`;
-
-  const objList = document.getElementById('simul-obj-list');
-  if(d.objectifs&&d.objectifs.length){
-    objList.innerHTML = d.objectifs.map(o=>{
-      const op=pct(epargneFinale,o.montant), oc=op>=100?'var(--green)':op>=80?'var(--amber)':'var(--red)';
-      const delta=Math.round(epargneFinale-o.montant);
-      return `<div class="simul-obj-row">
-        <span>${delta>=0?'✅':'⚠️'} ${o.label}</span>
-        <div style="text-align:right">
-          <div style="font-family:var(--mono);font-size:.72rem;color:${oc}">${delta>=0?'+':''}${delta.toLocaleString('fr-FR')} €</div>
-          <div style="font-size:.58rem;color:var(--muted)">${op}% · cible ${o.montant.toLocaleString('fr-FR')} €</div>
-        </div>
-      </div>`;
-    }).join('');
-  }
-
-  document.getElementById('simul-result-block').scrollIntoView({behavior:'smooth', block:'start'});
-}
-
-function resetSimulateur(){
-  simulDepenses = [];
-  renderSimulateurDepenses();
-  const epInput = document.getElementById('simul-ep-input');
-  if(epInput && simulData){
-    epInput.value = Math.round(simulData.epargne_base||0);
-    epInput._initialized = false;
-  }
-  document.getElementById('simul-result-block').style.display = 'none';
-  toast('↺ Réinitialisé');
-}
-
-// ── INVEST FORM ──
-let investTicker = 'ISWD';
-
-function setInvestMode(mode){
-  const isDCA = mode === 'dca';
-  document.getElementById('inv-form-dca').style.display = isDCA ? 'block' : 'none';
-  document.getElementById('inv-form-ponc').style.display = isDCA ? 'none' : 'block';
-  const btnDCA  = document.getElementById('inv-btn-dca');
-  const btnPonc = document.getElementById('inv-btn-ponc');
-  btnDCA.style.background  = isDCA ? 'var(--purple)' : 'rgba(255,255,255,0.06)';
-  btnDCA.style.color        = isDCA ? '#fff' : 'var(--muted)';
-  btnDCA.style.border       = isDCA ? 'none' : '1px solid var(--border)';
-  btnPonc.style.background = !isDCA ? 'var(--blue)' : 'rgba(255,255,255,0.06)';
-  btnPonc.style.color       = !isDCA ? '#fff' : 'var(--muted)';
-  btnPonc.style.border      = !isDCA ? 'none' : '1px solid var(--border)';
-}
-
-function setInvestTicker(t){
-  investTicker = t;
-  ['ISWD','HIEU','HIEM'].forEach(tick => {
-    const btn = document.getElementById('inv-t-'+tick);
-    if(!btn) return;
-    const colors = {ISWD:'rgba(96,165,250,0.15)',HIEU:'rgba(167,139,250,0.15)',HIEM:'rgba(255,170,68,0.15)'};
-    const textColors = {ISWD:'var(--blue)',HIEU:'var(--purple)',HIEM:'var(--amber)'};
-    const borders = {ISWD:'rgba(96,165,250,0.3)',HIEU:'rgba(167,139,250,0.3)',HIEM:'rgba(255,170,68,0.3)'};
-    if(tick === t){
-      btn.style.background = colors[tick]; btn.style.color = textColors[tick];
-      btn.style.border = `1px solid ${borders[tick]}`;
-    } else {
-      btn.style.background = 'rgba(255,255,255,0.05)'; btn.style.color = 'var(--muted)';
-      btn.style.border = '1px solid var(--border)';
-    }
-  });
-}
-
-function previewDCA(){
-  const total = parseFloat(document.getElementById('inv-dca-total').value)||0;
-  const prev = document.getElementById('inv-dca-preview');
-  if(total <= 0){ prev.style.display='none'; return; }
-  prev.style.display = 'block';
-  document.getElementById('prev-iswd').textContent = (total*0.65).toFixed(2)+' €';
-  document.getElementById('prev-hieu').textContent = (total*0.25).toFixed(2)+' €';
-  document.getElementById('prev-hiem').textContent = (total*0.10).toFixed(2)+' €';
-}
-
-async function enregistrerDCA(){
-  const total = parseFloat(document.getElementById('inv-dca-total').value)||0;
-  if(total <= 0){ toast('❌ Saisis un montant',true); return; }
-  const parts = [{ticker:'ISWD',montant:total*0.65},{ticker:'HIEU',montant:total*0.25},{ticker:'HIEM',montant:total*0.10}];
-  toast('⏳ Enregistrement en cours...');
-  let ok = 0, ko = 0;
-  for(const p of parts){
-    try{
-      const r = await fetch('/api/investissement', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ticker:p.ticker,montant:p.montant})});
-      const j = await r.json();
-      if(j.ok) ok++; else ko++;
-    }catch{ ko++; }
-  }
-  if(ko===0){ toast('✅ DCA enregistré — '+total+'€ répartis'); document.getElementById('inv-dca-total').value=''; document.getElementById('inv-dca-preview').style.display='none'; charger(); }
-  else toast('⚠️ '+ok+' sur 3 enregistrés — vérifie la table Supabase',true);
-}
-
-async function enregistrerPonctuel(){
-  const montant = parseFloat(document.getElementById('inv-ponc-montant').value)||0;
-  if(montant <= 0){ toast('❌ Saisis un montant',true); return; }
-  if(!investTicker){ toast('❌ Choisis un ETF',true); return; }
-  toast('⏳ Enregistrement...');
-  try{
-    const r = await fetch('/api/investissement', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ticker:investTicker,montant})});
-    const j = await r.json();
-    if(j.ok){ toast('✅ Achat '+investTicker+' '+montant+'€ enregistré'); document.getElementById('inv-ponc-montant').value=''; charger(); }
-    else toast('❌ '+j.error,true);
-  }catch{ toast('❌ Erreur réseau',true); }
-}
-
-// ── ALERTES SEUIL ──
-function renderAlerteSeuil(d){
-  const el=document.getElementById('alerte-seuil');
-  const total=(d.charges_fixes||0)+(d.total_dep||0);
-  const seuilTotal=d.seuil_alerte_total||3400;
-  const seuilVar=d.seuil_alerte_variable||1000;
-  if(total>seuilTotal){
-    el.classList.add('visible');
-    document.getElementById('alerte-seuil-title').textContent='🚨 Seuil global dépassé !';
-    document.getElementById('alerte-seuil-body').innerHTML=`Fixes <strong>${Math.round(d.charges_fixes)}€</strong> + Variables <strong>${Math.round(d.total_dep)}€</strong> = <strong>${Math.round(total)}€</strong> — Dépassement: <strong>+${Math.round(total-seuilTotal)}€</strong>`;
-  } else if(d.total_dep>seuilVar){
-    el.classList.add('visible');
-    document.getElementById('alerte-seuil-title').textContent='⚠️ Dépenses variables élevées';
-    document.getElementById('alerte-seuil-body').innerHTML=`Variables ce mois: <strong>${Math.round(d.total_dep)}€</strong> > seuil <strong>${seuilVar}€</strong>`;
-  } else el.classList.remove('visible');
-}
 
 // ── MODAL FICHE ELEVE ──
 function openFiche(nom){
@@ -2069,10 +1666,22 @@ function renderRevenus(d){
   const cp=pct(d.completude,d.objectif_completude);
   const rco=document.getElementById('r-completude'); rco.textContent=fmt(d.completude); rco.style.color=col(cp);
   document.getElementById('r-co-s').textContent=`${cp}% objectif ${d.objectif_completude} €`;
-  const sources=[{icon:'💼',label:'Salaire LGM',val:d.salaire,sub:'Mensuel net'},{icon:'👤',label:'Beau-frère',val:d.beau_frere,sub:'Mensuel fixe'},{icon:'📚',label:'Complétude',val:d.completude,sub:`${d.nb_cours} cours ce mois`},{icon:'🚙',label:'Turo (ma part)',val:d.turo_part_moi||0,sub:'50% du revenu net'}];
+  const sources=[
+    {icon:'💼',label:'Salaire LGM',val:d.salaire,sub:'Mensuel net'},
+    {icon:'👤',label:'Beau-frère',val:d.beau_frere,sub:'Mensuel fixe'},
+    {icon:'📚',label:'Complétude',val:d.completude,sub:`${d.nb_cours} cours ce mois`},
+    {icon:'🚙',label:'Turo (net)',val:d.turo_rentabilite_nette||0,sub:'Ma part − dépenses véhicule'},
+    {icon:'🚕',label:'VTC (net)',val:d.vtc_net||0,sub:'CA net − charges − URSSAF/rattachement'},
+  ];
   const rs=document.getElementById('r-sources');
   rs.innerHTML='<div class="card-label" style="margin-bottom:.6rem">Sources de revenus</div>';
-  sources.forEach(s=>{ if(!s.val) return; const bw=Math.min(100,Math.round((s.val/d.total_revenus)*100)); rs.innerHTML+=`<div class="row"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:1rem">${s.icon}</span><div><div style="font-size:.75rem">${s.label}</div><div style="font-size:.6rem;color:var(--muted)">${s.sub}</div></div></div><div style="text-align:right"><div style="font-family:var(--mono);font-size:.82rem;color:var(--green)">${Math.round(s.val).toLocaleString('fr-FR')} €</div><div style="font-size:.58rem;color:var(--muted)">${bw}%</div></div></div><div class="bar" style="margin:.3rem 0 .5rem"><div class="fill" style="width:${bw}%;background:var(--green)"></div></div>`; });
+  sources.forEach(s=>{
+    if(!s.val) return;
+    const isNeg = s.val<0;
+    const bw = isNeg ? 0 : Math.min(100,Math.round((s.val/d.total_revenus)*100));
+    const valColor = isNeg ? 'var(--red)' : 'var(--green)';
+    rs.innerHTML+=`<div class="row"><div style="display:flex;align-items:center;gap:8px"><span style="font-size:1rem">${s.icon}</span><div><div style="font-size:.75rem">${s.label}</div><div style="font-size:.6rem;color:var(--muted)">${s.sub}</div></div></div><div style="text-align:right"><div style="font-family:var(--mono);font-size:.82rem;color:${valColor}">${s.val>=0?'':'-'}${Math.round(Math.abs(s.val)).toLocaleString('fr-FR')} €</div><div style="font-size:.58rem;color:var(--muted)">${bw}%</div></div></div><div class="bar" style="margin:.3rem 0 .5rem"><div class="fill" style="width:${bw}%;background:${valColor}"></div></div>`;
+  });
   const supp=d.revenus_supp||[],rsupp=document.getElementById('r-supp');
   if(supp.length){
     rsupp.style.display='block';
@@ -2113,23 +1722,15 @@ async function charger(){
     document.getElementById('ct-pd').textContent=pctD+'% variables';
     document.getElementById('ct-rev').textContent=fmt(rev);
 
-    renderAlerteSeuil(d);
-
-    const gagne=d.completude||0,restantPot=d.potentiel_restant||0,manqueTot=d.total_manque||0,objC=d.objectif_completude||1500;
-    const projection=gagne+restantPot,projPct=pct(projection,objC),projCol=col(projPct);
-    document.getElementById('fc-gagne').textContent='+'+fmt(gagne);
-    document.getElementById('fc-restant').textContent=restantPot>0?'+'+fmt(restantPot):'0 €';
-    document.getElementById('fc-manques').textContent=manqueTot>0?'-'+fmt(manqueTot):'0 €';
-    document.getElementById('fc-proj').textContent=fmt(projection);
-    document.getElementById('fc-proj').style.color=projCol;
-    document.getElementById('fc-bar').style.cssText=`width:${projPct}%;background:${projCol}`;
-    document.getElementById('fc-pct').textContent=projPct+'%';
-    document.getElementById('fc-obj').textContent='Objectif : '+objC.toLocaleString('fr-FR')+' €';
-
     document.getElementById('a-ep').textContent=fmt(d.epargne_base);
-    const pr=document.getElementById('a-pr'); pr.textContent=fmt(d.epargne_estimee); pr.style.color=d.epargne_estimee>=12500?'var(--green)':d.epargne_estimee>=10000?'var(--amber)':'var(--red)';
+    document.getElementById('a-inv').textContent=fmt(d.total_investi_actuel||0);
+    const investi=d.total_investi||0, investiActuel=d.total_investi_actuel||0, pv=investiActuel-investi;
+    document.getElementById('a-inv-s').textContent = investi>0 ? `${investi.toFixed(0)}€ investi · ${pv>=0?'+':''}${pv.toFixed(0)}€` : 'Aucun investissement';
+    const patrimoineActuel = (d.epargne_base||0) + investiActuel;
+    document.getElementById('a-patrimoine').textContent=fmt(patrimoineActuel);
+    document.getElementById('a-patrimoine-s').textContent='Projeté fin de mois : '+fmt(d.patrimoine_total||0);
     document.getElementById('a-rv').textContent=fmt(d.total_revenus);
-    const sp=[]; if(d.salaire)sp.push('LGM '+d.salaire+'€'); if(d.completude)sp.push('Cours '+Math.round(d.completude)+'€'); if(d.turo_part_moi)sp.push('Turo '+Math.round(d.turo_part_moi)+'€'); if((d.revenus_supp||[]).length)sp.push('+divers');
+    const sp=[]; if(d.salaire)sp.push('LGM '+d.salaire+'€'); if(d.beau_frere)sp.push('Beau-frère '+d.beau_frere+'€'); if(d.completude)sp.push('Cours '+Math.round(d.completude)+'€'); if(d.turo_rentabilite_nette)sp.push('Turo net '+Math.round(d.turo_rentabilite_nette)+'€'); if(d.vtc_net)sp.push('VTC net '+Math.round(d.vtc_net)+'€'); if((d.revenus_supp||[]).length)sp.push('+divers');
     document.getElementById('a-rv-det').textContent=sp.join(' · ');
     const sl=document.getElementById('a-sl'); sl.textContent=(d.solde>=0?'+':'')+fmt(d.solde); sl.style.color=cs(d.solde);
     document.getElementById('a-sl-b').style.cssText=`width:${Math.min(100,Math.max(0,(d.solde/1500)*100))}%;background:${cs(d.solde)}`;
@@ -2149,7 +1750,6 @@ async function charger(){
     renderRevenus(d);
     renderBudgets(d);
     renderPrelevements(d);
-    renderInvest(d);
     renderVtc(d);
     renderTuro(d);
     renderConfig(d);
