@@ -332,7 +332,7 @@ async function saveVtcSession(chatId, s) {
     date: s.date,
     heure_debut: s.heureDebut,
     heure_fin: s.heureFin,
-    plateforme: s.plateforme || 'vtc',
+    plateforme: s.plateforme || 'autre',
     ca_net: s.caNet,
     nb_courses: s.nbCourses || 0,
   });
@@ -344,7 +344,8 @@ async function saveVtcDepenseDiverse(chatId, montant, categorie, libelle) {
   const { error } = await supabase.from('vtc_depenses_diverses').insert({
     chat_id: String(chatId), montant, categorie, libelle,
   });
-  if (error) console.error('saveVtcDepenseDiverse error:', error.message);
+  if (error) { console.error('saveVtcDepenseDiverse error:', error.message); return { ok: false, error: error.message }; }
+  return { ok: true };
 }
 
 async function getDataVtc(chatId, moisOffset = 0) {
@@ -1594,7 +1595,7 @@ app.post('/webhook', async (req, res) => {
     }
 
     if (texte === '/vtc') {
-      sessionsVtc[chatId] = { etape: 'date', plateforme: 'vtc' };
+      sessionsVtc[chatId] = { etape: 'date', plateforme: 'autre' };
       await send(chatId, 'Nouvelle session VTC\n\nDate ? (JJ/MM ou "ajd")');
       return;
     }
@@ -1814,8 +1815,12 @@ app.post('/webhook', async (req, res) => {
       const montant = parseFloat(texte.replace(',', '.'));
       if (isNaN(montant) || montant <= 0) { await send(chatId, 'Montant invalide.'); return; }
       const sess = sessionsVtcDep[chatId];
-      await saveVtcDepenseDiverse(chatId, montant, sess.categorie, VTC_DEP_CATEGORIES[sess.categorie].label);
+      const result = await saveVtcDepenseDiverse(chatId, montant, sess.categorie, VTC_DEP_CATEGORIES[sess.categorie].label);
       delete sessionsVtcDep[chatId];
+      if (!result.ok) {
+        await send(chatId, `Erreur lors de l'enregistrement : ${result.error}`);
+        return;
+      }
       await send(chatId, `Depense diverse enregistree : *${montant}€* — ${VTC_DEP_CATEGORIES[sess.categorie].label}`);
       return;
     }
