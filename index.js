@@ -77,6 +77,7 @@ const BUDGETS = {
   shopping: { label: 'Shopping', max: 50  },
   loisirs:  { label: 'Loisirs',  max: 50  },
   divers:   { label: 'Divers',   max: 50  },
+  Dyneos:   { label: 'Dyneos',   max: 300 },
 };
 
 const OBJECTIFS = [
@@ -980,6 +981,7 @@ function trouverCategorie(texte) {
   if (/\bshopping\b/.test(t)) return 'shopping';
   if (/\bdivers\b/.test(t)) return 'divers';
   if (/\bloisirs?\b/.test(t)) return 'loisirs';
+  if (/\bdyneos\b/.test(t)) return 'Dyneos';
   if (/plein|carburant|station|total|esso/.test(t)) return 'essence';
   if (/leclerc|carrefour|lidl|cora|supermarche|aldi/.test(t)) return 'courses';
   if (/restaurant|mcdo|burger|pizza|kebab|sushi/.test(t)) return 'restos';
@@ -2043,6 +2045,7 @@ app.post('/webhook', async (req, res) => {
         else if (/cinéma|concert|spectacle|théâtre|musée|sortie|bowling|karting|escape|parc|zoo|aquarium|netflix|amazon|spotify|jeu|jeux/i.test(texte)) catNLP = 'loisirs';
         else if (/ikea|leroy|castorama|brico|déco|meuble|rideau|ampoule|outil|plomberie|électricité|peinture|rénovation/i.test(texte)) catNLP = 'maison';
         else if (/garage|mécanicien|pneu|vidange|révision|contrôle.technique|péage|autoroute|parking|horodateur|pv |amende|stationnement|lavage.voiture/i.test(texte)) catNLP = 'voiture';
+        else if (/\bdyneos\b/i.test(texte)) catNLP = 'Dyneos';
       }
       if (catNLP) {
         await saveDepense(chatId, montantNLP, catNLP, texte);
