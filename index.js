@@ -499,6 +499,28 @@ async function saveTuroLocation(chatId, s) {
   return { revenuNet, partCousin, partMoi };
 }
 
+// Version simplifiee utilisee par le flow Telegram /turo_location :
+// seules 2 infos comptent — le revenu net percu et la part reversee au cousin.
+// locataire et dates ne sont pas demandes (mis a defaut) car ils n'ont pas
+// d'impact sur les calculs de rentabilite / dashboard.
+async function saveTuroLocationSimple(chatId, revenuNet, partCousin) {
+  const partMoi = revenuNet - partCousin;
+  const today = new Date().toISOString().slice(0, 10);
+  const { error } = await supabase.from('turo_locations').insert({
+    chat_id: String(chatId),
+    locataire: 'N/A',
+    date_debut: today,
+    date_fin: today,
+    revenu_brut: revenuNet,
+    frais_turo: 0,
+    revenu_net: revenuNet,
+    part_cousin: partCousin,
+    part_moi: partMoi,
+  });
+  if (error) console.error('saveTuroLocationSimple error:', error.message);
+  return { revenuNet, partCousin, partMoi };
+}
+
 async function getDataTuro(chatId, moisOffset = 0) {
   const debut = getDebutMois(moisOffset);
   const fin = getFinMois(moisOffset);
@@ -1642,8 +1664,8 @@ app.post('/webhook', async (req, res) => {
     }
 
     if (texte === '/turo_location' || texte === '/turoloc') {
-      sessionsTuroLoc[chatId] = { etape: 'locataire' };
-      await send(chatId, 'Nouvelle location Turo\n\nNom du locataire ?');
+      sessionsTuroLoc[chatId] = { etape: 'revenu_net' };
+      await send(chatId, 'Nouvelle location Turo\n\nRevenu net percu ? (ex: 130)');
       return;
     }
 
@@ -1840,43 +1862,23 @@ app.post('/webhook', async (req, res) => {
 
     if (sessionsTuroLoc[chatId]) {
       const sess = sessionsTuroLoc[chatId];
-      if (sess.etape === 'locataire') {
-        sess.locataire = texte.trim(); sess.etape = 'date_debut';
-        await send(chatId, `*${sess.locataire}*\n\nDate de debut ? (JJ/MM)`);
-        return;
-      }
-      if (sess.etape === 'date_debut') {
-        const [j, m] = texte.split('/').map(Number);
-        sess.dateDebut = `${new Date().getFullYear()}-${String(m).padStart(2,'0')}-${String(j).padStart(2,'0')}`;
-        sess.etape = 'date_fin';
-        await send(chatId, 'Date de fin ? (JJ/MM)');
-        return;
-      }
-      if (sess.etape === 'date_fin') {
-        const [j, m] = texte.split('/').map(Number);
-        sess.dateFin = `${new Date().getFullYear()}-${String(m).padStart(2,'0')}-${String(j).padStart(2,'0')}`;
-        sess.etape = 'revenu_brut';
-        await send(chatId, 'Prix du voyage (revenu brut) ? (ex: 148)');
-        return;
-      }
-      if (sess.etape === 'revenu_brut') {
+      if (sess.etape === 'revenu_net') {
         const v = parseFloat(texte.replace(',', '.'));
         if (isNaN(v) || v <= 0) { await send(chatId, 'Montant invalide.'); return; }
-        sess.revenuBrut = v; sess.etape = 'frais_turo';
-        await send(chatId, 'Frais Turo preleves ? (ex: 18)');
+        sess.revenuNet = v; sess.etape = 'part_cousin';
+        await send(chatId, `Revenu net: *${v}€*\n\nCombien verse a ton cousin ? (ex: 65)`);
         return;
       }
-      if (sess.etape === 'frais_turo') {
+      if (sess.etape === 'part_cousin') {
         const v = parseFloat(texte.replace(',', '.'));
         if (isNaN(v) || v < 0) { await send(chatId, 'Montant invalide.'); return; }
-        sess.fraisTuro = v;
-        const { revenuNet, partCousin, partMoi } = await saveTuroLocation(chatId, sess);
+        const { revenuNet, partCousin, partMoi } = await saveTuroLocationSimple(chatId, sess.revenuNet, v);
         delete sessionsTuroLoc[chatId];
         await send(chatId,
-          `Location Turo enregistree — *${sess.locataire}*\n\n` +
-          `Revenu brut: *${sess.revenuBrut}€*\n` +
-          `Revenu net: *${revenuNet.toFixed(2)}€*\n` +
-          `Ma part: *${partMoi.toFixed(2)}€* | Cousin: *${partCousin.toFixed(2)}€*`
+          `Location Turo enregistree\n\n` +
+          `Revenu net: *${revenuNet}€*\n` +
+          `Verse au cousin: *${partCousin}€*\n` +
+          `Ma part: *${partMoi.toFixed(2)}€*`
         );
         return;
       }
