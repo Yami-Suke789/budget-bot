@@ -2561,6 +2561,11 @@ app.get('/api/dashboard', async (req, res) => {
   try {
     const moisOffset = parseInt(req.query.mois || '0');
     const data = await getData(moisOffset);
+    // L'épargne réelle (onglet Épargne, alimenté par les mouvements) devient la référence
+    // pour tous les indicateurs Aperçu — patrimoine, objectif, projection — à la place
+    // du snapshot manuel legacy (qui reste utilisé tel quel par les commandes Telegram).
+    data.epargneBase = data.epargneLedger.total;
+    data.epargneEstimee = data.epargneBase + data.solde;
     const aVenir = getPrelEvementsAVenir(7);
     const totalRestant = getTotalPrelevementsRestants();
     const TOTAL_CF = getTotalChargesFixes();
