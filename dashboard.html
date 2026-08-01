@@ -442,6 +442,7 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
 
 <div class="tabs">
   <div class="tab active" onclick="setTab('apercu')">Aperçu</div>
+  <div class="tab" onclick="setTab('epargne')">💰 Épargne</div>
   <div class="tab" onclick="setTab('journal')">📰 Journal</div>
   <div class="tab" onclick="setTab('cours')">Cours</div>
   <div class="tab" onclick="setTab('vtc')">🚕 VTC</div>
@@ -497,7 +498,26 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
     </div>
   </div>
 
-  <div class="section-title">📈 Évolution épargne — ce mois</div>
+  <div class="simul-acc" id="acc-revenus-supp">
+    <div class="simul-acc-head" onclick="toggleAcc('acc-revenus-supp')">
+      <div class="simul-acc-head-left">💰 Rentrées ponctuelles</div>
+      <div class="simul-acc-head-right"><span class="simul-acc-chev">›</span></div>
+    </div>
+    <div class="simul-acc-body">
+      <div id="a-revenus-supp-list" style="padding-top:.4rem">—</div>
+    </div>
+  </div>
+</div>
+
+<!-- EPARGNE -->
+<div class="section" id="tab-epargne">
+  <div class="grid">
+    <div class="card"><div class="card-label">Épargne actuelle</div><div class="card-value green" id="ep-total">—</div></div>
+    <div class="card"><div class="card-label">Solde début de mois</div><div class="card-value" id="ep-debut-mois">—</div></div>
+    <div class="card full"><div class="card-label">🎯 Projection fin de mois</div><div class="card-value" id="ep-projection">—</div><div class="card-sub" id="ep-projection-s">—</div></div>
+  </div>
+
+  <div class="section-title">📈 Évolution — ce mois</div>
   <div class="card full" style="padding:.9rem .7rem">
     <svg id="ep-chart" viewBox="0 0 300 110" style="width:100%;height:110px;display:block" preserveAspectRatio="none"></svg>
     <div style="display:flex;justify-content:space-between;font-size:.62rem;color:var(--muted);margin-top:.3rem">
@@ -525,20 +545,11 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
 
   <div class="section-title">📋 Mouvements du mois</div>
   <div class="card full" id="ep-historique" style="padding:.7rem"></div>
-
-  <div class="simul-acc" id="acc-revenus-supp">
-    <div class="simul-acc-head" onclick="toggleAcc('acc-revenus-supp')">
-      <div class="simul-acc-head-left">💰 Rentrées ponctuelles</div>
-      <div class="simul-acc-head-right"><span class="simul-acc-chev">›</span></div>
-    </div>
-    <div class="simul-acc-body">
-      <div id="a-revenus-supp-list" style="padding-top:.4rem">—</div>
-    </div>
-  </div>
 </div>
 
 <!-- JOURNAL -->
 <div class="section" id="tab-journal">
+
   <div class="card full">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem">
       <div class="card-label" style="margin:0">📰 Journal du mois</div>
@@ -861,7 +872,7 @@ function toast(msg, isError=false){
 }
 
 function setTab(t){
-  const tabs=['apercu','journal','cours','vtc','turo','budgets','prelevements','simul','config'];
+  const tabs=['apercu','epargne','journal','cours','vtc','turo','budgets','prelevements','simul','config'];
   document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',tabs[i]===t));
   document.querySelectorAll('.section').forEach(el=>el.classList.remove('active'));
   document.getElementById('tab-'+t).classList.add('active');
@@ -1996,6 +2007,12 @@ async function charger(){
     document.getElementById('ct-rev').textContent=fmt(rev);
 
     document.getElementById('a-ep').textContent=fmt(d.epargne_base);
+    document.getElementById('ep-total').textContent=fmt(d.epargne_ledger_total||0);
+    document.getElementById('ep-debut-mois').textContent=fmt(d.epargne_solde_debut_mois||0);
+    const epProjection = (d.epargne_ledger_total||0) + (d.solde||0);
+    document.getElementById('ep-projection').textContent=fmt(epProjection);
+    document.getElementById('ep-projection').style.color = cs(d.solde||0);
+    document.getElementById('ep-projection-s').textContent = `Épargne actuelle ${Math.round(d.epargne_ledger_total||0).toLocaleString('fr-FR')} € ${d.solde>=0?'+':''}${Math.round(d.solde||0).toLocaleString('fr-FR')} € solde restant du mois`;
     renderEpargneCourbe(d);
     renderEpargneSources(d);
     renderEpargneHistorique(d);
