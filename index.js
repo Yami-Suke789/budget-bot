@@ -104,6 +104,17 @@ const VTC_DEP_CATEGORIES = {
 };
 
 // ============================================================
+// EPARGNE — SOURCES (ledger de mouvements)
+// ============================================================
+const EPARGNE_SOURCES = {
+  vtc:        { label: 'VTC',        color: '#F26419' },
+  turo:       { label: 'Turo',       color: '#4ade80' },
+  dyneos:     { label: 'Dyneos',     color: '#a78bfa' },
+  completude: { label: 'Complétude', color: '#60a5fa' },
+  autre:      { label: 'Autre',      color: '#8892a0' },
+};
+
+// ============================================================
 // TURO — CONSTANTES
 // ============================================================
 const TURO_SPLIT_COUSIN = 0.50; // 50/50 sur le revenu net Turo (apres frais Turo)
@@ -347,6 +358,56 @@ async function saveVtcDepenseDiverse(chatId, montant, categorie, libelle) {
   });
   if (error) { console.error('saveVtcDepenseDiverse error:', error.message); return { ok: false, error: error.message }; }
   return { ok: true };
+}
+
+async function saveMouvementEpargne(chatId, source, montant, type, note) {
+  const { error } = await supabase.from('epargne_mouvements').insert({
+    chat_id: String(chatId), source, montant, type, note: note || null,
+  });
+  if (error) { console.error('saveMouvementEpargne error:', error.message); return { ok: false, error: error.message }; }
+  return { ok: true };
+}
+
+// Calcule le solde ledger (somme des mouvements), la repartition par source,
+// et une courbe quotidienne cumulee pour le mois selectionne.
+function calculerEpargneLedger(mouvements, debutMoisISO, finMoisISO) {
+  const bySource = {};
+  Object.keys(EPARGNE_SOURCES).forEach(k => bySource[k] = 0);
+
+  let soldeAvantMois = 0;
+  let total = 0;
+  mouvements.forEach(m => {
+    const val = m.type === 'out' ? -m.montant : m.montant;
+    total += val;
+    if (bySource[m.source] !== undefined) bySource[m.source] += val;
+    if (new Date(m.created_at) < new Date(debutMoisISO)) soldeAvantMois += val;
+  });
+
+  const mouvementsDuMois = mouvements.filter(m =>
+    new Date(m.created_at) >= new Date(debutMoisISO) && new Date(m.created_at) < new Date(finMoisISO)
+  );
+
+  // Courbe jour par jour depuis le debut du mois jusqu'a aujourd'hui (ou fin du mois si mois passe)
+  const debut = new Date(debutMoisISO);
+  const finReelle = new Date(finMoisISO) < new Date() ? new Date(finMoisISO) : new Date();
+  const nbJours = Math.max(1, Math.ceil((finReelle - debut) / 86400000));
+
+  const courbe = [];
+  let solde = soldeAvantMois;
+  for (let j = 0; j <= nbJours; j++) {
+    const jourDate = new Date(debut.getTime() + j * 86400000);
+    mouvementsDuMois.forEach(m => {
+      const mDate = new Date(m.created_at);
+      if (mDate.getUTCFullYear() === jourDate.getUTCFullYear() &&
+          mDate.getUTCMonth() === jourDate.getUTCMonth() &&
+          mDate.getUTCDate() === jourDate.getUTCDate()) {
+        solde += (m.type === 'out' ? -m.montant : m.montant);
+      }
+    });
+    courbe.push({ jour: jourDate.getUTCDate(), solde: Math.round(solde) });
+  }
+
+  return { total: Math.round(total), bySource, mouvementsDuMois, courbe, soldeDebutMois: Math.round(soldeAvantMois) };
 }
 
 async function getDataVtc(chatId, moisOffset = 0) {
@@ -677,13 +738,14 @@ async function getData(moisOffset = 0) {
   const debut = getDebutMois(moisOffset);
   const fin = getFinMois(moisOffset);
 
-  const [d1, d2, d3, d4, d5, d6] = await Promise.all([
+  const [d1, d2, d3, d4, d5, d6, d7] = await Promise.all([
     supabase.from('depenses').select('*').gte('created_at', debut).lt('created_at', fin),
     supabase.from('cours').select('*').gte('created_at', debut).lt('created_at', fin),
     supabase.from('cours_manques').select('*').gte('created_at', debut).lt('created_at', fin),
     supabase.from('revenus').select('*').gte('created_at', debut).lt('created_at', fin),
     supabase.from('salaires').select('*').gte('created_at', debut).lt('created_at', fin).order('created_at', { ascending: false }).limit(1),
     supabase.from('epargne').select('*').lt('created_at', fin).order('created_at', { ascending: false }).limit(1),
+    supabase.from('epargne_mouvements').select('*').lt('created_at', fin).order('created_at', { ascending: true }),
   ]);
 
   const depenses = d1.data || [];
@@ -692,6 +754,7 @@ async function getData(moisOffset = 0) {
   const revenus = d4.data || [];
   const salaire = d5.data?.length > 0 ? d5.data[0].montant : SALAIRE_LGM_DEFAULT;
   const epargneBase = d6.data?.length > 0 ? d6.data[0].montant : EPARGNE_DEPART;
+  const epargneLedger = calculerEpargneLedger(d7.data || [], debut, fin);
 
   const TOTAL_CHARGES_FIXES = getTotalChargesFixes();
 
@@ -721,7 +784,7 @@ async function getData(moisOffset = 0) {
   return {
     depenses, cours, coursManques, revenus, totaux, detail, totalDep,
     completude, totalManque, revenusSupp, totalRevenus, solde,
-    epargneEstimee, salaire, epargneBase, moisOffset,
+    epargneEstimee, salaire, epargneBase, moisOffset, epargneLedger,
     chargesFixes: TOTAL_CHARGES_FIXES, turo, vtc, turoNet, vtcNet
   };
 }
@@ -2588,8 +2651,38 @@ app.get('/api/dashboard', async (req, res) => {
       turo_rentabilite_nette: data.turo.rentabiliteNette,
       turo_categories: TURO_CATEGORIES,
       turo_split_cousin: TURO_SPLIT_COUSIN,
+      epargne_ledger_total: data.epargneLedger.total,
+      epargne_par_source: data.epargneLedger.bySource,
+      epargne_mouvements_mois: data.epargneLedger.mouvementsDuMois,
+      epargne_courbe: data.epargneLedger.courbe,
+      epargne_solde_debut_mois: data.epargneLedger.soldeDebutMois,
+      epargne_sources: EPARGNE_SOURCES,
     });
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/epargne/mouvement', async (req, res) => {
+  try {
+    const { source, montant, type, note } = req.body;
+    if (!source || !montant || !type) return res.json({ ok: false, error: 'Champs manquants' });
+    if (!EPARGNE_SOURCES[source]) return res.json({ ok: false, error: 'Source inconnue' });
+    if (type !== 'in' && type !== 'out') return res.json({ ok: false, error: 'Type invalide' });
+    const v = parseFloat(montant);
+    if (isNaN(v) || v <= 0) return res.json({ ok: false, error: 'Montant invalide' });
+    const r = await saveMouvementEpargne(CHAT_ID, source, v, type, note);
+    if (!r.ok) return res.json(r);
+    res.json({ ok: true });
+  } catch (err) { res.json({ ok: false, error: err.message }); }
+});
+
+app.delete('/api/epargne/mouvement/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id) return res.json({ ok: false, error: 'ID manquant' });
+    const { error } = await supabase.from('epargne_mouvements').delete().eq('id', id);
+    if (error) return res.json({ ok: false, error: error.message });
+    res.json({ ok: true });
+  } catch (err) { res.json({ ok: false, error: err.message }); }
 });
 
 app.post('/api/config', async (req, res) => {
