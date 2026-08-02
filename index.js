@@ -95,6 +95,8 @@ let VTC_CHARGES_FIXES = { 'Clicar': 167 }; // euros/semaine
 const VTC_URSSAF_TAUX = 0.212; // 21.2%
 let VTC_RATTACHEMENT_MENSUEL = 60; // euros/mois, tant que non auto-entrepreneur
 let VTC_RATTACHEMENT_ACTIF = true; // tant que non auto-entrepreneur : true = rattachement, false = URSSAF
+let VTC_OBJECTIF_HEBDO = 1000; // euros/semaine — objectif de CA net (le "CA" saisi = net perçu par course)
+let VTC_ESSENCE_BASE_HEBDO = 60; // euros/semaine — minimum essence retenu dans le seuil, meme si non declaree cette semaine-la
 const VTC_PLATEFORMES_VALIDES = ['uber', 'bolt', 'heetch', 'autre'];
 const VTC_DEP_CATEGORIES = {
   essence:   { label: 'Essence' },
@@ -205,6 +207,8 @@ async function chargerConfig() {
       }
       if (row.cle === 'vtc_rattachement_mensuel') VTC_RATTACHEMENT_MENSUEL = row.valeur;
       if (row.cle === 'vtc_rattachement_actif') VTC_RATTACHEMENT_ACTIF = row.valeur === 1;
+      if (row.cle === 'vtc_objectif_hebdo') VTC_OBJECTIF_HEBDO = row.valeur;
+      if (row.cle === 'vtc_essence_base_hebdo') VTC_ESSENCE_BASE_HEBDO = row.valeur;
     });
     console.log('Config chargee depuis Supabase');
   } catch (err) {
@@ -442,6 +446,57 @@ async function getDataVtc(chatId, moisOffset = 0) {
     sessions, depensesDiverses, caNet, totalDepensesDiverses, chargesFixesHebdo,
     urssaf, rattachement, net, heures,
     tauxHoraire: heures > 0 ? net / heures : 0,
+  };
+}
+
+// Suivi hebdomadaire VTC : cumul du "CA" (= net percu, saisi par session) vs objectif de la
+// semaine, avec les seuils de charges (location, rattachement, essence) qui determinent a partir
+// de quel montant saisi on passe en net reel dans la poche.
+async function getDataVtcSemaine(chatId, semaineOffset = 0) {
+  const debut = getDebutSemaine(semaineOffset);
+  const fin = getFinSemaine(semaineOffset);
+
+  const { data, error } = await supabase.from('vtc_sessions').select('*')
+    .eq('chat_id', String(chatId))
+    .gte('created_at', debut).lt('created_at', fin);
+  if (error) { console.error('getDataVtcSemaine error:', error.message); return null; }
+
+  const { data: depData, error: depErr } = await supabase.from('vtc_depenses_diverses').select('*')
+    .eq('chat_id', String(chatId))
+    .gte('created_at', debut).lt('created_at', fin);
+  if (depErr) console.error('getDataVtcSemaine depenses error:', depErr.message);
+
+  const sessions = data || [];
+  const depenses = depData || [];
+
+  const caNet = sessions.reduce((s, x) => s + (Number(x.ca_net) || 0), 0);
+  const heures = sessions.reduce((s, x) => s + dureeHeuresVtc(x.heure_debut, x.heure_fin), 0);
+  const essenceDepensee = depenses.filter(x => x.categorie === 'essence').reduce((s, x) => s + (Number(x.montant) || 0), 0);
+  const autresDepenses = depenses.filter(x => x.categorie !== 'essence').reduce((s, x) => s + (Number(x.montant) || 0), 0);
+
+  const locationHebdo = getTotalChargesFixesVtc();
+  const rattachementHebdo = VTC_RATTACHEMENT_ACTIF ? VTC_RATTACHEMENT_MENSUEL : 0;
+  const essenceRetenue = Math.max(VTC_ESSENCE_BASE_HEBDO, essenceDepensee);
+  const chargesTotales = locationHebdo + rattachementHebdo + essenceRetenue + autresDepenses;
+
+  const net = caNet - chargesTotales;
+  const projectionMensuelle = net * SEMAINES_PAR_MOIS;
+
+  // Seuils cumulatifs (en € de CA saisi) a partir desquels chaque charge est couverte
+  const seuils = [
+    { label: 'Location',      montant: locationHebdo,    cumul: locationHebdo },
+    { label: 'Rattachement',  montant: rattachementHebdo, cumul: locationHebdo + rattachementHebdo },
+    { label: 'Essence',       montant: essenceRetenue,    cumul: locationHebdo + rattachementHebdo + essenceRetenue },
+  ];
+
+  return {
+    sessions, depenses, caNet, heures,
+    tauxHoraire: heures > 0 ? caNet / heures : 0,
+    essenceDepensee, essenceRetenue, autresDepenses,
+    locationHebdo, rattachementHebdo, chargesTotales,
+    net, projectionMensuelle, seuils,
+    objectif: VTC_OBJECTIF_HEBDO,
+    debut, fin,
   };
 }
 
@@ -715,11 +770,15 @@ async function removeBtns(chatId, msgId) {
 // ============================================================
 // SUPABASE
 // ============================================================
-function _minuitParisEnUTC(annee, mois) {
-  const dateParis = new Date(`${annee}-${String(mois).padStart(2, '0')}-01T00:00:00`);
+function _minuitParisEnUTCJour(annee, mois, jour) {
+  const dateParis = new Date(`${annee}-${String(mois).padStart(2, '0')}-${String(jour).padStart(2, '0')}T00:00:00`);
   const utcMs = new Date(dateParis.toLocaleString('en-US', { timeZone: 'UTC' }));
   const parisMs = new Date(dateParis.toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
   return new Date(dateParis.getTime() + (utcMs - parisMs)).toISOString();
+}
+
+function _minuitParisEnUTC(annee, mois) {
+  return _minuitParisEnUTCJour(annee, mois, 1);
 }
 
 function getDebutMois(moisOffset = 0) {
@@ -732,6 +791,25 @@ function getFinMois(moisOffset = 0) {
   const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
   const d = new Date(now.getFullYear(), now.getMonth() + moisOffset + 1, 1);
   return _minuitParisEnUTC(d.getFullYear(), d.getMonth() + 1);
+}
+
+// Semaine ISO (lundi -> lundi suivant), fuseau Paris. semaineOffset=0 => semaine en cours.
+function _lundiDeSemaine(now, semaineOffset) {
+  const jour = now.getDay(); // 0 = dimanche ... 6 = samedi
+  const diffLundi = (jour === 0 ? -6 : 1 - jour) + semaineOffset * 7;
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate() + diffLundi);
+}
+
+function getDebutSemaine(semaineOffset = 0) {
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
+  const lundi = _lundiDeSemaine(now, semaineOffset);
+  return _minuitParisEnUTCJour(lundi.getFullYear(), lundi.getMonth() + 1, lundi.getDate());
+}
+
+function getFinSemaine(semaineOffset = 0) {
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
+  const lundiSuivant = _lundiDeSemaine(now, semaineOffset + 1);
+  return _minuitParisEnUTCJour(lundiSuivant.getFullYear(), lundiSuivant.getMonth() + 1, lundiSuivant.getDate());
 }
 
 async function getData(moisOffset = 0) {
@@ -2594,6 +2672,7 @@ app.get('/api/dashboard', async (req, res) => {
     }));
 
     const vtcData = data.vtc;
+    const vtcSemaine = await getDataVtcSemaine(CHAT_ID, 0);
 
     const totalInvesti = investissements.reduce((s, i) => s + Number(i.montant), 0);
     const totalInvestiActuel = investissements.reduce((s, i) => {
@@ -2642,6 +2721,17 @@ app.get('/api/dashboard', async (req, res) => {
       vtc_rattachement_mensuel: VTC_RATTACHEMENT_MENSUEL,
       vtc_rattachement_actif: VTC_RATTACHEMENT_ACTIF,
       vtc_dep_categories: VTC_DEP_CATEGORIES,
+      vtc_semaine_ca_net: vtcSemaine ? vtcSemaine.caNet : 0,
+      vtc_semaine_heures: vtcSemaine ? vtcSemaine.heures : 0,
+      vtc_semaine_taux_horaire: vtcSemaine ? vtcSemaine.tauxHoraire : 0,
+      vtc_semaine_objectif: vtcSemaine ? vtcSemaine.objectif : VTC_OBJECTIF_HEBDO,
+      vtc_semaine_net: vtcSemaine ? vtcSemaine.net : 0,
+      vtc_semaine_charges_totales: vtcSemaine ? vtcSemaine.chargesTotales : 0,
+      vtc_semaine_projection_mensuelle: vtcSemaine ? vtcSemaine.projectionMensuelle : 0,
+      vtc_semaine_seuils: vtcSemaine ? vtcSemaine.seuils : [],
+      vtc_semaine_essence_retenue: vtcSemaine ? vtcSemaine.essenceRetenue : 0,
+      vtc_semaine_essence_depensee: vtcSemaine ? vtcSemaine.essenceDepensee : 0,
+      vtc_essence_base_hebdo: VTC_ESSENCE_BASE_HEBDO,
       turo_locations: data.turo.locations,
       turo_depenses_ponctuelles: data.turo.depensesPonctuelles,
       turo_depenses_recurrentes: data.turo.depensesRecurrentes,
@@ -2700,6 +2790,8 @@ app.post('/api/config', async (req, res) => {
     else if (cle === 'beau_frere')     BEAU_FRERE = v;
     else if (cle === 'objectif_completude') OBJECTIF_COMPLETUDE = v;
     else if (cle === 'vtc_rattachement_mensuel') VTC_RATTACHEMENT_MENSUEL = v;
+    else if (cle === 'vtc_objectif_hebdo') VTC_OBJECTIF_HEBDO = v;
+    else if (cle === 'vtc_essence_base_hebdo') VTC_ESSENCE_BASE_HEBDO = v;
     await sauvegarderConfig(cle, v);
     res.json({ ok: true });
   } catch (err) { res.json({ ok: false, error: err.message }); }
