@@ -91,8 +91,7 @@ const OBJECTIFS = [
 // ============================================================
 const OBJECTIF_VTC_MENSUEL = 3892;
 const SEMAINES_PAR_MOIS = 4.357;
-let VTC_CHARGES_FIXES = { 'Clicar': 167 }; // euros/semaine
-const VTC_URSSAF_TAUX = 0.212; // 21.2%
+let VTC_CHARGES_FIXES = { 'Clicar': 285 }; // euros/semaine
 let VTC_RATTACHEMENT_MENSUEL = 60; // euros/mois, tant que non auto-entrepreneur
 let VTC_RATTACHEMENT_ACTIF = true; // tant que non auto-entrepreneur : true = rattachement, false = URSSAF
 let VTC_OBJECTIF_HEBDO = 1000; // euros/semaine — objectif de CA net (le "CA" saisi = net perçu par course)
