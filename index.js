@@ -91,7 +91,8 @@ const OBJECTIFS = [
 // ============================================================
 const OBJECTIF_VTC_MENSUEL = 3892;
 const SEMAINES_PAR_MOIS = 4.357;
-let VTC_CHARGES_FIXES = { 'Clicar': 285 }; // euros/semaine
+let VTC_CHARGES_FIXES = { 'Clicar': 285 }; // euros/semaine (location Corolla hybride)
+const VTC_URSSAF_TAUX = 0.212; // 21.2%
 let VTC_RATTACHEMENT_MENSUEL = 60; // euros/mois, tant que non auto-entrepreneur
 let VTC_RATTACHEMENT_ACTIF = true; // tant que non auto-entrepreneur : true = rattachement, false = URSSAF
 let VTC_OBJECTIF_HEBDO = 1000; // euros/semaine — objectif de CA net (le "CA" saisi = net perçu par course)
@@ -474,7 +475,7 @@ async function getDataVtcSemaine(chatId, semaineOffset = 0) {
   const autresDepenses = depenses.filter(x => x.categorie !== 'essence').reduce((s, x) => s + (Number(x.montant) || 0), 0);
 
   const locationHebdo = getTotalChargesFixesVtc();
-  const rattachementHebdo = VTC_RATTACHEMENT_ACTIF ? VTC_RATTACHEMENT_MENSUEL : 0;
+  const rattachementHebdo = VTC_RATTACHEMENT_ACTIF ? (VTC_RATTACHEMENT_MENSUEL / SEMAINES_PAR_MOIS) : 0;
   const essenceRetenue = Math.max(VTC_ESSENCE_BASE_HEBDO, essenceDepensee);
   const chargesTotales = locationHebdo + rattachementHebdo + essenceRetenue + autresDepenses;
 
@@ -3179,4 +3180,3 @@ app.listen(PORT, async () => {
 });
 
 module.exports = app;
-
