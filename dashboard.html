@@ -263,6 +263,12 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
 .vtc-stat{text-align:center;flex:1}
 .vtc-stat-val{font-family:var(--mono);font-weight:700;font-size:.92rem}
 .vtc-stat-lbl{font-size:.55rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-top:2px}
+.vtc-frise-wrap{position:relative;margin-top:.7rem}
+.vtc-frise-bar{height:10px;background:rgba(255,255,255,0.08);border-radius:5px;overflow:visible;position:relative}
+.vtc-frise-fill{height:100%;border-radius:5px;transition:width .6s cubic-bezier(.4,0,.2,1)}
+.vtc-frise-mark{position:absolute;top:-3px;width:2px;height:16px;background:rgba(255,255,255,0.55);border-radius:1px}
+.vtc-frise-legend{display:flex;justify-content:space-between;margin-top:.35rem}
+.vtc-frise-legend span{font-size:.52rem;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
 .vtc-form-toggle{display:flex;gap:6px;margin-bottom:.6rem}
 .vtc-form-toggle button{flex:1;padding:7px;border-radius:8px;font-size:.65rem;font-weight:700;cursor:pointer;font-family:'Sora',sans-serif;border:1px solid var(--border);background:rgba(255,255,255,0.06);color:var(--muted)}
 .vtc-form-toggle button.active{background:var(--orange);color:#fff;border-color:transparent}
@@ -610,10 +616,27 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
 <div class="section" id="tab-vtc">
 
   <div class="vtc-hero">
-    <div class="vtc-hero-label">💰 Net réel — <span id="vtc-mois-label">ce mois</span></div>
-    <div class="vtc-hero-main" id="vtc-net">—</div>
-    <div class="vtc-hero-sub" id="vtc-objectif-sub">—</div>
-    <div class="bar" style="height:6px;margin-top:.6rem"><div class="fill" id="vtc-obj-bar" style="width:0%"></div></div>
+    <div class="vtc-hero-label">🎯 Objectif semaine</div>
+    <div class="vtc-hero-main" id="vtc-semaine-ca">—</div>
+    <div class="vtc-hero-sub" id="vtc-semaine-sub">—</div>
+
+    <div class="vtc-frise-wrap">
+      <div class="vtc-frise-bar"><div class="vtc-frise-fill" id="vtc-frise-fill" style="width:0%"></div><div id="vtc-frise-marks"></div></div>
+      <div class="vtc-frise-legend" id="vtc-frise-legend"></div>
+    </div>
+
+    <div class="vtc-stats-row">
+      <div class="vtc-stat"><div class="vtc-stat-val" id="vtc-semaine-net">—</div><div class="vtc-stat-lbl">Net poche</div></div>
+      <div class="vtc-stat"><div class="vtc-stat-val" id="vtc-semaine-heures">—</div><div class="vtc-stat-lbl">Heures sem.</div></div>
+      <div class="vtc-stat"><div class="vtc-stat-val amber" id="vtc-semaine-proj">—</div><div class="vtc-stat-lbl">Proj. mois</div></div>
+    </div>
+  </div>
+
+  <!-- Ancien indicateur mensuel (net réel du mois), conservé en dessous à titre de récap -->
+  <div class="card full" style="margin-bottom:.55rem">
+    <div class="row"><span style="color:var(--muted)">💰 Net réel — <span id="vtc-mois-label">ce mois</span></span><span style="font-family:var(--mono)" id="vtc-net">—</span></div>
+    <div class="vtc-hero-sub" id="vtc-objectif-sub" style="text-align:left;margin-top:2px">—</div>
+    <div class="bar" style="height:6px"><div class="fill" id="vtc-obj-bar" style="width:0%"></div></div>
     <div class="vtc-stats-row">
       <div class="vtc-stat"><div class="vtc-stat-val" id="vtc-ca-net">—</div><div class="vtc-stat-lbl">CA net</div></div>
       <div class="vtc-stat"><div class="vtc-stat-val" id="vtc-heures">—</div><div class="vtc-stat-lbl">Heures</div></div>
@@ -806,6 +829,14 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
       <div class="row" id="after-cfg-vtc_rattachement_mensuel">
         <div><div style="font-size:.75rem">Montant rattachement</div><div style="font-size:.6rem;color:var(--muted)">Tant que non auto-entrepreneur</div></div>
         <div style="display:flex;align-items:center;gap:8px" id="cfg-rattachement-val"></div>
+      </div>
+      <div class="row" id="after-cfg-vtc_objectif_hebdo" style="margin-top:.4rem">
+        <div><div style="font-size:.75rem">🎯 Objectif hebdo</div><div style="font-size:.6rem;color:var(--muted)">CA net visé chaque semaine</div></div>
+        <div style="display:flex;align-items:center;gap:8px" id="cfg-vtc-objectif-val"></div>
+      </div>
+      <div class="row" id="after-cfg-vtc_essence_base_hebdo">
+        <div><div style="font-size:.75rem">⛽ Essence mini</div><div style="font-size:.6rem;color:var(--muted)">Plancher pris en compte dans le seuil hebdo</div></div>
+        <div style="display:flex;align-items:center;gap:8px" id="cfg-vtc-essence-val"></div>
       </div>
     </div>
   </div>
@@ -1041,6 +1072,16 @@ function renderConfig(d){
     `<span style="font-family:var(--mono);font-size:.82rem">${rattVal} €/mois</span>
      <button class="edit-btn" onclick="showInlineEdit('cfg-vtc_rattachement_mensuel','Nouveau montant rattachement mensuel',${rattVal},(v)=>saveConfig('vtc_rattachement_mensuel',v))">✏️</button>`;
   document.getElementById('cfg-rattachement-actif').checked = !!d.vtc_rattachement_actif;
+
+  const objHebdoVal = d.vtc_semaine_objectif||1000;
+  document.getElementById('cfg-vtc-objectif-val').innerHTML =
+    `<span style="font-family:var(--mono);font-size:.82rem">${objHebdoVal} €/sem</span>
+     <button class="edit-btn" onclick="showInlineEdit('cfg-vtc_objectif_hebdo','Nouvel objectif hebdo (€)',${objHebdoVal},(v)=>saveConfig('vtc_objectif_hebdo',v))">✏️</button>`;
+
+  const essenceBaseVal = d.vtc_essence_base_hebdo||60;
+  document.getElementById('cfg-vtc-essence-val').innerHTML =
+    `<span style="font-family:var(--mono);font-size:.82rem">${essenceBaseVal} €/sem</span>
+     <button class="edit-btn" onclick="showInlineEdit('cfg-vtc_essence_base_hebdo','Nouveau minimum essence (€/semaine)',${essenceBaseVal},(v)=>saveConfig('vtc_essence_base_hebdo',v))">✏️</button>`;
 
   initCfgCatBtns();
   renderCfgCatTable();
@@ -1329,6 +1370,37 @@ function dureeHeuresVtc(hd, hf){
   let minutes = (h2*60+(m2||0)) - (h1*60+(m1||0));
   if(minutes < 0) minutes += 24*60;
   return minutes/60;
+}
+
+function renderVtcSemaine(d){
+  const ca = d.vtc_semaine_ca_net||0;
+  const obj = d.vtc_semaine_objectif||1000;
+  const seuils = d.vtc_semaine_seuils||[];
+  const chargesTotales = d.vtc_semaine_charges_totales||0;
+  const net = d.vtc_semaine_net||0;
+
+  const caEl = document.getElementById('vtc-semaine-ca');
+  caEl.textContent = fmt(ca);
+  caEl.style.color = net>=0 ? (ca>=obj?'var(--green)':'var(--amber)') : 'var(--red)';
+
+  const p = pct(ca,obj);
+  document.getElementById('vtc-frise-fill').style.cssText = `width:${p}%;background:${net>=0?(ca>=obj?'var(--green)':'var(--amber)'):'var(--red)'}`;
+  document.getElementById('vtc-semaine-sub').textContent = `${p}% de l'objectif (${obj.toLocaleString('fr-FR')} €)`;
+
+  // Repères visuels sur la frise : un trait a chaque seuil cumulé (location, +rattachement, +essence)
+  const marks = document.getElementById('vtc-frise-marks');
+  marks.innerHTML = seuils.map(s=>{
+    const left = Math.min(100,Math.max(0,(s.cumul/obj)*100));
+    return `<div class="vtc-frise-mark" style="left:${left}%" title="${s.label} — ${Math.round(s.cumul)} €"></div>`;
+  }).join('');
+  const legend = document.getElementById('vtc-frise-legend');
+  legend.innerHTML = seuils.map(s=>`<span>${s.label} ${Math.round(s.cumul)}€</span>`).join('') + '<span>Net poche →</span>';
+
+  document.getElementById('vtc-semaine-net').textContent = (net>=0?'+':'')+fmt(net);
+  document.getElementById('vtc-semaine-net').style.color = net>=0?'var(--green)':'var(--red)';
+  document.getElementById('vtc-semaine-heures').textContent = (d.vtc_semaine_heures||0).toFixed(1)+'h';
+  const proj = d.vtc_semaine_projection_mensuelle||0;
+  document.getElementById('vtc-semaine-proj').textContent = (proj>=0?'+':'')+fmt(proj);
 }
 
 function renderVtc(d){
@@ -2059,6 +2131,7 @@ async function charger(){
     renderRevenusSupp(d);
     renderBudgets(d);
     renderPrelevements(d);
+    renderVtcSemaine(d);
     renderVtc(d);
     renderTuro(d);
     renderConfig(d);
