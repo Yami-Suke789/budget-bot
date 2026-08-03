@@ -630,6 +630,21 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
       <div class="vtc-stat"><div class="vtc-stat-val" id="vtc-semaine-heures">—</div><div class="vtc-stat-lbl">Heures sem.</div></div>
       <div class="vtc-stat"><div class="vtc-stat-val amber" id="vtc-semaine-proj">—</div><div class="vtc-stat-lbl">Proj. mois</div></div>
     </div>
+
+    <div class="mois-nav" style="margin-top:.6rem">
+      <button class="mois-btn" onclick="changerSemaineVtc(-1)">◀</button>
+      <div>
+        <div class="mois-label" id="vtc-semaine-label">—</div>
+        <div class="mois-badge" id="vtc-semaine-badge"></div>
+      </div>
+      <button class="mois-btn" id="btn-vtc-semaine-next" onclick="changerSemaineVtc(1)">▶</button>
+    </div>
+  </div>
+
+  <!-- Historique des semaines : retrouver une semaine passée, comparer semaines/mois -->
+  <div class="card full" style="margin-bottom:.55rem">
+    <div class="card-label" style="margin-bottom:.4rem">📅 Historique des semaines</div>
+    <div id="vtc-historique-list"><div style="color:var(--muted);font-size:.7rem;padding:6px 0">Chargement…</div></div>
   </div>
 
   <!-- Ancien indicateur mensuel (net réel du mois), conservé en dessous à titre de récap -->
@@ -847,6 +862,9 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
 
 <script>
 let moisOffset = 0;
+let vtcSemaineOffset = 0;
+let historiqueSemainesChargees = false;
+let historiqueSemainesCache = [];
 let selectedDay = null;
 let globalData = null;
 let currentBg = 0;
@@ -908,11 +926,63 @@ function setTab(t){
   document.querySelectorAll('.section').forEach(el=>el.classList.remove('active'));
   document.getElementById('tab-'+t).classList.add('active');
   if(t==='simul' && simulData) { /* pas de recalc auto — bouton Simuler */ }
+  if(t==='vtc' && !historiqueSemainesChargees) chargerHistoriqueSemainesVtc();
 }
 
 function changerMois(dir){
   if(moisOffset+dir>0)return;
   moisOffset+=dir; selectedDay=null; charger();
+}
+
+function changerSemaineVtc(dir){
+  if(vtcSemaineOffset+dir>0)return;
+  vtcSemaineOffset+=dir; charger();
+}
+
+async function chargerHistoriqueSemainesVtc(){
+  historiqueSemainesChargees = true;
+  try{
+    const r = await fetch('/api/vtc/historique-semaines?nb=12');
+    const j = await r.json();
+    historiqueSemainesCache = j.semaines||[];
+    renderHistoriqueSemainesVtc(historiqueSemainesCache);
+  }catch{
+    document.getElementById('vtc-historique-list').innerHTML = '<div style="color:var(--red);font-size:.7rem;padding:6px 0">Erreur de chargement</div>';
+    historiqueSemainesChargees = false;
+  }
+}
+
+function renderHistoriqueSemainesVtc(semaines){
+  const el = document.getElementById('vtc-historique-list');
+  if(!semaines.length){
+    el.innerHTML = '<div style="color:var(--muted);font-size:.7rem;padding:6px 0">Pas encore de semaines archivées</div>';
+    return;
+  }
+  const nets = semaines.map(s=>s.net);
+  const maxNet = Math.max(...nets), minNet = Math.min(...nets);
+  const parMois = {};
+  semaines.forEach(s=>{ (parMois[s.moisLabel] = parMois[s.moisLabel]||[]).push(s); });
+
+  el.innerHTML = Object.entries(parMois).map(([label,liste])=>{
+    const totalMois = liste.reduce((a,s)=>a+s.net,0);
+    const lignes = liste.map(s=>{
+      const debut = new Date(s.debut).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
+      const finAff = new Date(new Date(s.fin).getTime()-86400000).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
+      const isBest = s.net===maxNet && maxNet>minNet;
+      const isWorst = s.net===minNet && maxNet>minNet;
+      const isCurrent = s.offset===vtcSemaineOffset;
+      return `<div class="row" style="cursor:pointer;${isCurrent?'background:rgba(255,255,255,0.06);border-radius:6px;padding:4px 6px':''}" onclick="vtcSemaineOffset=${s.offset};charger()">
+        <span>${isBest?'🏆 ':''}${isWorst?'🔻 ':''}${debut} → ${finAff}${isCurrent?' <span style=\'color:var(--muted);font-size:.6rem\'>(affichée)</span>':''}</span>
+        <span style="font-family:var(--mono);color:${s.net>=0?'var(--green)':'var(--red)'}">${s.net>=0?'+':''}${Math.round(s.net)}€</span>
+      </div>`;
+    }).join('');
+    return `<div style="margin-bottom:.5rem">
+      <div class="row" style="font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.03em">
+        <span>${label}</span><span style="font-family:var(--mono)">${totalMois>=0?'+':''}${Math.round(totalMois)}€</span>
+      </div>
+      ${lignes}
+    </div>`;
+  }).join('');
 }
 
 function toggleDetail(cat){
@@ -1401,6 +1471,17 @@ function renderVtcSemaine(d){
   document.getElementById('vtc-semaine-heures').textContent = (d.vtc_semaine_heures||0).toFixed(1)+'h';
   const proj = d.vtc_semaine_projection_mensuelle||0;
   document.getElementById('vtc-semaine-proj').textContent = (proj>=0?'+':'')+fmt(proj);
+
+  const offset = d.vtc_semaine_offset||0;
+  vtcSemaineOffset = offset;
+  if(d.vtc_semaine_debut && d.vtc_semaine_fin){
+    const debut = new Date(d.vtc_semaine_debut).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
+    const finAff = new Date(new Date(d.vtc_semaine_fin).getTime()-86400000).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
+    document.getElementById('vtc-semaine-label').textContent = `${debut} → ${finAff}`;
+  }
+  document.getElementById('vtc-semaine-badge').textContent = offset===0 ? 'Semaine en cours' : `Il y a ${-offset} semaine${-offset>1?'s':''}`;
+  document.getElementById('btn-vtc-semaine-next').disabled = offset>=0;
+  if(historiqueSemainesChargees) renderHistoriqueSemainesVtc(historiqueSemainesCache);
 }
 
 function renderVtc(d){
@@ -2050,7 +2131,7 @@ function renderRevenusSupp(d){
 // ── CHARGEMENT PRINCIPAL ──
 async function charger(){
   try{
-    const r=await fetch('/api/dashboard?mois='+moisOffset);
+    const r=await fetch('/api/dashboard?mois='+moisOffset+'&semaine='+vtcSemaineOffset);
     const d=await r.json();
     globalData=d;
 
