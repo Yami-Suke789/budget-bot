@@ -500,6 +500,29 @@ async function getDataVtcSemaine(chatId, semaineOffset = 0) {
   };
 }
 
+// Historique des semaines VTC : recalcule net/CA/heures pour chacune des N dernières
+// semaines (offset 0 = semaine en cours, -1 = semaine précédente, etc.), pour pouvoir
+// retrouver une semaine passée, comparer les semaines entre elles et les regrouper par mois.
+async function getHistoriqueSemainesVtc(chatId, nbSemaines = 12) {
+  const semaines = [];
+  for (let i = 0; i > -nbSemaines; i--) {
+    const d = await getDataVtcSemaine(chatId, i);
+    if (!d) continue;
+    const debutDate = new Date(d.debut);
+    semaines.push({
+      offset: i,
+      debut: d.debut,
+      fin: d.fin,
+      caNet: d.caNet,
+      net: d.net,
+      heures: d.heures,
+      tauxHoraire: d.tauxHoraire,
+      moisLabel: debutDate.toLocaleString('fr-FR', { month: 'long', year: 'numeric', timeZone: 'Europe/Paris' }),
+    });
+  }
+  return semaines;
+}
+
 async function resumeVtc(chatId) {
   const d = await getDataVtc(chatId, 0);
   if (!d || d.sessions.length === 0) { await send(chatId, 'Aucune session VTC ce mois.'); return; }
@@ -2671,8 +2694,9 @@ app.get('/api/dashboard', async (req, res) => {
       if (p) prixActuels[t] = p;
     }));
 
+    const semaineOffset = parseInt(req.query.semaine || '0');
     const vtcData = data.vtc;
-    const vtcSemaine = await getDataVtcSemaine(CHAT_ID, 0);
+    const vtcSemaine = await getDataVtcSemaine(CHAT_ID, semaineOffset);
 
     const totalInvesti = investissements.reduce((s, i) => s + Number(i.montant), 0);
     const totalInvestiActuel = investissements.reduce((s, i) => {
@@ -2732,6 +2756,9 @@ app.get('/api/dashboard', async (req, res) => {
       vtc_semaine_essence_retenue: vtcSemaine ? vtcSemaine.essenceRetenue : 0,
       vtc_semaine_essence_depensee: vtcSemaine ? vtcSemaine.essenceDepensee : 0,
       vtc_essence_base_hebdo: VTC_ESSENCE_BASE_HEBDO,
+      vtc_semaine_offset: semaineOffset,
+      vtc_semaine_debut: vtcSemaine ? vtcSemaine.debut : null,
+      vtc_semaine_fin: vtcSemaine ? vtcSemaine.fin : null,
       turo_locations: data.turo.locations,
       turo_depenses_ponctuelles: data.turo.depensesPonctuelles,
       turo_depenses_recurrentes: data.turo.depensesRecurrentes,
@@ -2895,6 +2922,16 @@ app.get('/api/simulateur', async (req, res) => {
 });
 
 app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'dashboard.html')); });
+app.get('/api/vtc/historique-semaines', async (req, res) => {
+  try {
+    const nb = parseInt(req.query.nb || '12');
+    const semaines = await getHistoriqueSemainesVtc(CHAT_ID, nb);
+    res.json({ semaines });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/dashboard', (req, res) => { res.sendFile(path.join(__dirname, 'dashboard.html')); });
 
 // ============================================================
