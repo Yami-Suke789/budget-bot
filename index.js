@@ -1874,6 +1874,15 @@ app.post('/webhook', async (req, res) => {
       return;
     }
 
+    if (texte === '/annuler') {
+      await sendBtns(chatId, 'Que veux-tu annuler ?', [
+        [{ t: 'Cours effectue', d: 'ann_cours_fait' }, { t: 'Cours manque', d: 'ann_cours_manque' }],
+        [{ t: 'Depense', d: 'ann_depense' }, { t: 'Revenu', d: 'ann_revenu' }],
+        [{ t: 'Annuler', d: 'annuler' }]
+      ]);
+      return;
+    }
+
     if (texte === '/modifier' || texte === 'mod_prelevements') {
       await sendBtns(chatId, 'Que veux-tu modifier ?', [
         [{ t: 'Un budget categorie', d: 'mod_budget' }],
