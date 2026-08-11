@@ -1425,6 +1425,30 @@ async function traiterCallback(cb) {
     const cat = data.replace('cat_', '');
     const montant = session.montant;
     if (!montant) return;
+
+    if (cat === 'vtc' || cat === 'turo') {
+      const libelle = session.libelle || '';
+      delete sessions[chatId];
+      if (cat === 'vtc') {
+        const cats = Object.entries(VTC_DEP_CATEGORIES);
+        const rows = [];
+        for (let i = 0; i < cats.length; i += 2)
+          rows.push(cats.slice(i, i + 2).map(([k, c]) => ({ t: c.label, d: `vtc_dep_cat_${k}` })));
+        rows.push([{ t: 'Annuler', d: 'annuler' }]);
+        sessionsVtcDep[chatId] = { etape: 'attente_categorie', montantPredefini: montant, libellePredefini: libelle };
+        await sendBtns(chatId, `*${montant}€* — Depense VTC\n\nCategorie ?`, rows);
+      } else {
+        const cats = Object.entries(TURO_CATEGORIES);
+        const rows = [];
+        for (let i = 0; i < cats.length; i += 2)
+          rows.push(cats.slice(i, i + 2).map(([k, c]) => ({ t: c.label, d: `turo_dep_cat_${k}` })));
+        rows.push([{ t: 'Annuler', d: 'annuler' }]);
+        sessionsTuroDep[chatId] = { etape: 'attente_categorie', montantPredefini: montant, libellePredefini: libelle };
+        await sendBtns(chatId, `*${montant}€* — Depense Turo\n\nCategorie ?`, rows);
+      }
+      return;
+    }
+
     await saveDepense(chatId, montant, cat, session.libelle || '');
     const newData = await getData();
     const restant = BUDGETS[cat].max - newData.totaux[cat];
@@ -1637,6 +1661,14 @@ async function traiterCallback(cb) {
 
   if (data.startsWith('vtc_dep_cat_')) {
     const cat = data.replace('vtc_dep_cat_', '');
+    const predef = sessionsVtcDep[chatId]?.montantPredefini;
+    if (predef) {
+      const result = await saveVtcDepenseDiverse(chatId, predef, cat, VTC_DEP_CATEGORIES[cat].label);
+      delete sessionsVtcDep[chatId];
+      if (!result.ok) { await send(chatId, `Erreur lors de l'enregistrement : ${result.error}`); return; }
+      await send(chatId, `Depense VTC enregistree : *${predef}€* — ${VTC_DEP_CATEGORIES[cat].label}`);
+      return;
+    }
     sessionsVtcDep[chatId] = { etape: 'montant', categorie: cat };
     await send(chatId, `*${VTC_DEP_CATEGORIES[cat].label}*\n\nMontant ? (ex: *40*)`);
     return;
@@ -1644,6 +1676,15 @@ async function traiterCallback(cb) {
 
   if (data.startsWith('turo_dep_cat_')) {
     const cat = data.replace('turo_dep_cat_', '');
+    const sessPredef = sessionsTuroDep[chatId];
+    if (sessPredef?.montantPredefini) {
+      const predef = sessPredef.montantPredefini;
+      sessionsTuroDep[chatId] = { etape: 'recurrent', categorie: cat, montant: predef, libelle: sessPredef.libellePredefini || '' };
+      await sendBtns(chatId, `*${predef}€* — ${TURO_CATEGORIES[cat].label}\n\nDepense recurrente (mensuelle) ou ponctuelle ?\n_Ex: assurance = recurrente, CT/reparation = ponctuelle_`, [
+        [{ t: 'Recurrente', d: 'turo_recur_oui' }, { t: 'Ponctuelle', d: 'turo_recur_non' }],
+      ]);
+      return;
+    }
     sessionsTuroDep[chatId] = { etape: 'montant', categorie: cat };
     await send(chatId, `*${TURO_CATEGORIES[cat].label}*\n\nMontant ? (ex: *90*)`);
     return;
@@ -2233,6 +2274,7 @@ app.post('/webhook', async (req, res) => {
       const cats = Object.entries(BUDGETS);
       const rows = [];
       for (let i = 0; i < cats.length; i += 3) rows.push(cats.slice(i, i+3).map(([k, b]) => ({ t: b.label, d: `cat_${k}` })));
+      rows.push([{ t: 'VTC', d: 'cat_vtc' }, { t: 'Turo', d: 'cat_turo' }]);
       rows.push([{ t: 'Annuler', d: 'annuler' }]);
       await sendBtns(chatId, `*${montantNLP}€* — Quelle categorie ?`, rows);
       return;
@@ -2277,6 +2319,7 @@ app.post('/depense', async (req, res) => {
       const cats = Object.entries(BUDGETS);
       const rows = [];
       for (let i = 0; i < cats.length; i += 3) rows.push(cats.slice(i, i + 3).map(([k, b]) => ({ t: b.label, d: `cat_${k}` })));
+      rows.push([{ t: 'VTC', d: 'cat_vtc' }, { t: 'Turo', d: 'cat_turo' }]);
       rows.push([{ t: 'Annuler', d: 'annuler' }]);
       await sendBtns(chatId, `Apple Pay — ${montant}€\n\nQuelle categorie ?`, rows);
     }
