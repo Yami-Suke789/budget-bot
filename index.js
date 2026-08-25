@@ -78,6 +78,7 @@ const BUDGETS = {
   loisirs:  { label: 'Loisirs',  max: 50  },
   divers:   { label: 'Divers',   max: 50  },
   Dyneos:   { label: 'Dyneos',   max: 300 },
+  profideal: { label: 'Prof Idéal', max: 500 },
 };
 
 const OBJECTIFS = [
@@ -1168,6 +1169,7 @@ function trouverCategorie(texte) {
   if (/\bdivers\b/.test(t)) return 'divers';
   if (/\bloisirs?\b/.test(t)) return 'loisirs';
   if (/\bdyneos\b/.test(t)) return 'Dyneos';
+  if (/\bprof\s*ideal\b/.test(t)) return 'profideal';
   if (/plein|carburant|station|total|esso/.test(t)) return 'essence';
   if (/leclerc|carrefour|lidl|cora|supermarche|aldi/.test(t)) return 'courses';
   if (/restaurant|mcdo|burger|pizza|kebab|sushi/.test(t)) return 'restos';
