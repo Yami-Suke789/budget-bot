@@ -38,7 +38,7 @@ let CHARGES_FIXES = {
 
 // Prelevements avec flag suspendu
 let PRELEVEMENTS_DATES = [
-  { nom: 'Loyer',               montant: 832.46, jour: 1,    suspendu: false },
+  { nom: 'Loyer',               montant: 804.00, jour: 1,    suspendu: false },
   { nom: 'Tontine 1',           montant: 500.00, jour: 1,    suspendu: false },
   { nom: 'Helloasso',           montant: 12.55,  jour: 1,    suspendu: false },
   { nom: 'Place parking',       montant: 50.00,  jour: 1,    suspendu: false },
