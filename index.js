@@ -27,7 +27,7 @@ const SEUIL_ALERTE_TOTAL = 3400;   // fixes + variables
 const SEUIL_ALERTE_VARIABLE = 1000; // variables seules
 
 let CHARGES_FIXES = {
-  'Loyer': 832.46, 'Tontine 1': 500, 'Tontine 2': 500,
+  'Loyer': 804, 'Tontine 1': 500, 'Tontine 2': 500,
   'Virement mere': 150, 'Place parking': 50, 'Malakoff mutuelle': 57.03,
   'ENI energie': 39.40, 'Bouygues mobile': 17.99, 'Bouygues box': 24,
   'Basic Fit': 22.99, 'Assurance habitation': 8.46, 'Assurance auto': 64.24,
