@@ -1949,7 +1949,10 @@ function renderPrelevements(d){
   pl.innerHTML+=`<div class="row"><span style="color:var(--muted);font-size:.65rem">Restant ce mois</span><span style="color:var(--red);font-weight:700;font-family:var(--mono)">-${(d.total_prelevements_restants||0).toFixed(0)} €</span></div>`;
   const tous=d.prelevements_tous||[];
   const suspendus=tous.filter(p2=>p2.suspendu);
-  if(suspendus.length){ pl.innerHTML+=`<div style="font-size:.65rem;color:var(--muted);padding:5px 0">⏸️ Suspendus: ${suspendus.map(p=>p.nom).join(', ')}</div>`; }
+  if(suspendus.length){
+    pl.innerHTML+=`<div style="font-size:.65rem;color:var(--muted);padding:5px 0 2px">⏸️ Suspendus</div>`;
+    suspendus.forEach(p2=>{ pl.innerHTML+=`<div class="prel-row"><span style="opacity:.55">${p2.nom} · ${p2.montant.toFixed(2)} €</span><button class="edit-btn success" onclick="savePrel('${p2.nom.replace(/'/g,"\\'")}','suspendu',0)">▶️ Réactiver</button></div>`; });
+  }
   if(!isCurrent){ tous.filter(p2=>p2.frequence!=='trimestriel').forEach(p2=>{ pl.innerHTML+=`<div class="prel-row${p2.suspendu?' suspended':''}"><span>${p2.nom}</span><div style="display:flex;gap:8px;align-items:center"><span style="color:var(--muted)">le ${p2.jour||'—'}</span><span style="font-family:var(--mono)">${p2.montant.toFixed(2)} €</span></div></div>`; }); return; }
   const restants=tous.filter(p2=>p2.jour&&p2.jour>=aujourd&&p2.frequence!=='trimestriel'&&!p2.suspendu);
   const passes=tous.filter(p2=>p2.jour&&p2.jour<aujourd&&p2.frequence!=='trimestriel'&&!p2.suspendu);
