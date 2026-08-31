@@ -77,6 +77,20 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
 
 /* POTENTIEL */
 .potentiel-card{background:linear-gradient(135deg,rgba(242,100,25,0.1),rgba(255,170,68,0.06));border:1px solid rgba(242,100,25,0.2);border-radius:12px;padding:.85rem;margin-bottom:.55rem}
+
+/* LGM solde projection slider */
+.lgm-card{background:linear-gradient(135deg,rgba(96,165,250,0.1),rgba(167,139,250,0.06));border:1px solid rgba(96,165,250,0.2);border-radius:12px;padding:.85rem;margin-bottom:.55rem}
+.lgm-title{font-size:.6rem;text-transform:uppercase;letter-spacing:.08em;color:var(--blue);margin-bottom:.5rem;font-weight:700}
+.lgm-slider-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:.3rem}
+.lgm-slider-label{font-size:.68rem;color:var(--muted)}
+.lgm-slider-val{font-family:var(--mono);font-size:.85rem;font-weight:700;color:var(--blue)}
+input[type=range].lgm-range{-webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:2px;background:var(--border);outline:none;margin:.4rem 0 .7rem}
+input[type=range].lgm-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;border-radius:50%;background:var(--blue);cursor:pointer;box-shadow:0 0 0 4px rgba(96,165,250,0.18)}
+input[type=range].lgm-range::-moz-range-thumb{width:16px;height:16px;border:none;border-radius:50%;background:var(--blue);cursor:pointer;box-shadow:0 0 0 4px rgba(96,165,250,0.18)}
+.lgm-result-row{display:flex;justify-content:space-between;align-items:center;padding-top:.5rem;border-top:1px solid rgba(255,255,255,0.08)}
+.lgm-result-label{font-size:.68rem;color:var(--muted)}
+.lgm-result-val{font-family:var(--mono);font-size:1.15rem;font-weight:700;color:var(--green)}
+.lgm-breakdown{font-size:.62rem;color:var(--muted);margin-top:.25rem}
 .potentiel-title{font-size:.6rem;text-transform:uppercase;letter-spacing:.08em;color:var(--orange);margin-bottom:.4rem;font-weight:700}
 .potentiel-main{font-size:1.6rem;font-weight:700;font-family:var(--mono);color:var(--amber)}
 .potentiel-sub{font-size:.63rem;color:var(--muted);margin-top:.2rem}
@@ -521,6 +535,21 @@ body{font-family:'Sora',sans-serif;color:var(--text);min-height:100vh;padding:0 
     <div class="card"><div class="card-label">Épargne actuelle</div><div class="card-value green" id="ep-total">—</div></div>
     <div class="card"><div class="card-label">Solde début de mois</div><div class="card-value" id="ep-debut-mois">—</div></div>
     <div class="card full"><div class="card-label">🎯 Projection fin de mois</div><div class="card-value" id="ep-projection">—</div><div class="card-sub" id="ep-projection-s">—</div></div>
+  </div>
+
+  <div class="section-title">🏦 Projection après solde de tout compte LGM</div>
+  <div class="lgm-card">
+    <div class="lgm-title">🎯 Simulation solde de tout compte</div>
+    <div class="lgm-slider-row">
+      <span class="lgm-slider-label">Montant estimé du solde LGM (15 oct.)</span>
+      <span class="lgm-slider-val" id="lgm-slider-val">7 500 €</span>
+    </div>
+    <input type="range" class="lgm-range" id="lgm-slider" min="0" max="15000" step="100" value="7500">
+    <div class="lgm-result-row">
+      <span class="lgm-result-label">💰 Épargne projetée</span>
+      <span class="lgm-result-val" id="lgm-result-val">—</span>
+    </div>
+    <div class="lgm-breakdown" id="lgm-breakdown">—</div>
   </div>
 
   <div class="section-title">📈 Évolution — ce mois</div>
@@ -2082,6 +2111,17 @@ function setEpType(t){
   bOut.style.color = t==='out' ? 'var(--red)' : 'var(--muted)';
 }
 
+function updateLgmProjection(){
+  const slider = document.getElementById('lgm-slider');
+  if(!slider) return;
+  const soldeLgm = parseFloat(slider.value) || 0;
+  document.getElementById('lgm-slider-val').textContent = Math.round(soldeLgm).toLocaleString('fr-FR')+' €';
+  const epActuelle = window.__epLedgerTotal || 0;
+  const total = epActuelle + soldeLgm;
+  document.getElementById('lgm-result-val').textContent = Math.round(total).toLocaleString('fr-FR')+' €';
+  document.getElementById('lgm-breakdown').textContent = `${Math.round(epActuelle).toLocaleString('fr-FR')} € épargne actuelle + ${Math.round(soldeLgm).toLocaleString('fr-FR')} € solde LGM estimé`;
+}
+
 async function ajouterMouvementEpargne(){
   const source = document.getElementById('ep-source').value;
   const montant = parseFloat(document.getElementById('ep-montant').value);
@@ -2116,6 +2156,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
   document.getElementById('ep-type-in')?.addEventListener('click', ()=>setEpType('in'));
   document.getElementById('ep-type-out')?.addEventListener('click', ()=>setEpType('out'));
   document.getElementById('ep-submit')?.addEventListener('click', ajouterMouvementEpargne);
+  document.getElementById('lgm-slider')?.addEventListener('input', updateLgmProjection);
 });
 
 function renderRevenusSupp(d){
@@ -2164,6 +2205,8 @@ async function charger(){
 
     document.getElementById('a-ep').textContent=fmt(d.epargne_base);
     document.getElementById('ep-total').textContent=fmt(d.epargne_ledger_total||0);
+    window.__epLedgerTotal = d.epargne_ledger_total||0;
+    updateLgmProjection();
     document.getElementById('ep-debut-mois').textContent=fmt(d.epargne_solde_debut_mois||0);
     const epProjection = (d.epargne_ledger_total||0) + (d.solde||0);
     document.getElementById('ep-projection').textContent=fmt(epProjection);
