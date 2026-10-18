@@ -1160,6 +1160,7 @@ function renderConfig(d){
     {cle:'objectif_completude',label:'🎯 Objectif Cours',val:d.objectif_completude,unit:'€/mois'},
   ];
   cfgRev.innerHTML=revenusConfig.map(r=>`<div><div class="row" id="after-cfg-${r.cle}"><div><div style="font-size:.75rem">${r.label}</div><div style="font-size:.6rem;color:var(--muted)">${r.unit}</div></div><div style="display:flex;align-items:center;gap:8px"><span style="font-family:var(--mono);font-size:.82rem">${Math.round(r.val).toLocaleString('fr-FR')} €</span><button class="edit-btn" onclick="showInlineEdit('cfg-${r.cle}','Nouveau montant (${r.unit})',${r.val},(v)=>saveConfig('${r.cle}',v))">✏️</button></div></div></div>`).join('');
+  cfgRev.innerHTML+=`<div><div class="row" id="after-cfg-vtc-suspens"><div><div style="font-size:.75rem">⏸️ VTC en suspens</div><div style="font-size:.6rem;color:var(--muted)">${d.vtc_suspendu_depuis?'depuis '+moisLis(d.vtc_suspendu_depuis)+' · seul le CA généré compte':'non · VTC actif, charges fixes comptées'}</div></div><div style="display:flex;align-items:center;gap:8px"><button class="edit-btn" title="Changer" onclick="editerSuspensionVtc('${d.vtc_suspendu_depuis||''}')">🗓️</button></div></div></div>`;
   const cfgBud=document.getElementById('cfg-budgets-list');
   cfgBud.innerHTML=Object.entries(d.budgets||{}).map(([k,b])=>`<div><div class="row" id="after-budg-${k}"><span style="font-size:.75rem">${b.label}</span><div style="display:flex;align-items:center;gap:8px"><span style="font-family:var(--mono);font-size:.82rem">${b.max} €/mois</span><button class="edit-btn" onclick="showInlineEdit('budg-${k}','Nouveau plafond ${b.label}',${b.max},(v)=>saveBudget('${k}',v))">✏️</button></div></div></div>`).join('');
   const cfgPrel=document.getElementById('cfg-prel-list');
@@ -2201,6 +2202,15 @@ async function editerPeriodePrel(nom, debut, fin){
   if(f.trim()!==(fin||'')) await savePrel(nom,'fin',f.trim());
 }
 
+async function editerSuspensionVtc(actuel){
+  const v=prompt('VTC en suspens à partir du mois (AAAA-MM). Laisser vide = VTC actif, charges fixes de nouveau comptées.',actuel||'');
+  if(v===null) return;
+  const t=v.trim();
+  if(t&&!/^\d{4}-(0[1-9]|1[0-2])$/.test(t)){ toast('❌ Format attendu : AAAA-MM',true); return; }
+  const n=t?parseInt(t.replace('-',''),10):0;
+  try{ const r=await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cle:'vtc_suspendu_depuis',valeur:n})}); const j=await r.json(); if(j.ok){toast('✅ Sauvegardé');charger();}else toast('❌ '+j.error,true); }catch{toast('❌ Erreur réseau',true);}
+}
+
 // ── CHÔMAGE & APPORTS D'AFFAIRES ──
 let _chomList=[];
 function renderChomageApports(d){
@@ -2303,7 +2313,7 @@ async function charger(){
       {label:'France Travail',val:d.chomage||0,color:'var(--teal,var(--blue))',always:true},
       {label:'Apport d\'affaires',val:d.apport_affaires||0,color:'var(--pink,var(--purple))',always:true},
       {label:'Turo (net)',val:d.turo_rentabilite_nette||0,color:'var(--orange)'},
-      {label:'VTC (net)',val:d.vtc_net||0,color:'var(--green)'},
+      {label:d.vtc_suspendu?'VTC (net) · en suspens':'VTC (net)',val:d.vtc_net||0,color:'var(--green)'},
       {label:'Rentrées ponctuelles',val:d.revenus_autres||0,color:'var(--muted)'},
     ].filter(s=>s.val||s.always);
     const totalPos = revSources.reduce((s,x)=>s+Math.max(0,x.val),0)||1;

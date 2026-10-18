@@ -137,6 +137,7 @@ const VTC_URSSAF_TAUX = 0.212; // 21.2%
 let VTC_RATTACHEMENT_MENSUEL = 60; // euros/mois, tant que non auto-entrepreneur
 let VTC_RATTACHEMENT_ACTIF = true; // tant que non auto-entrepreneur : true = rattachement, false = URSSAF
 let VTC_OBJECTIF_HEBDO = 1000; // euros/semaine — objectif de CA net (le "CA" saisi = net perçu par course)
+let VTC_SUSPENDU_DEPUIS = '2026-10'; // AAAA-MM : a partir de ce mois, plus de charges fixes VTC (location, rattachement, URSSAF). null = VTC actif
 let VTC_ESSENCE_BASE_HEBDO = 60; // euros/semaine — minimum essence retenu dans le seuil, meme si non declaree cette semaine-la
 const VTC_PLATEFORMES_VALIDES = ['uber', 'bolt', 'heetch', 'autre'];
 const VTC_DEP_CATEGORIES = {
@@ -255,6 +256,7 @@ async function chargerConfig() {
       if (row.cle === 'vtc_rattachement_mensuel') VTC_RATTACHEMENT_MENSUEL = row.valeur;
       if (row.cle === 'vtc_rattachement_actif') VTC_RATTACHEMENT_ACTIF = row.valeur === 1;
       if (row.cle === 'vtc_objectif_hebdo') VTC_OBJECTIF_HEBDO = row.valeur;
+      if (row.cle === 'vtc_suspendu_depuis') VTC_SUSPENDU_DEPUIS = numVersCle(row.valeur);
       if (row.cle === 'vtc_essence_base_hebdo') VTC_ESSENCE_BASE_HEBDO = row.valeur;
     });
     console.log('Config chargee depuis Supabase');
@@ -480,18 +482,20 @@ async function getDataVtc(chatId, moisOffset = 0) {
   const caNet = sessions.reduce((s, x) => s + (Number(x.ca_net) || 0), 0);
   const heures = sessions.reduce((s, x) => s + dureeHeuresVtc(x.heure_debut, x.heure_fin), 0);
   const totalDepensesDiverses = depensesDiverses.reduce((s, x) => s + (Number(x.montant) || 0), 0);
-  const chargesFixesHebdo = getTotalChargesFixesVtc() * SEMAINES_PAR_MOIS;
+  // VTC en suspens : seul ce qui a ete genere compte (plus de location, rattachement ni URSSAF)
+  const suspendu = !!VTC_SUSPENDU_DEPUIS && moisCle(moisOffset) >= VTC_SUSPENDU_DEPUIS;
+  const chargesFixesHebdo = suspendu ? 0 : getTotalChargesFixesVtc() * SEMAINES_PAR_MOIS;
 
   // Rattachement (charge fixe mensuelle) OU URSSAF (% du CA net) — jamais les deux, pilote par un
   // toggle global en Config, independant des sessions individuelles (plus proche de la realite).
-  const rattachement = VTC_RATTACHEMENT_ACTIF ? VTC_RATTACHEMENT_MENSUEL : 0;
-  const urssaf = VTC_RATTACHEMENT_ACTIF ? 0 : caNet * VTC_URSSAF_TAUX;
+  const rattachement = (!suspendu && VTC_RATTACHEMENT_ACTIF) ? VTC_RATTACHEMENT_MENSUEL : 0;
+  const urssaf = (!suspendu && !VTC_RATTACHEMENT_ACTIF) ? caNet * VTC_URSSAF_TAUX : 0;
 
   const net = caNet - totalDepensesDiverses - chargesFixesHebdo - urssaf - rattachement;
 
   return {
     sessions, depensesDiverses, caNet, totalDepensesDiverses, chargesFixesHebdo,
-    urssaf, rattachement, net, heures,
+    urssaf, rattachement, net, heures, suspendu,
     tauxHoraire: heures > 0 ? net / heures : 0,
   };
 }
@@ -882,9 +886,54 @@ function getFinSemaine(semaineOffset = 0) {
   return _minuitParisEnUTCJour(lundiSuivant.getFullYear(), lundiSuivant.getMonth() + 1, lundiSuivant.getDate());
 }
 
+// ============================================================
+// MOIS FIGES — les mois passes ne bougent plus : leurs valeurs calculees (charges fixes, beau-frere,
+// salaire, VTC, Turo) sont gardees dans la table Supabase mois_figes. Seule une modification
+// directe dans Supabase peut les changer.
+// ============================================================
+const PREMIER_MOIS = '2026-03';
+
+async function lireMoisFige(cle) {
+  const { data, error } = await supabase.from('mois_figes').select('donnees').eq('mois', cle).maybeSingle();
+  if (error) { console.error('lireMoisFige error:', error.message); return null; }
+  return data ? data.donnees : null;
+}
+
+async function ecrireMoisFige(cle, donnees) {
+  // ignoreDuplicates : on n'ecrase jamais un mois deja fige
+  const { error } = await supabase.from('mois_figes').upsert({ mois: cle, donnees }, { onConflict: 'mois', ignoreDuplicates: true });
+  if (error) console.error('ecrireMoisFige error:', error.message);
+}
+
+async function figerMoisPasses() {
+  for (let off = -1; off >= -24; off--) {
+    if (moisCle(off) < PREMIER_MOIS) break;
+    try { await getData(off); } catch (e) { console.error('figerMoisPasses', off, e.message); }
+  }
+}
+
+// Cle AAAA-MM (fuseau Paris) d'une date ISO ou d'une date AAAA-MM-JJ
+function cleMoisDeDate(v) {
+  if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) return v.slice(0, 7);
+  const d = new Date(new Date(v).toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+function moisEstFige(v) { return !!v && cleMoisDeDate(v) < moisCle(0); }
+const MSG_MOIS_FIGE = 'Mois fige : modification possible uniquement via Supabase';
+
+// Refuse la modification d'une ligne appartenant a un mois passe. Renvoie true si refusee.
+async function refuserSiMoisFige(res, table, id, champ = 'created_at') {
+  const { data } = await supabase.from(table).select(`id, ${champ}`).eq('id', id).maybeSingle();
+  if (data && moisEstFige(data[champ])) { res.json({ ok: false, error: MSG_MOIS_FIGE }); return true; }
+  return false;
+}
+
 async function getData(moisOffset = 0) {
   const debut = getDebutMois(moisOffset);
   const fin = getFinMois(moisOffset);
+  const cleMois = moisCle(moisOffset);
+  const figeable = moisOffset < 0 && cleMois >= PREMIER_MOIS;
+  const fige = figeable ? await lireMoisFige(cleMois) : null;
 
   const [d1, d2, d3, d4, d5, d6, d7] = await Promise.all([
     supabase.from('depenses').select('*').gte('created_at', debut).lt('created_at', fin),
@@ -900,11 +949,12 @@ async function getData(moisOffset = 0) {
   const cours = d2.data || [];
   const coursManques = d3.data || [];
   const revenus = d4.data || [];
-  const salaire = d5.data?.length > 0 ? d5.data[0].montant : SALAIRE_LGM_DEFAULT;
+  const salaire = fige ? fige.salaire : (d5.data?.length > 0 ? d5.data[0].montant : SALAIRE_LGM_DEFAULT);
   const epargneBase = d6.data?.length > 0 ? d6.data[0].montant : EPARGNE_DEPART;
   const epargneLedger = calculerEpargneLedger(d7.data || [], debut, fin);
 
-  const TOTAL_CHARGES_FIXES = getTotalChargesFixes(moisCle(moisOffset));
+  const TOTAL_CHARGES_FIXES = fige ? fige.charges_fixes : getTotalChargesFixes(cleMois);
+  const beauFrere = fige ? fige.beau_frere : BEAU_FRERE;
 
   const totaux = {};
   Object.keys(BUDGETS).forEach(k => totaux[k] = 0);
@@ -923,19 +973,22 @@ async function getData(moisOffset = 0) {
   const revenusSupp = revenus.filter(r => !estChomage(r) && !estApport(r)).reduce((s, r) => s + r.montant, 0);
 
   // Turo et VTC — impactent le total revenus / solde global via leur net final
-  const turo = await getDataTuro(CHAT_ID, moisOffset);
-  const vtc = await getDataVtc(CHAT_ID, moisOffset);
+  const turo = fige ? fige.turo : await getDataTuro(CHAT_ID, moisOffset);
+  const vtc = fige ? fige.vtc : await getDataVtc(CHAT_ID, moisOffset);
+  if (figeable && !fige) {
+    await ecrireMoisFige(cleMois, { salaire, charges_fixes: TOTAL_CHARGES_FIXES, beau_frere: beauFrere, turo, vtc, gele_le: new Date().toISOString() });
+  }
   const turoNet = Number.isFinite(turo?.rentabiliteNette) ? turo.rentabiliteNette : 0;
   const vtcNet = Number.isFinite(vtc?.net) ? vtc.net : 0;
 
-  const totalRevenus = salaire + BEAU_FRERE + completude + chomage + apport + revenusSupp + turoNet + vtcNet;
+  const totalRevenus = salaire + beauFrere + completude + chomage + apport + revenusSupp + turoNet + vtcNet;
   const solde = totalRevenus - TOTAL_CHARGES_FIXES - totalDep;
   const epargneEstimee = epargneBase + solde;
 
   return {
     depenses, cours, coursManques, revenus, totaux, detail, totalDep,
     completude, totalManque, revenusSupp, chomage, apport, totalRevenus, solde,
-    epargneEstimee, salaire, epargneBase, moisOffset, epargneLedger,
+    epargneEstimee, salaire, beauFrere, epargneBase, moisOffset, epargneLedger,
     chargesFixes: TOTAL_CHARGES_FIXES, turo, vtc, turoNet, vtcNet
   };
 }
@@ -2407,6 +2460,7 @@ app.delete('/api/depense/:id', async (req, res) => {
   try {
     const { id } = req.params;
     if (!id) return res.json({ ok: false, error: 'ID manquant' });
+    if (await refuserSiMoisFige(res, 'depenses', id, 'created_at')) return;
     const { data: item, error: fetchErr } = await supabase.from('depenses').select('id, montant, libelle, categorie').eq('id', id).single();
     if (fetchErr || !item) return res.json({ ok: false, error: 'Depense introuvable' });
     const { error } = await supabase.from('depenses').delete().eq('id', id);
@@ -2420,6 +2474,7 @@ app.patch('/api/depense/:id', async (req, res) => {
     const { id } = req.params;
     const { montant } = req.body;
     if (!id) return res.json({ ok: false, error: 'ID manquant' });
+    if (await refuserSiMoisFige(res, 'depenses', id, 'created_at')) return;
     const v = parseFloat(montant);
     if (isNaN(v) || v <= 0) return res.json({ ok: false, error: 'Montant invalide' });
     const { error } = await supabase.from('depenses').update({ montant: v }).eq('id', id);
@@ -2437,6 +2492,7 @@ app.patch('/api/cours/:id', async (req, res) => {
     const { id } = req.params;
     const { gain, duree, rattrapage } = req.body;
     if (!id) return res.json({ ok: false, error: 'ID manquant' });
+    if (await refuserSiMoisFige(res, 'cours', id, 'created_at')) return;
     const update = {};
     if (gain !== undefined) {
       const v = parseFloat(gain);
@@ -2455,6 +2511,7 @@ app.delete('/api/cours/:id', async (req, res) => {
   try {
     const { id } = req.params;
     if (!id) return res.json({ ok: false, error: 'ID manquant' });
+    if (await refuserSiMoisFige(res, 'cours', id, 'created_at')) return;
     const { data: item, error: fetchErr } = await supabase.from('cours').select('id, eleve, gain').eq('id', id).single();
     if (fetchErr || !item) return res.json({ ok: false, error: 'Cours introuvable' });
     const { error } = await supabase.from('cours').delete().eq('id', id);
@@ -2467,6 +2524,7 @@ app.delete('/api/revenu/:id', async (req, res) => {
   try {
     const { id } = req.params;
     if (!id) return res.json({ ok: false, error: 'ID manquant' });
+    if (await refuserSiMoisFige(res, 'revenus', id, 'created_at')) return;
     const { data: item, error: fetchErr } = await supabase.from('revenus').select('id, montant, libelle').eq('id', id).single();
     if (fetchErr || !item) return res.json({ ok: false, error: 'Revenu introuvable' });
     const { error } = await supabase.from('revenus').delete().eq('id', id);
@@ -2486,6 +2544,7 @@ app.post('/api/revenu', async (req, res) => {
     const row = { montant: v, libelle: lib, chat_id: String(CHAT_ID) };
     if (date) {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.json({ ok: false, error: 'Date invalide (AAAA-MM-JJ)' });
+      if (moisEstFige(date)) return res.json({ ok: false, error: MSG_MOIS_FIGE });
       row.created_at = `${date}T12:00:00Z`;
     }
     const { error } = await supabase.from('revenus').insert(row);
@@ -2499,6 +2558,7 @@ app.patch('/api/revenu/:id', async (req, res) => {
     const { id } = req.params;
     const { montant, date, libelle } = req.body;
     if (!id) return res.json({ ok: false, error: 'ID manquant' });
+    if (await refuserSiMoisFige(res, 'revenus', id, 'created_at')) return;
     const update = {};
     if (montant !== undefined) {
       const v = parseFloat(montant);
@@ -2554,6 +2614,7 @@ app.post('/api/vtc/session', async (req, res) => {
     if (!date || !heure_debut || !heure_fin || !plateforme || !ca_net) {
       return res.json({ ok: false, error: 'Champs manquants' });
     }
+    if (moisEstFige(date)) return res.json({ ok: false, error: MSG_MOIS_FIGE });
     const caNet = parseFloat(ca_net);
     if (isNaN(caNet) || caNet <= 0) return res.json({ ok: false, error: 'CA net invalide' });
     const { error } = await supabase.from('vtc_sessions').insert({
@@ -2575,8 +2636,9 @@ app.patch('/api/vtc/session/:id', async (req, res) => {
     const { id } = req.params;
     const { date, heure_debut, heure_fin, plateforme, ca_net, nb_courses } = req.body;
     if (!id) return res.json({ ok: false, error: 'ID manquant' });
+    if (await refuserSiMoisFige(res, 'vtc_sessions', id, 'created_at')) return;
     const update = {};
-    if (date !== undefined) update.date = date;
+    if (date !== undefined) { if (moisEstFige(date)) return res.json({ ok: false, error: MSG_MOIS_FIGE }); update.date = date; }
     if (heure_debut !== undefined) update.heure_debut = heure_debut;
     if (heure_fin !== undefined) update.heure_fin = heure_fin;
     if (plateforme !== undefined) update.plateforme = String(plateforme).toLowerCase();
@@ -2613,6 +2675,7 @@ app.delete('/api/vtc/session/:id', async (req, res) => {
   try {
     const { id } = req.params;
     if (!id) return res.json({ ok: false, error: 'ID manquant' });
+    if (await refuserSiMoisFige(res, 'vtc_sessions', id, 'created_at')) return;
     const { data: item, error: fetchErr } = await supabase.from('vtc_sessions').select('id, ca_net, plateforme').eq('id', id).single();
     if (fetchErr || !item) return res.json({ ok: false, error: 'Session introuvable' });
     const { error } = await supabase.from('vtc_sessions').delete().eq('id', id);
@@ -2641,6 +2704,7 @@ app.patch('/api/vtc/depense/:id', async (req, res) => {
     const { id } = req.params;
     const { montant, categorie, libelle } = req.body;
     if (!id) return res.json({ ok: false, error: 'ID manquant' });
+    if (await refuserSiMoisFige(res, 'vtc_depenses_diverses', id, 'created_at')) return;
     const update = {};
     if (montant !== undefined) {
       const v = parseFloat(montant);
@@ -2659,6 +2723,7 @@ app.delete('/api/vtc/depense/:id', async (req, res) => {
   try {
     const { id } = req.params;
     if (!id) return res.json({ ok: false, error: 'ID manquant' });
+    if (await refuserSiMoisFige(res, 'vtc_depenses_diverses', id, 'created_at')) return;
     const { data: item, error: fetchErr } = await supabase.from('vtc_depenses_diverses').select('id, montant, categorie').eq('id', id).single();
     if (fetchErr || !item) return res.json({ ok: false, error: 'Depense introuvable' });
     const { error } = await supabase.from('vtc_depenses_diverses').delete().eq('id', id);
@@ -2732,6 +2797,7 @@ app.patch('/api/turo/depense/:id', async (req, res) => {
     const { id } = req.params;
     const { montant, categorie, libelle, recurrent } = req.body;
     if (!id) return res.json({ ok: false, error: 'ID manquant' });
+    if (await refuserSiMoisFige(res, 'turo_depenses', id, 'created_at')) return;
     const update = {};
     if (montant !== undefined) {
       const v = parseFloat(montant);
@@ -2751,6 +2817,7 @@ app.delete('/api/turo/depense/:id', async (req, res) => {
   try {
     const { id } = req.params;
     if (!id) return res.json({ ok: false, error: 'ID manquant' });
+    if (await refuserSiMoisFige(res, 'turo_depenses', id, 'created_at')) return;
     const { data: item, error: fetchErr } = await supabase.from('turo_depenses').select('id, montant, categorie').eq('id', id).single();
     if (fetchErr || !item) return res.json({ ok: false, error: 'Depense introuvable' });
     const { error } = await supabase.from('turo_depenses').delete().eq('id', id);
@@ -2780,6 +2847,7 @@ app.patch('/api/turo/location/:id', async (req, res) => {
     const { id } = req.params;
     const { locataire, date_debut, date_fin, revenu_brut, frais_turo } = req.body;
     if (!id) return res.json({ ok: false, error: 'ID manquant' });
+    if (await refuserSiMoisFige(res, 'turo_locations', id, 'date_debut')) return;
     const update = {};
     if (locataire !== undefined) update.locataire = locataire;
     if (date_debut !== undefined) update.date_debut = date_debut;
@@ -2805,6 +2873,7 @@ app.delete('/api/turo/location/:id', async (req, res) => {
   try {
     const { id } = req.params;
     if (!id) return res.json({ ok: false, error: 'ID manquant' });
+    if (await refuserSiMoisFige(res, 'turo_locations', id, 'date_debut')) return;
     const { data: item, error: fetchErr } = await supabase.from('turo_locations').select('id, locataire, revenu_net').eq('id', id).single();
     if (fetchErr || !item) return res.json({ ok: false, error: 'Location introuvable' });
     const { error } = await supabase.from('turo_locations').delete().eq('id', id);
@@ -2863,7 +2932,7 @@ app.get('/api/dashboard', async (req, res) => {
     const patrimoineEvolutionMois = data.solde + plusValueLatente;
 
     res.json({
-      salaire: data.salaire, beau_frere: BEAU_FRERE, completude: data.completude,
+      salaire: data.salaire, beau_frere: data.beauFrere, completude: data.completude,
       objectif_completude: OBJECTIF_COMPLETUDE, total_revenus: data.totalRevenus,
       charges_fixes: TOTAL_CF, total_dep: data.totalDep, solde: data.solde,
       epargne_base: data.epargneBase, epargne_estimee: data.epargneEstimee,
@@ -2872,6 +2941,7 @@ app.get('/api/dashboard', async (req, res) => {
       total_manque: data.totalManque, nb_cours: data.cours.length, nb_cours_manques: data.coursManques.length,
       cours: data.cours, cours_manques: data.coursManques, totaux: data.totaux, detail: data.detail,
       budgets: BUDGETS, objectifs: OBJECTIFS, revenus_supp: data.revenus,
+      vtc_suspendu: !!(data.vtc && data.vtc.suspendu), vtc_suspendu_depuis: VTC_SUSPENDU_DEPUIS,
       chomage: data.chomage, apport_affaires: data.apport, revenus_autres: data.revenusSupp,
       prelevements_a_venir: aVenir, total_prelevements_restants: totalRestant,
       prelevements_tous: PRELEVEMENTS_DATES.map(p => ({ ...p, actif_ce_mois: prelevementActifCeMois(p, moisCle(moisOffset)) })), mois_offset: moisOffset, mois_disponibles: moisDisponibles,
@@ -2957,6 +3027,7 @@ app.delete('/api/epargne/mouvement/:id', async (req, res) => {
   try {
     const { id } = req.params;
     if (!id) return res.json({ ok: false, error: 'ID manquant' });
+    if (await refuserSiMoisFige(res, 'epargne_mouvements', id, 'created_at')) return;
     const { error } = await supabase.from('epargne_mouvements').delete().eq('id', id);
     if (error) return res.json({ ok: false, error: error.message });
     res.json({ ok: true });
@@ -2967,6 +3038,14 @@ app.post('/api/config', async (req, res) => {
   try {
     const { cle, valeur } = req.body;
     if (!cle || valeur === undefined) return res.json({ ok: false, error: 'Parametres manquants' });
+    if (cle === 'vtc_suspendu_depuis') {
+      // AAAAMM (ex: 202610) ; 0 = VTC de nouveau actif
+      const n = parseInt(valeur, 10);
+      if (isNaN(n) || (n !== 0 && !cleValide(numVersCle(n) || ''))) return res.json({ ok: false, error: 'Mois invalide (AAAAMM, ou 0 pour reprendre)' });
+      VTC_SUSPENDU_DEPUIS = numVersCle(n);
+      await sauvegarderConfig(cle, n);
+      return res.json({ ok: true });
+    }
     const v = parseFloat(valeur);
     if (isNaN(v) || v <= 0) return res.json({ ok: false, error: 'Valeur invalide' });
     if (cle === 'salaire_lgm')        SALAIRE_LGM_DEFAULT = v;
@@ -3376,6 +3455,7 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, async () => {
   console.log(`L'Agent ecoute sur le port ${PORT}`);
   await chargerConfig();
+  figerMoisPasses().catch(e => console.error('figerMoisPasses', e.message));
   await chargerElevesCustom();
   demarrerScheduler();
 });
