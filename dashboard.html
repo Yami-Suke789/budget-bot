@@ -396,7 +396,64 @@ input[type=range].lgm-range::-moz-range-thumb{width:16px;height:16px;border:none
 .smw .base li{display:flex;justify-content:space-between;gap:10px;padding:2px 0}
 .smw .base h3{font-size:12px;color:var(--s-mute);margin:10px 0 0;font-weight:600}
 .smw .disc{font-size:12px;color:var(--s-mute)}
-@media (max-width:980px){.smw .main{grid-template-columns:minmax(0,1fr)}.smw .main>.col:nth-child(2){order:-1}}
+@media (max-width:980px){.smw .main{grid-template-columns:minmax(0,1fr)}}
+
+/* ===== Simulateur : habillage aligné sur l'app ===== */
+.smw .top{align-items:flex-end;gap:12px}
+.smw h1{font-size:1.15rem;font-weight:700;letter-spacing:-.01em}
+.smw .sub{font-size:.7rem;color:var(--s-ink2);max-width:34ch}
+.smw .reg{display:flex;gap:8px}
+.smw .reg input{width:104px}
+.smw .panel{background:linear-gradient(165deg,rgba(26,37,53,.7),rgba(10,18,32,.9));border:1px solid rgba(255,255,255,.07);border-radius:16px;padding:16px}
+.smw h2{font-size:.8rem;font-weight:600;letter-spacing:0;text-transform:none;color:var(--text);margin:0 0 12px}
+.smw input,.smw select{background:rgba(3,6,26,.55);border:1px solid rgba(255,255,255,.09);border-radius:10px;padding:8px 10px;color:var(--text)}
+.smw input:focus,.smw select:focus{outline:none;border-color:var(--orange)}
+.smw input[type=checkbox]{accent-color:var(--orange);width:18px;height:18px;padding:0}
+.smw label.f{font-size:.66rem;color:var(--s-ink2);gap:4px}
+.smw .kpis{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.smw .kpi{background:linear-gradient(165deg,rgba(26,37,53,.7),rgba(10,18,32,.9));border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:12px}
+.smw .kpi .l{font-size:.64rem;color:var(--s-ink2)}
+.smw .kpi .v{font-size:1rem;margin-top:4px}
+.smw .kpi .n{font-size:.62rem;margin-top:5px;display:flex;justify-content:space-between;gap:6px;color:var(--s-mute)}
+.smw .kpi .n b{font-weight:500;font-family:var(--mono)}
+.smw .kpi.hero{grid-column:1/-1;padding:16px}
+.smw .kpi.hero .l{font-size:.72rem}
+.smw .kpi.hero .v{font-size:2.1rem;font-weight:600;letter-spacing:-.02em;margin-top:2px}
+.smw .kpi.hero.ok .v{color:var(--green)}
+.smw .kpi.hero.ko .v{color:var(--text)}
+.smw .kpi.hero .n{font-size:.7rem}
+.smw .gauge{height:6px;border-radius:99px;background:rgba(255,255,255,.08);margin:10px 0 4px;overflow:hidden}
+.smw .gauge i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--orange),var(--amber));transition:width .5s ease}
+.smw .kpi.hero.ok .gauge i{background:linear-gradient(90deg,#22c55e,var(--green))}
+.smw .seg{display:flex;gap:3px;background:rgba(255,255,255,.05);padding:3px;border-radius:12px}
+.smw .seg button{flex:1;border:0;background:transparent;color:var(--s-ink2);padding:8px 6px;border-radius:9px;font-size:.72rem;font-weight:600;font-family:'Sora',sans-serif}
+.smw .seg button.on{background:linear-gradient(135deg,var(--orange),#ff8a3d);color:#fff}
+.smw button.add{background:linear-gradient(135deg,var(--orange),var(--amber));color:#1a0f05;border:0;border-radius:11px;padding:11px;width:100%;font-weight:700;font-family:'Sora',sans-serif}
+.smw button.sm-del{border-color:rgba(248,113,113,.35);background:transparent;border-radius:8px}
+.smw .mv{padding:12px 0}
+.smw .mv .t{font-size:.8rem}
+.smw .legend{font-size:.68rem}
+.smw th{font-weight:500;color:var(--s-mute);font-size:.68rem}
+.smw td{font-size:.76rem}
+.smw details summary{font-size:.78rem;color:var(--text)}
+@media (max-width:980px){
+  .smw .main{display:flex;flex-direction:column;align-items:stretch;gap:14px}
+  .smw .main>.col>*,.smw .main .panel{min-width:0;max-width:100%;box-sizing:border-box;width:100%}
+  .smw .panel{overflow-x:auto}
+  .smw .panel.pn1{overflow:hidden}
+  .smw .col{display:contents}
+  .smw .pn1{order:1}.smw .pn2{order:2}.smw .pn3{order:3}.smw .pn4{order:4}.smw .pn5{order:5}.smw .pn6{order:6}.smw .pn7{order:7}
+}
+@media (min-width:981px){.smw .kpis{grid-template-columns:2fr 1fr 1fr 1fr}.smw .kpi.hero{grid-column:auto}}
+/* ===== Aperçu : indicateurs patrimoine et projections ===== */
+.pj-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:.55rem}
+.pj-tile{background:linear-gradient(165deg,rgba(26,37,53,.7),rgba(10,18,32,.9));border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:12px 13px;cursor:pointer;min-width:0}
+.pj-tile .pj-l{font-size:.62rem;color:#a3afbd}
+.pj-tile .pj-v{font-family:var(--mono);font-size:1.15rem;font-weight:500;margin-top:3px;white-space:nowrap}
+.pj-tile .pj-s{font-size:.58rem;color:var(--muted);margin-top:4px;display:flex;justify-content:space-between;gap:6px}
+.pj-tile.pj-hero{border-color:rgba(242,100,25,.28)}
+.pj-tile.pj-ok .pj-v{color:var(--green)}
+.pj-link{font-size:.6rem;color:var(--muted);text-align:right;margin:-.2rem 0 .5rem}
 </style>
 </head>
 <body>
@@ -532,7 +589,16 @@ input[type=range].lgm-range::-moz-range-thumb{width:16px;height:16px;border:none
 <!-- APERCU -->
 <div class="section active" id="tab-apercu">
 
-  <div class="section-title" style="padding-top:0">📅 Ce mois</div>
+  <div class="section-title" style="padding-top:0">🧭 Patrimoine &amp; projections</div>
+  <div class="pj-grid" id="pj-grid" onclick="setTab('simul')">
+    <div class="pj-tile pj-hero"><div class="pj-l">Épargne actuelle</div><div class="pj-v" id="pj-ep">–</div><div class="pj-s"><span id="pj-ep-s">patrimoine du bot</span></div></div>
+    <div class="pj-tile" id="pj-t-nov"><div class="pj-l">Fin novembre</div><div class="pj-v" id="pj-nov">–</div><div class="pj-s"><span>projection</span></div></div>
+    <div class="pj-tile" id="pj-t-feb"><div class="pj-l">Fin février</div><div class="pj-v" id="pj-feb">–</div><div class="pj-s"><span>projection</span></div></div>
+    <div class="pj-tile" id="pj-t-mars"><div class="pj-l">Fin mars</div><div class="pj-v" id="pj-mars">–</div><div class="pj-s"><span id="pj-mars-s">objectif</span></div></div>
+  </div>
+  <div class="pj-link">Projections du simulateur · touche pour l'ouvrir</div>
+
+  <div class="section-title">📅 Ce mois</div>
   <div class="grid">
     <div class="charge-card">
       <div class="card-label" style="margin-bottom:.6rem">⚡ Charge totale du mois</div>
@@ -840,12 +906,12 @@ input[type=range].lgm-range::-moz-range-thumb{width:16px;height:16px;border:none
 <div class="smw"><div class="wrap">
   <div class="top">
     <div>
-      <h1>Simulateur de trésorerie</h1>
-      <p class="sub">Données de base fixées au 18/10/2026. Ajoute une entrée, un paiement ou des élèves : la courbe se met à jour.</p>
+      <h1>Simulateur</h1>
+      <p class="sub">Base au 18/10/2026. Ajoute une entrée, un paiement ou des élèves et la courbe suit.</p>
     </div>
     <div class="reg">
-      <label class="f">Chômage par mois (€)<input id="sm-regChomage" type="number" step="50" style="width:130px"></label>
-      <label class="f">Objectif fin mars (€)<input id="sm-regTarget" type="number" step="500" style="width:130px"></label>
+      <label class="f">Chômage / mois (€)<input id="sm-regChomage" type="number" step="50"></label>
+      <label class="f">Objectif fin mars (€)<input id="sm-regTarget" type="number" step="500"></label>
     </div>
   </div>
 
@@ -853,12 +919,12 @@ input[type=range].lgm-range::-moz-range-thumb{width:16px;height:16px;border:none
 
   <div class="main">
     <div class="col">
-      <div class="panel">
+      <div class="panel pn1">
         <h2>Évolution du solde</h2>
         <div class="legend" id="sm-legend"></div>
         <div class="chartbox" id="sm-chartbox"><svg id="sm-chart" role="img" aria-label="Évolution du solde du compte entre octobre 2026 et mars 2027"></svg><div id="sm-tip"></div></div>
       </div>
-      <div class="panel">
+      <div class="panel pn4">
         <h2>Simulation par élève</h2>
         <div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(120px,1fr))">
           <label class="f">Tarif de l'heure (€)<input id="sm-sTarif" type="number" value="40" step="1"></label>
@@ -870,23 +936,29 @@ input[type=range].lgm-range::-moz-range-thumb{width:16px;height:16px;border:none
         <div id="sm-stuOut" style="margin-top:12px"></div>
         <p class="hint">Chaque ligne s'ajoute à la base et à tes ajouts. 4,33 semaines payées par mois suppose que toutes les semaines sont payées : mets 3,5 environ pour tenir compte des vacances scolaires.</p>
       </div>
-      <div class="panel">
+      <div class="panel pn5">
         <h2>Mois par mois</h2>
         <div class="tw"><table id="sm-tbl"></table></div>
       </div>
-      <p class="disc">Simulation à partir de tes hypothèses, pas un conseil financier personnalisé.</p>
+      <p class="disc pn7">Simulation à partir de tes hypothèses, pas un conseil financier personnalisé.</p>
     </div>
 
     <div class="col">
-      <div class="panel">
+      <div class="panel pn2">
         <h2>Ajouter à la simulation</h2>
         <form id="sm-form" class="grid2">
-          <label class="f span2">Type
-            <select id="sm-mvKind">
+          <div class="span2">
+            <div class="seg" id="sm-seg" role="group" aria-label="Type d'ajout">
+              <button type="button" data-k="in" class="on">Entrée d'argent</button>
+              <button type="button" data-k="out">Paiement</button>
+              <button type="button" data-k="eleves">Élèves</button>
+            </div>
+            <select id="sm-mvKind" hidden>
               <option value="in">Entrée d'argent</option>
               <option value="out">Paiement obligatoire</option>
               <option value="eleves">Nouveaux élèves</option>
-            </select></label>
+            </select>
+          </div>
           <label class="f span2" id="sm-rowLabel"><span id="sm-lblText">Libellé</span><input id="sm-mvLabel" type="text" placeholder="Ex. remboursement, facture, mariage…"></label>
           <label class="f" id="sm-rowAmount">Montant (€)<input id="sm-mvAmount" type="number" step="10" min="0" inputmode="decimal"></label>
           <label class="f" id="sm-rowN" hidden>Nombre d'élèves<input id="sm-mvN" type="number" step="1" min="1" value="5"></label>
@@ -901,18 +973,18 @@ input[type=range].lgm-range::-moz-range-thumb{width:16px;height:16px;border:none
             <label class="f">URSSAF (%)<input id="sm-mvUrssaf" type="number" value="25" step="0.5"></label>
           </div>
           <div class="span2" id="sm-preview" style="font-size:12px;color:var(--s-ink2)"></div>
-          <div class="span2"><button class="add" type="submit">Ajouter</button></div>
+          <div class="span2"><button class="add" type="submit">Ajouter à la simulation</button></div>
         </form>
         <p class="err" id="sm-err" hidden></p>
       </div>
 
-      <div class="panel">
+      <div class="panel pn3">
         <h2>Mes ajouts</h2>
         <div id="sm-mvList"></div>
         <p class="hint" id="sm-dbnote"></p>
       </div>
 
-      <div class="panel base">
+      <div class="panel base pn6">
         <details>
           <summary>Base fixée (non modifiable ici)</summary>
           <div id="sm-baseBox"></div>
@@ -1812,6 +1884,17 @@ function renderTuro(d){
 
 
 // ── SIMULATEUR DE TRESORERIE ──
+window.pjUpdate=function(o){
+  const q=window.__pj||o; const g=id=>document.getElementById(id);
+  if(window.__pjEp!=null)g('pj-ep').textContent=fmt(window.__pjEp);
+  if(!q)return;
+  const eur=v=>Math.round(v).toLocaleString('fr-FR').replace(/\u202f|\u00a0/g,' ')+' €';
+  g('pj-nov').textContent=eur(q.nov); g('pj-feb').textContent=eur(q.feb); g('pj-mars').textContent=eur(q.mars);
+  const ok=q.mars>=q.target;
+  g('pj-t-mars').classList.toggle('pj-ok',ok);
+  g('pj-mars-s').textContent=(ok?'+':'−')+eur(Math.abs(q.mars-q.target)).replace(/ /g,' ')+' vs objectif';
+  g('pj-feb').style.color=q.feb<0?'var(--red)':''; g('pj-nov').style.color=q.nov<0?'var(--red)':'';
+};
 const SM=(function(){
 
 const START='2026-10-18', END='2027-03-31', NOV='2026-11-30', FEB='2027-02-28';
@@ -1890,13 +1973,19 @@ function render(){
   cur=sim(); base=sim({noMv:true});
   const active=MV.filter(m=>m.on).length;
   const f=d=>cur.at(d), bf=d=>base.at(d);
-  const delta=d=>active?`<div class="n">${f(d)-bf(d)>=0?'+':'−'}${eur(Math.abs(f(d)-bf(d)))} avec tes ajouts</div>`:'';
+  const delta=d=>active?`<div class="n"><b class="${f(d)-bf(d)>=0?'pos':'neg'}">${f(d)-bf(d)>=0?'+':'−'}${eur(Math.abs(f(d)-bf(d)))}</b> ajouts</div>`:'';
   const mars=f(END), ok=mars>=S.target, lo=cur.min;
+  const pct=Math.max(0,Math.min(100,S.target>0?mars/S.target*100:0));
   $('kpis').innerHTML=`
+   <div class="kpi hero ${ok?'ok':'ko'}"><div class="l">Solde fin mars</div><div class="v">${eur(mars)}</div>
+     <div class="gauge"><i style="width:${pct}%"></i></div>
+     <div class="n"><span>objectif ${eur(S.target)}</span><b class="${ok?'pos':'neg'}">${ok?'+':'−'}${eur(Math.abs(mars-S.target))}</b></div>
+     <div class="n"><span>point bas</span><b class="${lo.bal<0?'neg':''}">${eur(lo.bal)} · ${fmtD(lo.date)}</b></div></div>
    <div class="kpi"><div class="l">Fin novembre</div><div class="v">${eur(f(NOV))}</div>${delta(NOV)}</div>
    <div class="kpi"><div class="l">Fin février</div><div class="v">${eur(f(FEB))}</div>${delta(FEB)}</div>
-   <div class="kpi"><div class="l">Fin mars</div><div class="v ${ok?'pos':'neg'}">${eur(mars)}</div><div class="n">objectif ${eur(S.target)} · ${ok?'+':'−'}${eur(Math.abs(mars-S.target))}</div></div>
-   <div class="kpi"><div class="l">Point bas</div><div class="v ${lo.bal<0?'neg':''}">${eur(lo.bal)}</div><div class="n">le ${fmtD(lo.date)}</div></div>`;
+   <div class="kpi"><div class="l">Fin décembre</div><div class="v">${eur(f('2026-12-31'))}</div>${delta('2026-12-31')}</div>`;
+  window.__pj={nov:f(NOV),feb:f(FEB),mars:mars,target:S.target,active:active};
+  if(window.pjUpdate)window.pjUpdate({nov:f(NOV),feb:f(FEB),mars:mars,target:S.target,active:active});
   $('legend').innerHTML=`<span><i style="border-color:var(--s-accent)"></i>${active?'Avec tes ajouts':'Base'}</span>`+(active?`<span><i style="border-color:var(--s-mute);border-top-style:dashed"></i>Base seule</span>`:'')+`<span><i style="border-color:var(--s-amber);border-top-style:dotted"></i>Objectif ${eur(S.target)}</span>`;
   renderList(); renderTable(); renderStu(); drawChart();
 }
@@ -1940,16 +2029,21 @@ function drawChart(){
   const y0=Math.floor(lo/step)*step, y1=Math.ceil(hi/step)*step;
   const x=ms=>m.l+(ms-T(START))/(T(END)-T(START))*(W-m.l-m.r);
   const y=v=>m.t+(1-(v-y0)/(y1-y0))*(H-m.t-m.b);
-  let s='';
+  let s='<defs><linearGradient id="sm-grad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--s-accent);stop-opacity:.34"/><stop offset="1" style="stop-color:var(--s-accent);stop-opacity:0"/></linearGradient></defs>';
   for(let v=y0;v<=y1+1e-6;v+=step)s+=`<line x1="${m.l}" x2="${W-m.r}" y1="${y(v)}" y2="${y(v)}" stroke="var(--s-grid)"/><text x="${m.l-6}" y="${y(v)+4}" text-anchor="end">${new Intl.NumberFormat('fr-FR').format(v).replace(/ | /g,' ')}</text>`;
   if(0>=y0&&0<=y1)s+=`<line x1="${m.l}" x2="${W-m.r}" y1="${y(0)}" y2="${y(0)}" stroke="var(--s-bad)" stroke-width="1.2" opacity=".7"/>`;
   for(let yy=2026,mo=11;;){const d=yy+'-'+String(mo).padStart(2,'0')+'-01'; if(d>END)break; const xx=x(T(d)); s+=`<line x1="${xx}" x2="${xx}" y1="${m.t}" y2="${H-m.b}" stroke="var(--s-grid)"/><text x="${xx+3}" y="${H-8}">${MOIS[mo-1]}</text>`; mo++; if(mo>12){mo=1;yy++}}
   s+=`<line x1="${m.l}" x2="${W-m.r}" y1="${y(S.target)}" y2="${y(S.target)}" stroke="var(--s-amber)" stroke-width="1.6" stroke-dasharray="2 4"/>`;
   const path=ser=>ser.days.map((d,i)=>(i?'L':'M')+x(T(d.date)).toFixed(1)+' '+y(d.bal).toFixed(1)).join('');
   if(MV.some(q=>q.on))s+=`<path d="${path(base)}" fill="none" stroke="var(--s-mute)" stroke-width="1.8" stroke-dasharray="6 4" stroke-linejoin="round"/>`;
-  s+=`<path d="${path(cur)} L${x(T(END))} ${y(y0)} L${x(T(START))} ${y(y0)}Z" fill="var(--s-accent)" opacity=".08"/>`;
+  s+=`<path d="${path(cur)} L${x(T(END))} ${y(y0)} L${x(T(START))} ${y(y0)}Z" fill="url(#sm-grad)"/>`;
   s+=`<path d="${path(cur)}" fill="none" stroke="var(--s-accent)" stroke-width="2.5" stroke-linejoin="round"/>`;
   cur.days.forEach(d=>{if(d.mv)s+=`<circle cx="${x(T(d.date))}" cy="${y(d.bal)}" r="3.5" fill="var(--s-amber)" stroke="var(--s-panel)" stroke-width="2"/>`});
+  [[NOV,'fin nov.'],[FEB,'fin fév.']].forEach(([dt,lb])=>{
+    const mx=x(T(dt)), my=y(cur.at(dt));
+    s+=`<line x1="${mx}" x2="${mx}" y1="${my}" y2="${H-m.b}" stroke="var(--s-line)" stroke-dasharray="3 3"/><circle cx="${mx}" cy="${my}" r="4" fill="var(--s-panel)" stroke="var(--s-accent)" stroke-width="2"/><text x="${Math.min(mx,W-m.r-40)}" y="${my-10}" text-anchor="middle" style="fill:var(--s-ink);paint-order:stroke;stroke:#0b1522;stroke-width:4px;font-weight:500">${lb} ${eur(cur.at(dt))}</text>`;
+  });
+  s+=`<text x="${m.l+6}" y="${y(S.target)-6}" style="fill:var(--s-amber)">objectif ${eur(S.target)}</text>`;
   const l2=cur.min; s+=`<circle cx="${x(T(l2.date))}" cy="${y(l2.bal)}" r="5" fill="${l2.bal<0?'var(--s-bad)':'var(--s-accent)'}" stroke="var(--s-panel)" stroke-width="2"/>`;
   const ex=x(T(END)), ey=y(cur.at(END)), good=cur.at(END)>=S.target;
   s+=`<text x="${ex-8}" y="${ey-10}" text-anchor="end" style="fill:${good?'var(--s-good)':'var(--s-bad)'};font-weight:500">${eur(cur.at(END))}</text><circle cx="${ex}" cy="${ey}" r="4" fill="${good?'var(--s-good)':'var(--s-bad)'}" stroke="var(--s-panel)" stroke-width="2"/>`;
@@ -2003,6 +2097,12 @@ function formState(){
   }else p.textContent='';
 }
 ['mvKind','mvRep','mvN','mvTarif','mvH','mvSem','mvUrssaf'].forEach(id=>$(id).addEventListener('input',formState));
+$('seg').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-k]'); if(!b)return;
+  $('mvKind').value=b.dataset.k;
+  $('seg').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
+  formState();
+});
 $('form').addEventListener('submit',e=>{
   e.preventDefault();
   const kind=$('mvKind').value, date=$('mvDate').value, rep=$('mvRep').value, until=rep==='monthly'?$('mvUntil').value:'';
@@ -2505,6 +2605,7 @@ async function charger(){
     document.getElementById('a-inv-s').textContent = investi>0 ? `${investi.toFixed(0)}€ investi · ${pv>=0?'+':''}${pv.toFixed(0)}€` : 'Aucun investissement';
     const patrimoineActuel = (d.epargne_base||0) + investiActuel;
     document.getElementById('a-patrimoine').textContent=fmt(patrimoineActuel);
+    window.__pjEp=patrimoineActuel; if(window.pjUpdate)window.pjUpdate();
     const evolution = d.patrimoine_evolution_mois||0;
     document.getElementById('a-patrimoine-s').textContent = `Projeté fin de mois : ${fmt(d.patrimoine_total||0)} · ${evolution>=0?'+':''}${Math.round(evolution).toLocaleString('fr-FR')} € ce mois`;
     document.getElementById('a-rv').textContent=fmt(d.total_revenus);
