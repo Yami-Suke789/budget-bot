@@ -3061,6 +3061,82 @@ app.post('/api/config', async (req, res) => {
   } catch (err) { res.json({ ok: false, error: err.message }); }
 });
 
+// ── SIMULATEUR DE TRESORERIE (onglet Simulation du dashboard) ──
+// Table `simulation` : type 'ajout' (entree, paiement ou eleves) ou 'reglages' (chomage, objectif).
+function nettoyerAjoutSim(b) {
+  const kind = ['in', 'out', 'eleves'].includes(b.kind) ? b.kind : null;
+  if (!kind) return { error: 'Type invalide' };
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(b.date || '') ? b.date : null;
+  if (!date) return { error: 'Date invalide' };
+  const rep = b.rep === 'monthly' ? 'monthly' : 'once';
+  const until = /^\d{4}-\d{2}$/.test(b.until || '') ? b.until : '';
+  const a = { kind, date, rep, until, label: String(b.label || '').slice(0, 120), on: b.on !== false };
+  if (kind === 'eleves') {
+    ['n', 'tarif', 'heures', 'sem', 'urssaf'].forEach(k => { a[k] = Number(b[k]); });
+    if (!(a.n > 0) || !(a.tarif > 0) || !(a.heures > 0) || !(a.sem > 0) || !(a.urssaf >= 0)) return { error: 'Parametres eleves invalides' };
+  } else {
+    a.amount = Number(b.amount);
+    if (!(a.amount > 0)) return { error: 'Montant invalide' };
+    if (!a.label) return { error: 'Libelle manquant' };
+  }
+  return { ajout: a };
+}
+
+app.get('/api/sim', async (req, res) => {
+  try {
+    const { data, error } = await supabase.from('simulation').select('id, type, data').order('id', { ascending: true });
+    if (error) return res.json({ ok: false, error: error.message });
+    const ajouts = (data || []).filter(r => r.type === 'ajout').map(r => ({ id: r.id, ...r.data }));
+    const reg = (data || []).filter(r => r.type === 'reglages').pop();
+    res.json({ ok: true, ajouts, reglages: reg ? reg.data : null });
+  } catch (err) { res.json({ ok: false, error: err.message }); }
+});
+
+app.post('/api/sim/ajout', async (req, res) => {
+  try {
+    const r = nettoyerAjoutSim(req.body || {});
+    if (r.error) return res.json({ ok: false, error: r.error });
+    const { data, error } = await supabase.from('simulation').insert({ type: 'ajout', data: r.ajout }).select('id').single();
+    if (error) return res.json({ ok: false, error: error.message });
+    res.json({ ok: true, id: data.id });
+  } catch (err) { res.json({ ok: false, error: err.message }); }
+});
+
+app.patch('/api/sim/ajout/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { data: row, error: e1 } = await supabase.from('simulation').select('data').eq('id', id).eq('type', 'ajout').single();
+    if (e1 || !row) return res.json({ ok: false, error: 'Ajout introuvable' });
+    const r = nettoyerAjoutSim({ ...row.data, ...req.body });
+    if (r.error) return res.json({ ok: false, error: r.error });
+    const { error } = await supabase.from('simulation').update({ data: r.ajout }).eq('id', id);
+    if (error) return res.json({ ok: false, error: error.message });
+    res.json({ ok: true });
+  } catch (err) { res.json({ ok: false, error: err.message }); }
+});
+
+app.delete('/api/sim/ajout/:id', async (req, res) => {
+  try {
+    const { error } = await supabase.from('simulation').delete().eq('id', req.params.id).eq('type', 'ajout');
+    if (error) return res.json({ ok: false, error: error.message });
+    res.json({ ok: true });
+  } catch (err) { res.json({ ok: false, error: err.message }); }
+});
+
+app.post('/api/sim/reglages', async (req, res) => {
+  try {
+    const chomage = Number(req.body && req.body.chomage), objectif = Number(req.body && req.body.objectif);
+    if (!(chomage >= 0) || !(objectif >= 0)) return res.json({ ok: false, error: 'Valeurs invalides' });
+    const { data: ex } = await supabase.from('simulation').select('id').eq('type', 'reglages').limit(1);
+    const payload = { chomage, objectif };
+    const { error } = ex && ex.length
+      ? await supabase.from('simulation').update({ data: payload }).eq('id', ex[0].id)
+      : await supabase.from('simulation').insert({ type: 'reglages', data: payload });
+    if (error) return res.json({ ok: false, error: error.message });
+    res.json({ ok: true });
+  } catch (err) { res.json({ ok: false, error: err.message }); }
+});
+
 app.post('/api/budget', async (req, res) => {
   try {
     const { categorie, max } = req.body;

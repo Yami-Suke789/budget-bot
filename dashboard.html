@@ -341,6 +341,62 @@ input[type=range].lgm-range::-moz-range-thumb{width:16px;height:16px;border:none
 .turo-dep-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:.73rem}
 .turo-dep-row:last-child{border-bottom:none}
 .turo-dep-tag{font-size:.55rem;text-transform:uppercase;font-weight:700;padding:2px 7px;border-radius:5px;display:inline-block;background:rgba(255,255,255,0.08);color:var(--muted)}
+.smw{--s-bg:rgba(255,255,255,0.05);--s-panel:rgba(10,18,32,0.88);--s-line:rgba(255,255,255,0.09);--s-ink:var(--text);--s-ink2:#a3afbd;--s-mute:#6b7a8c;--s-accent:var(--blue);--s-amber:var(--amber);--s-good:var(--green);--s-bad:var(--red);--s-grid:rgba(255,255,255,0.06);font-family:'Sora',sans-serif;font-size:13px;line-height:1.45;color:var(--text)}
+.smw *{box-sizing:border-box}
+.smw .wrap{padding-bottom:1rem}
+.smw [hidden]{display:none!important}
+.smw .wrap{max-width:1200px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+.smw h1{font-size:17px;font-weight:600;margin:0}
+.smw h2{font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--s-ink2);margin:0 0 10px}
+.smw .sub{color:var(--s-ink2);margin:2px 0 0}
+.smw .num,.smw td,.smw .v{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.smw .top{display:flex;gap:16px;align-items:flex-end;justify-content:space-between;flex-wrap:wrap}
+.smw .reg{display:flex;gap:10px;flex-wrap:wrap}
+.smw .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+.smw .kpi{background:var(--s-panel);border:1px solid var(--s-line);border-radius:6px;padding:12px 14px;min-width:0}
+.smw .kpi .l{font-size:12px;color:var(--s-ink2)}
+.smw .kpi .v{font-size:24px;font-weight:500;margin-top:2px;white-space:nowrap}
+.smw .kpi .n{font-size:12px;color:var(--s-mute);margin-top:2px}
+.smw .pos{color:var(--s-good)}
+.smw .neg{color:var(--s-bad)}
+.smw .main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,400px);gap:16px;align-items:start}
+.smw .col{display:flex;flex-direction:column;gap:16px;min-width:0}
+.smw .panel{background:var(--s-panel);border:1px solid var(--s-line);border-radius:6px;padding:14px;min-width:0}
+.smw .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.smw label.f{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--s-ink2);min-width:0}
+.smw .span2{grid-column:1/-1}
+.smw input,.smw select{font:inherit;font-family:var(--mono);font-size:13px;color:var(--s-ink);background:var(--s-bg);border:1px solid var(--s-line);border-radius:4px;padding:6px 7px;width:100%;min-width:0}
+.smw input[type=checkbox]{width:auto;accent-color:var(--s-accent)}
+.smw input:focus-visible,.smw select:focus-visible,.smw button:focus-visible,.smw summary:focus-visible{outline:2px solid var(--s-accent);outline-offset:1px}
+.smw button{font:inherit;font-size:13px;border:1px solid var(--s-line);background:var(--s-bg);color:var(--s-ink);border-radius:4px;padding:7px 12px;cursor:pointer}
+.smw button.add{background:var(--s-accent);border-color:var(--s-accent);color:var(--s-panel);font-weight:600}
+.smw button.sm-del{color:var(--s-bad);padding:3px 8px;font-size:12px}
+.smw .hint{font-size:12px;color:var(--s-mute);margin:8px 0 0}
+.smw .err{font-size:12px;color:var(--s-bad);margin:8px 0 0}
+.smw .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--s-ink2);margin-bottom:6px}
+.smw .legend i{display:inline-block;width:18px;height:0;border-top:2.5px solid;vertical-align:middle;margin-right:6px}
+.smw .chartbox{position:relative}
+.smw svg text{fill:var(--s-ink2);font-family:var(--mono);font-size:11px}
+.smw #sm-tip{position:absolute;pointer-events:none;background:var(--s-panel);border:1px solid var(--s-line);border-radius:5px;padding:7px 9px;font-size:12px;min-width:160px;max-width:270px;box-shadow:0 4px 14px rgba(0,0,0,.14);display:none;z-index:3}
+.smw #sm-tip .m{font-family:var(--mono)}
+.smw .tw{overflow-x:auto}
+.smw table{border-collapse:collapse;width:100%;min-width:520px}
+.smw th,.smw td{padding:7px 8px;text-align:right;border-bottom:1px solid var(--s-line);white-space:nowrap}
+.smw th:first-child,.smw td:first-child{text-align:left}
+.smw th{font-size:12px;color:var(--s-ink2);font-weight:500}
+.smw td:first-child{font-family:'Sora',sans-serif}
+.smw .mv{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 10px;padding:10px 0;border-top:1px solid var(--s-line);align-items:start}
+.smw .mv:first-of-type{border-top:0}
+.smw .mv .t{font-weight:500;overflow-wrap:anywhere}
+.smw .mv .d{font-size:12px;color:var(--s-ink2)}
+.smw .mv .a{font-family:var(--mono);text-align:right;white-space:nowrap}
+.smw .mv .imp{grid-column:2/-1;font-size:12px;color:var(--s-ink2)}
+.smw details summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--s-ink2)}
+.smw .base ul{list-style:none;margin:6px 0 10px;padding:0;font-size:13px}
+.smw .base li{display:flex;justify-content:space-between;gap:10px;padding:2px 0}
+.smw .base h3{font-size:12px;color:var(--s-mute);margin:10px 0 0;font-weight:600}
+.smw .disc{font-size:12px;color:var(--s-mute)}
+@media (max-width:980px){.smw .main{grid-template-columns:minmax(0,1fr)}.smw .main>.col:nth-child(2){order:-1}}
 </style>
 </head>
 <body>
@@ -781,68 +837,91 @@ input[type=range].lgm-range::-moz-range-thumb{width:16px;height:16px;border:none
 
 <!-- SIMULATEUR -->
 <div class="section" id="tab-simul">
-
-  <!-- Saisie épargne + bouton Simuler -->
-  <div class="simul-result">
-    <div class="simul-ep-row" style="margin-bottom:.7rem">
-      <span class="simul-ep-label">💰 Épargne actuelle</span>
-      <input type="number" class="simul-ep-input" id="simul-ep-input" placeholder="0">
-      <span style="font-size:.65rem;color:var(--muted)">€</span>
+<div class="smw"><div class="wrap">
+  <div class="top">
+    <div>
+      <h1>Simulateur de trésorerie</h1>
+      <p class="sub">Données de base fixées au 18/10/2026. Ajoute une entrée, un paiement ou des élèves : la courbe se met à jour.</p>
     </div>
-
-    <!-- Dépenses exceptionnelles inline -->
-    <div style="margin-bottom:.7rem">
-      <div style="font-size:.6rem;color:var(--muted);margin-bottom:.4rem;text-transform:uppercase;letter-spacing:.06em">➕ Dépenses exceptionnelles à prévoir</div>
-      <div style="display:flex;gap:6px;margin-bottom:.4rem">
-        <input type="text" id="simul-dep-label" placeholder="Libellé (ex: voyage, achat...)" style="flex:1;background:rgba(255,255,255,0.08);border:1px solid var(--border);color:var(--text);font-size:.72rem;padding:6px 9px;border-radius:7px;outline:none;font-family:'Sora',sans-serif" onfocus="this.style.borderColor='var(--purple)'" onblur="this.style.borderColor='var(--border)'">
-        <input type="number" id="simul-dep-montant" placeholder="0" step="1" min="0" style="width:72px;background:rgba(255,255,255,0.08);border:1px solid var(--border);color:var(--text);font-size:.78rem;padding:6px 8px;border-radius:7px;outline:none;font-family:var(--mono);text-align:right" onfocus="this.style.borderColor='var(--purple)'" onblur="this.style.borderColor='var(--border)'">
-        <button class="simul-add-btn" onclick="addDepenseLibre()">+</button>
-      </div>
-      <div id="simul-dep-list"></div>
-      <div id="simul-dep-total-row" style="display:none;font-size:.68rem;color:var(--red);font-family:var(--mono);text-align:right;margin-top:3px"></div>
-    </div>
-
-    <!-- Boutons action -->
-    <div style="display:flex;gap:8px">
-      <button onclick="recalcSimulateur()" style="flex:2;background:var(--purple);color:#fff;border:none;border-radius:9px;padding:10px;font-size:.78rem;font-weight:700;cursor:pointer;font-family:'Sora',sans-serif;transition:.15s" onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">▶ Simuler</button>
-      <button onclick="resetSimulateur()" style="flex:1;background:rgba(255,255,255,0.06);color:var(--muted);border:1px solid var(--border);border-radius:9px;padding:10px;font-size:.72rem;cursor:pointer;font-family:'Sora',sans-serif">↺ Reset</button>
+    <div class="reg">
+      <label class="f">Chômage par mois (€)<input id="sm-regChomage" type="number" step="50" style="width:130px"></label>
+      <label class="f">Objectif fin mars (€)<input id="sm-regTarget" type="number" step="500" style="width:130px"></label>
     </div>
   </div>
 
-  <!-- Résultat (caché jusqu'au premier clic) -->
-  <div id="simul-result-block" style="display:none">
+  <div class="kpis" id="sm-kpis"></div>
 
-    <div class="simul-result" style="margin-top:.55rem">
-      <div class="simul-result-label">Épargne projetée fin de mois</div>
-      <div class="simul-result-main" id="simul-epargne-val">—</div>
-      <div class="simul-gauge"><div class="simul-gauge-fill" id="simul-gauge-fill" style="width:0%"></div></div>
-      <div class="simul-gauge-labels"><span id="simul-gauge-pct">0%</span><span id="simul-obj-label">Objectif</span></div>
-      <div class="simul-result-sub" id="simul-solde-sub">—</div>
+  <div class="main">
+    <div class="col">
+      <div class="panel">
+        <h2>Évolution du solde</h2>
+        <div class="legend" id="sm-legend"></div>
+        <div class="chartbox" id="sm-chartbox"><svg id="sm-chart" role="img" aria-label="Évolution du solde du compte entre octobre 2026 et mars 2027"></svg><div id="sm-tip"></div></div>
+      </div>
+      <div class="panel">
+        <h2>Simulation par élève</h2>
+        <div class="grid2" style="grid-template-columns:repeat(auto-fit,minmax(120px,1fr))">
+          <label class="f">Tarif de l'heure (€)<input id="sm-sTarif" type="number" value="40" step="1"></label>
+          <label class="f">Heures par élève, par semaine<input id="sm-sH" type="number" value="1.5" step="0.5"></label>
+          <label class="f">Semaines payées par mois<input id="sm-sSem" type="number" value="4.33" step="0.1"></label>
+          <label class="f">URSSAF (%)<input id="sm-sUrssaf" type="number" value="25" step="0.5"></label>
+          <label class="f">Premier versement dès<input id="sm-sFrom" type="date" value="2026-10-28"></label>
+        </div>
+        <div id="sm-stuOut" style="margin-top:12px"></div>
+        <p class="hint">Chaque ligne s'ajoute à la base et à tes ajouts. 4,33 semaines payées par mois suppose que toutes les semaines sont payées : mets 3,5 environ pour tenir compte des vacances scolaires.</p>
+      </div>
+      <div class="panel">
+        <h2>Mois par mois</h2>
+        <div class="tw"><table id="sm-tbl"></table></div>
+      </div>
+      <p class="disc">Simulation à partir de tes hypothèses, pas un conseil financier personnalisé.</p>
     </div>
 
-    <!-- Détail du calcul -->
-    <div class="simul-acc" id="acc-detail">
-      <div class="simul-acc-head" onclick="toggleAcc('acc-detail')">
-        <div class="simul-acc-head-left">📋 Détail du calcul</div>
-        <div class="simul-acc-head-right"><span class="simul-acc-chev">›</span></div>
+    <div class="col">
+      <div class="panel">
+        <h2>Ajouter à la simulation</h2>
+        <form id="sm-form" class="grid2">
+          <label class="f span2">Type
+            <select id="sm-mvKind">
+              <option value="in">Entrée d'argent</option>
+              <option value="out">Paiement obligatoire</option>
+              <option value="eleves">Nouveaux élèves</option>
+            </select></label>
+          <label class="f span2" id="sm-rowLabel"><span id="sm-lblText">Libellé</span><input id="sm-mvLabel" type="text" placeholder="Ex. remboursement, facture, mariage…"></label>
+          <label class="f" id="sm-rowAmount">Montant (€)<input id="sm-mvAmount" type="number" step="10" min="0" inputmode="decimal"></label>
+          <label class="f" id="sm-rowN" hidden>Nombre d'élèves<input id="sm-mvN" type="number" step="1" min="1" value="5"></label>
+          <label class="f">Date (1er versement)<input id="sm-mvDate" type="date" value="2026-10-28"></label>
+          <label class="f">Fréquence
+            <select id="sm-mvRep"><option value="once">Une seule fois</option><option value="monthly">Chaque mois</option></select></label>
+          <label class="f" id="sm-rowUntil" hidden>Jusqu'au mois de (facultatif)<input id="sm-mvUntil" type="month"></label>
+          <div class="grid2 span2" id="sm-rowEleves" hidden>
+            <label class="f">Tarif de l'heure (€)<input id="sm-mvTarif" type="number" value="40" step="1"></label>
+            <label class="f">Heures par élève, par semaine<input id="sm-mvH" type="number" value="1.5" step="0.5"></label>
+            <label class="f">Semaines payées par mois<input id="sm-mvSem" type="number" value="4.33" step="0.1"></label>
+            <label class="f">URSSAF (%)<input id="sm-mvUrssaf" type="number" value="25" step="0.5"></label>
+          </div>
+          <div class="span2" id="sm-preview" style="font-size:12px;color:var(--s-ink2)"></div>
+          <div class="span2"><button class="add" type="submit">Ajouter</button></div>
+        </form>
+        <p class="err" id="sm-err" hidden></p>
       </div>
-      <div class="simul-acc-body">
-        <div id="simul-detail-list" style="padding-top:.4rem"></div>
+
+      <div class="panel">
+        <h2>Mes ajouts</h2>
+        <div id="sm-mvList"></div>
+        <p class="hint" id="sm-dbnote"></p>
+      </div>
+
+      <div class="panel base">
+        <details>
+          <summary>Base fixée (non modifiable ici)</summary>
+          <div id="sm-baseBox"></div>
+        </details>
       </div>
     </div>
-
-    <!-- Objectifs -->
-    <div class="simul-acc" id="acc-obj">
-      <div class="simul-acc-head" onclick="toggleAcc('acc-obj')">
-        <div class="simul-acc-head-left">🎯 Objectifs d'épargne</div>
-        <div class="simul-acc-head-right"><span class="simul-acc-chev">›</span></div>
-      </div>
-      <div class="simul-acc-body">
-        <div id="simul-obj-list" style="padding-top:.5rem">—</div>
-      </div>
-    </div>
-
   </div>
+</div>
+</div>
 </div>
 
 <!-- CONFIG -->
@@ -974,7 +1053,7 @@ function setTab(t){
   document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',tabs[i]===t));
   document.querySelectorAll('.section').forEach(el=>el.classList.remove('active'));
   document.getElementById('tab-'+t).classList.add('active');
-  if(t==='simul' && simulData) { /* pas de recalc auto — bouton Simuler */ }
+  if(t==='simul') SM.show();
   if(t==='vtc' && !historiqueSemainesChargees) chargerHistoriqueSemainesVtc();
 }
 
@@ -1732,145 +1811,259 @@ function renderTuro(d){
 }
 
 
-// ── SIMULATEUR ──
-function initSimulateur(d){
-  simulData = d;
-  const epInput = document.getElementById('simul-ep-input');
-  if(epInput && !epInput._initialized){
-    epInput.value = Math.round(d.epargne_base||0);
-    epInput._initialized = true;
+// ── SIMULATEUR DE TRESORERIE ──
+const SM=(function(){
+
+const START='2026-10-18', END='2027-03-31', NOV='2026-11-30', FEB='2027-02-28';
+const MS=86400000;
+const T=s=>Date.parse(s+'T00:00:00Z');
+const ISO=ms=>new Date(ms).toISOString().slice(0,10);
+const DIM=(y,m)=>new Date(Date.UTC(y,m,0)).getUTCDate();
+const eur=(n,d=0)=>new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',minimumFractionDigits:d,maximumFractionDigits:d}).format(n).replace(/ | /g,' ');
+const fmtD=s=>new Date(T(s)).toLocaleDateString('fr-FR',{day:'numeric',month:'short',timeZone:'UTC'});
+const fmtFull=s=>s.split('-').reverse().join('/');
+const MOIS=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+
+/* ---------- Données de base fixées ---------- */
+const CASH=1400;
+const BASE_IN=[['Solde de tout compte','2026-10-19',7676],['ETF','2026-10-19',650],['Caution Clicar','2026-10-31',1000],['Remboursement impôts','2026-10-31',140],['Beau-frère rembourse','2026-11-15',1600],['Récupération de mars','2027-03-15',10500]];
+const BASE_OUT=[['Tontine 2 d\'octobre','2026-10-20',500],['Amende','2026-10-31',300],['Imprévus de novembre (mariage…)','2026-11-20',300]];
+const BASE_MONTHLY=[['Charges du mois (loyer, abonnements…)',1333.31,7,'2026-11',''],['Reste d\'octobre (Canal+, Claude, box)',58.60,27,'2026-10','2026-10'],['Tontine 1',500,1,'2026-11','2027-02'],['Tontine 2',500,15,'2026-11',''],['Impôts',523,25,'2026-10','2027-02']];
+const COURSES=498; // moyenne mai à septembre, répartie par jour
+const CH_START='2026-11-25', CH_DAYS=5, CH_LAST='2027-03';
+
+const S={chomage:1800,target:20000};
+let MV=[];
+
+const elevesNet=m=>m.n*m.tarif*m.heures*m.sem*(1-m.urssaf/100);
+const mvAmount=m=>m.kind==='eleves'?elevesNet(m):(m.kind==='in'?1:-1)*m.amount;
+const mvLabel=m=>m.kind==='eleves'?(m.label||('Cours : '+m.n+' élèves')):m.label;
+
+function mvHits(m,d,key,dn,y,mo){
+  if(m.rep==='once')return d===m.date;
+  if(key<m.date.slice(0,7))return false;
+  if(m.until&&key>m.until)return false;
+  return dn===Math.min(+m.date.slice(8),DIM(y,mo));
+}
+
+function sim(o={}){
+  const ch={};
+  {
+    const [y,m]=CH_START.slice(0,7).split('-').map(Number);
+    for(let n=0;n<12;n++){
+      let bm=m+n, by=y+Math.floor((bm-1)/12); bm=((bm-1)%12)+1;
+      const key=by+'-'+String(bm).padStart(2,'0'); if(key>CH_LAST)break;
+      ch[key+'-25']=n===0?S.chomage*CH_DAYS/30:S.chomage;
+    }
   }
-}
-
-function addDepenseLibre(){
-  const lbl = document.getElementById('simul-dep-label').value.trim()||'Divers';
-  const mnt = parseFloat(document.getElementById('simul-dep-montant').value);
-  if(!mnt||mnt<=0){ toast('❌ Montant invalide',true); return; }
-  simulDepenses.push({label:lbl, montant:mnt});
-  document.getElementById('simul-dep-label').value='';
-  document.getElementById('simul-dep-montant').value='';
-  renderSimulateurDepenses();
-}
-
-function removeDepense(idx){
-  simulDepenses.splice(idx,1);
-  renderSimulateurDepenses();
-}
-
-function renderSimulateurDepenses(){
-  const cont = document.getElementById('simul-dep-list');
-  const totalRow = document.getElementById('simul-dep-total-row');
-  if(!simulDepenses.length){
-    cont.innerHTML='';
-    if(totalRow) totalRow.style.display='none';
-    return;
+  const once={};
+  BASE_IN.forEach(([l,d,a])=>(once[d]=once[d]||[]).push([l,a]));
+  BASE_OUT.forEach(([l,d,a])=>(once[d]=once[d]||[]).push([l,-a]));
+  let bal=CASH; const days=[{date:START,bal,inn:0,out:0,notes:[],mv:false}];
+  for(let ms=T(START)+MS;ms<=T(END);ms+=MS){
+    const d=ISO(ms), y=+d.slice(0,4), mo=+d.slice(5,7), dn=+d.slice(8), key=d.slice(0,7);
+    let inn=0,out=COURSES*12/365,mv=false; const notes=[];
+    const add=(l,a,isMv)=>{if(a>=0)inn+=a;else out-=a;notes.push([l,a,!!isMv]);if(isMv)mv=true};
+    (once[d]||[]).forEach(([l,a])=>add(l,a));
+    if(ch[d])add('France Travail',ch[d]);
+    BASE_MONTHLY.forEach(([l,a,j,deb,fin])=>{
+      if(deb&&key<deb)return; if(fin&&key>fin)return;
+      if(dn===Math.min(j,DIM(y,mo)))add(l,-a);
+    });
+    if(!o.noMv)(o.stu&&o.stu.n>0?MV.concat([o.stu]):MV).forEach(m=>{
+      if(!m.on||m.id===o.skipId)return;
+      if(mvHits(m,d,key,dn,y,mo)){const a=mvAmount(m);if(a)add(mvLabel(m),a,true)}
+    });
+    bal+=inn-out;
+    days.push({date:d,bal,inn,out,notes,mv});
   }
-  cont.innerHTML = simulDepenses.map((dep,i)=>`
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid var(--border);font-size:.72rem">
-      <span style="color:var(--text);flex:1">${dep.label}</span>
-      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
-        <span style="font-family:var(--mono);color:var(--red)">${dep.montant.toFixed(0)} €</span>
-        <button class="simul-remove-btn" onclick="removeDepense(${i})">✕</button>
-      </div>
-    </div>`).join('');
-  const total = simulDepenses.reduce((s,d)=>s+d.montant,0);
-  if(totalRow){ totalRow.style.display='block'; totalRow.textContent='Total : -'+total.toFixed(0)+' €'; }
+  return {days,at:d=>days.find(x=>x.date===d)?.bal,min:days.reduce((a,x)=>x.bal<a.bal?x:a,days[0])};
+}
+/* ---------- fin du moteur ---------- */
+
+const $=id=>document.getElementById("sm-"+id);
+let cur=null, base=null;
+
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+
+function render(){
+  cur=sim(); base=sim({noMv:true});
+  const active=MV.filter(m=>m.on).length;
+  const f=d=>cur.at(d), bf=d=>base.at(d);
+  const delta=d=>active?`<div class="n">${f(d)-bf(d)>=0?'+':'−'}${eur(Math.abs(f(d)-bf(d)))} avec tes ajouts</div>`:'';
+  const mars=f(END), ok=mars>=S.target, lo=cur.min;
+  $('kpis').innerHTML=`
+   <div class="kpi"><div class="l">Fin novembre</div><div class="v">${eur(f(NOV))}</div>${delta(NOV)}</div>
+   <div class="kpi"><div class="l">Fin février</div><div class="v">${eur(f(FEB))}</div>${delta(FEB)}</div>
+   <div class="kpi"><div class="l">Fin mars</div><div class="v ${ok?'pos':'neg'}">${eur(mars)}</div><div class="n">objectif ${eur(S.target)} · ${ok?'+':'−'}${eur(Math.abs(mars-S.target))}</div></div>
+   <div class="kpi"><div class="l">Point bas</div><div class="v ${lo.bal<0?'neg':''}">${eur(lo.bal)}</div><div class="n">le ${fmtD(lo.date)}</div></div>`;
+  $('legend').innerHTML=`<span><i style="border-color:var(--s-accent)"></i>${active?'Avec tes ajouts':'Base'}</span>`+(active?`<span><i style="border-color:var(--s-mute);border-top-style:dashed"></i>Base seule</span>`:'')+`<span><i style="border-color:var(--s-amber);border-top-style:dotted"></i>Objectif ${eur(S.target)}</span>`;
+  renderList(); renderTable(); renderStu(); drawChart();
 }
 
-function recalcSimulateur(){
-  if(!simulData){ toast('⏳ Données non chargées, réessaie',true); return; }
-  const d = simulData;
+function renderTable(){
+  const g={};
+  cur.days.slice(1).forEach(d=>{const k=d.date.slice(0,7);const m=g[k]=g[k]||{inn:0,out:0,end:0};m.inn+=d.inn;m.out+=d.out;m.end=d.bal});
+  $('tbl').innerHTML=`<thead><tr><th>Mois</th><th>Entrées</th><th>Sorties</th><th>Solde fin de mois</th></tr></thead><tbody>`+
+   Object.keys(g).map(k=>{const m=g[k],[y,mo]=k.split('-');return `<tr><td>${MOIS[+mo-1]} ${y}${k==='2026-10'?' (dès le 19)':''}</td><td>${eur(m.inn)}</td><td>${eur(-m.out)}</td><td class="${m.end<0?'neg':''}"><b>${eur(m.end)}</b></td></tr>`}).join('')+`</tbody>`;
+}
 
-  const epInput = document.getElementById('simul-ep-input');
-  const epargneBase = parseFloat(epInput?.value) || 0;
-  if(epargneBase <= 0){ toast('❌ Saisis ton épargne actuelle',true); return; }
+function renderList(){
+  if(!MV.length){$('mvList').innerHTML=`<p class="hint" style="margin:0">Aucun ajout pour l'instant : la courbe montre la base seule. Ajoute une entrée, un paiement ou des élèves avec le formulaire.</p>`;return}
+  $('mvList').innerHTML=MV.map(m=>{
+    const a=mvAmount(m);
+    const w=sim({skipId:m.id}), impact=cur.at(END)-w.at(END);
+    const freq=m.rep==='monthly'?`chaque mois dès le ${fmtFull(m.date)}${m.until?', jusqu\'à '+m.until.slice(5)+'/'+m.until.slice(0,4):''}`:`le ${fmtFull(m.date)}`;
+    const kind=m.kind==='eleves'?`${m.n} élèves · ${m.heures} h par semaine chacun · ${m.tarif} €/h · URSSAF ${m.urssaf} %`:'';
+    return `<div class="mv" data-id="${esc(m.id)}"><input type="checkbox" data-on aria-label="Inclure dans la simulation" ${m.on?'checked':''}>
+      <div><div class="t">${esc(mvLabel(m))}</div><div class="d">${freq}${kind?'<br>'+kind:''}</div></div>
+      <div class="a ${a<0?'neg':'pos'}">${a<0?'−':'+'}${eur(Math.abs(a))}${m.rep==='monthly'?' /mois':''}</div>
+      <div class="imp">${m.on?`Effet sur le solde de fin mars : <b class="num ${impact<0?'neg':'pos'}">${impact<0?'−':'+'}${eur(Math.abs(impact))}</b>`:'Désactivé'} · <button class="sm-del" data-del>Supprimer</button></div></div>`;
+  }).join('');
+}
 
-  const soldeActuel = d.solde || 0;
+function renderBase(){
+  const li=(l,a,extra='')=>`<li><span>${esc(l)}${extra}</span><span class="num">${a}</span></li>`;
+  $('baseBox').innerHTML=`<h3>Au départ (18/10)</h3><ul>${li('Sur le compte',eur(CASH))}</ul>
+   <h3>Entrées</h3><ul>${BASE_IN.map(([l,d,a])=>li(l,eur(a),` · ${fmtD(d)}`)).join('')}${li('France Travail (réglage en haut)','dès le 25/11')}</ul>
+   <h3>Sorties ponctuelles</h3><ul>${BASE_OUT.map(([l,d,a])=>li(l,'−'+eur(a),` · ${fmtD(d)}`)).join('')}</ul>
+   <h3>Sorties mensuelles</h3><ul>${BASE_MONTHLY.map(([l,a,j])=>li(l,'−'+eur(a,2),` · le ${j}`)).join('')}${li('Courses (moyenne mai à septembre)','−'+eur(COURSES))}</ul>
+   <p class="hint">France Travail : 5 jours en novembre, puis des mois complets. Assurance auto et Disney+ sont suspendus, donc exclus. Les 10 500 € de mars sont comptés dans la base.</p>`;
+}
 
-  const aujourd = new Date().getDate();
-  const prelsRestants = (d.prelevements_tous||[]).filter(p => p.jour && p.jour > aujourd && !p.suspendu && p.frequence !== 'trimestriel' && p.actif_ce_mois !== false);
-  const totalPrel = prelsRestants.reduce((s,p) => s+p.montant, 0);
+function drawChart(){
+  const box=$('chartbox'), W=Math.max(300,box.clientWidth), H=320, m={l:56,r:14,t:12,b:26};
+  const svg=$('chart'); svg.setAttribute('width',W); svg.setAttribute('height',H); svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  const all=cur.days.map(d=>d.bal).concat(base.days.map(d=>d.bal),[0,S.target]);
+  let lo=Math.min(...all), hi=Math.max(...all); const pad=(hi-lo)*0.06||100; lo-=pad; hi+=pad;
+  const raw=(hi-lo)/5, mag=Math.pow(10,Math.floor(Math.log10(raw))); const step=[1,2,5,10].map(x=>x*mag).find(s=>s>=raw);
+  const y0=Math.floor(lo/step)*step, y1=Math.ceil(hi/step)*step;
+  const x=ms=>m.l+(ms-T(START))/(T(END)-T(START))*(W-m.l-m.r);
+  const y=v=>m.t+(1-(v-y0)/(y1-y0))*(H-m.t-m.b);
+  let s='';
+  for(let v=y0;v<=y1+1e-6;v+=step)s+=`<line x1="${m.l}" x2="${W-m.r}" y1="${y(v)}" y2="${y(v)}" stroke="var(--s-grid)"/><text x="${m.l-6}" y="${y(v)+4}" text-anchor="end">${new Intl.NumberFormat('fr-FR').format(v).replace(/ | /g,' ')}</text>`;
+  if(0>=y0&&0<=y1)s+=`<line x1="${m.l}" x2="${W-m.r}" y1="${y(0)}" y2="${y(0)}" stroke="var(--s-bad)" stroke-width="1.2" opacity=".7"/>`;
+  for(let yy=2026,mo=11;;){const d=yy+'-'+String(mo).padStart(2,'0')+'-01'; if(d>END)break; const xx=x(T(d)); s+=`<line x1="${xx}" x2="${xx}" y1="${m.t}" y2="${H-m.b}" stroke="var(--s-grid)"/><text x="${xx+3}" y="${H-8}">${MOIS[mo-1]}</text>`; mo++; if(mo>12){mo=1;yy++}}
+  s+=`<line x1="${m.l}" x2="${W-m.r}" y1="${y(S.target)}" y2="${y(S.target)}" stroke="var(--s-amber)" stroke-width="1.6" stroke-dasharray="2 4"/>`;
+  const path=ser=>ser.days.map((d,i)=>(i?'L':'M')+x(T(d.date)).toFixed(1)+' '+y(d.bal).toFixed(1)).join('');
+  if(MV.some(q=>q.on))s+=`<path d="${path(base)}" fill="none" stroke="var(--s-mute)" stroke-width="1.8" stroke-dasharray="6 4" stroke-linejoin="round"/>`;
+  s+=`<path d="${path(cur)} L${x(T(END))} ${y(y0)} L${x(T(START))} ${y(y0)}Z" fill="var(--s-accent)" opacity=".08"/>`;
+  s+=`<path d="${path(cur)}" fill="none" stroke="var(--s-accent)" stroke-width="2.5" stroke-linejoin="round"/>`;
+  cur.days.forEach(d=>{if(d.mv)s+=`<circle cx="${x(T(d.date))}" cy="${y(d.bal)}" r="3.5" fill="var(--s-amber)" stroke="var(--s-panel)" stroke-width="2"/>`});
+  const l2=cur.min; s+=`<circle cx="${x(T(l2.date))}" cy="${y(l2.bal)}" r="5" fill="${l2.bal<0?'var(--s-bad)':'var(--s-accent)'}" stroke="var(--s-panel)" stroke-width="2"/>`;
+  const ex=x(T(END)), ey=y(cur.at(END)), good=cur.at(END)>=S.target;
+  s+=`<text x="${ex-8}" y="${ey-10}" text-anchor="end" style="fill:${good?'var(--s-good)':'var(--s-bad)'};font-weight:500">${eur(cur.at(END))}</text><circle cx="${ex}" cy="${ey}" r="4" fill="${good?'var(--s-good)':'var(--s-bad)'}" stroke="var(--s-panel)" stroke-width="2"/>`;
+  s+=`<line id="sm-cross" y1="${m.t}" y2="${H-m.b}" stroke="var(--s-ink2)" visibility="hidden"/><rect id="sm-hit" x="${m.l}" y="${m.t}" width="${W-m.l-m.r}" height="${H-m.t-m.b}" fill="transparent"/>`;
+  svg.innerHTML=s;
+  const hit=$('hit'), cross=$('cross'), tip=$('tip');
+  const move=ev=>{
+    const r=svg.getBoundingClientRect(), px=ev.clientX-r.left;
+    const k=Math.max(0,Math.min(cur.days.length-1,Math.round((px-m.l)/(W-m.l-m.r)*(cur.days.length-1))));
+    const d=cur.days[k], cx=x(T(d.date));
+    cross.setAttribute('x1',cx);cross.setAttribute('x2',cx);cross.setAttribute('visibility','visible');
+    const lines=d.notes.map(([l,a,isMv])=>`<div style="${isMv?'color:var(--s-amber)':''}">${esc(l)} <span class="m ${a<0?'neg':''}">${a>0?'+':'−'}${eur(Math.abs(a))}</span></div>`).join('');
+    const bs=MV.some(q=>q.on)?`<div style="color:var(--s-mute)">base seule <span class="m">${eur(base.days[k].bal)}</span></div>`:'';
+    tip.innerHTML=`<div><b>${new Date(T(d.date)).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'long',timeZone:'UTC'})}</b></div><div>Solde <span class="m"><b>${eur(d.bal)}</b></span></div>${bs}${lines}`;
+    tip.style.display='block'; const tw=tip.offsetWidth; tip.style.left=Math.min(Math.max(cx+12,0),W-tw)+'px'; tip.style.top='8px';
+  };
+  hit.addEventListener('pointermove',move);hit.addEventListener('pointerdown',move);
+  hit.addEventListener('pointerleave',()=>{tip.style.display='none';cross.setAttribute('visibility','hidden')});
+}
 
-  const budgets = d.budgets || {};
-  const totaux  = d.totaux  || {};
-  const complementCourses = Math.max(0, (budgets.courses?.max||500) - (totaux.courses||0)) * 0.8;
-  const complementEssence = Math.max(0, (budgets.essence?.max||300) - (totaux.essence||0)) * 0.8;
-  const complementRestos  = Math.max(0, (budgets.restos?.max||100) - (totaux.restos||0))  * 0.8;
+/* ---------- simulation par élève ---------- */
+const fh=x=>(Math.round(x*10)/10).toLocaleString('fr-FR')+' h';
+function stuParams(n){return {id:'sim',kind:'eleves',label:'',date:$('sFrom').value||'2026-10-28',rep:'monthly',until:'',on:true,n,tarif:+$('sTarif').value||0,heures:+$('sH').value||0,sem:+$('sSem').value||0,urssaf:+$('sUrssaf').value||0}}
+function renderStu(){
+  const one=elevesNet(stuParams(1));
+  const rows=[0,3,4,5,6,7,8,9,10].map(n=>{
+    const r=n?sim({stu:stuParams(n)}):cur, e=r.at(END), p=stuParams(n), hs=n*p.heures;
+    return `<tr><td>${n===0?'Sans élève supplémentaire':n+' élèves'}</td><td>${fh(hs)}</td><td>${fh(hs*p.sem)}</td><td>${eur(elevesNet(p))}</td><td>${eur(r.at(NOV))}</td><td class="${e>=S.target?'pos':'neg'}"><b>${eur(e)}</b></td><td>${n?`<button type="button" data-addstu="${n}">Ajouter</button>`:''}</td></tr>`;
+  }).join('');
+  $('stuOut').innerHTML=`<p style="margin:0 0 8px;color:var(--s-ink2)">Par élève : <b class="num">${fh(+$('sH').value||0)}</b> par semaine, <b class="num">${fh((+$('sH').value||0)*(+$('sSem').value||0))}</b> par mois, <b class="num">${eur(one)}</b> net par mois.</p>
+   <div class="tw"><table style="min-width:640px"><thead><tr><th>Cas</th><th>Heures/sem.</th><th>Heures/mois</th><th>Net/mois</th><th>Fin nov.</th><th>Fin mars (objectif ${eur(S.target)})</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+['sTarif','sH','sSem','sUrssaf','sFrom'].forEach(id=>$(id).addEventListener('input',renderStu));
+$('stuOut').addEventListener('click',e=>{
+  const b=e.target.closest('[data-addstu]'); if(!b)return;
+  const p=stuParams(+b.dataset.addstu); delete p.id; addMv(p);
+});
 
-  const totalCours = d.potentiel_restant || 0;
-
-  const totalExcep = simulDepenses.reduce((s,dep) => s+dep.montant, 0);
-
-  const soldeProj = totalCours - totalPrel - complementCourses - complementEssence - complementRestos - totalExcep;
-  const epargneFinale = epargneBase + soldeProj;
-
-  document.getElementById('simul-result-block').style.display = 'block';
-
-  const epEl = document.getElementById('simul-epargne-val');
-  epEl.textContent = fmt(epargneFinale);
-  const objPrincipal = (d.objectifs&&d.objectifs[0]) ? d.objectifs[0].montant : 12000;
-  const epPct   = pct(epargneFinale, objPrincipal);
-  const epColor = epargneFinale >= objPrincipal ? 'var(--green)' : epargneFinale > epargneBase ? 'var(--amber)' : 'var(--red)';
-  epEl.style.color = epColor;
-  document.getElementById('simul-gauge-fill').style.cssText = `width:${epPct}%;background:${epColor}`;
-  document.getElementById('simul-gauge-pct').textContent = epPct+'%';
-  if(d.objectifs&&d.objectifs[0]) document.getElementById('simul-obj-label').textContent = 'Obj. '+d.objectifs[0].montant.toLocaleString('fr-FR')+' €';
-  document.getElementById('simul-solde-sub').textContent = 'Solde fin de mois estimé : '+(soldeProj>=0?'+':'')+Math.round(soldeProj).toLocaleString('fr-FR')+' €';
-
-  const detailEl = document.getElementById('simul-detail-list');
-  const lignes = [
-    {label:'Solde actuel (revenus − charges − dépenses à ce jour)', val:soldeActuel, c:soldeActuel>=0?'var(--green)':'var(--red)'},
-    {label:'📚 Cours restants', val:totalCours, c:'var(--green)'},
-    {label:'📅 Prélèvements restants', val:-totalPrel, c:'var(--red)'},
-    {label:`🛒 Courses estimées (80% · ${Math.round(complementCourses)}€)`, val:-complementCourses, c:'var(--amber)'},
-    {label:`⛽ Essence estimée (80% · ${Math.round(complementEssence)}€)`, val:-complementEssence, c:'var(--amber)'},
-    {label:`🍽️ Restos estimés (80% · ${Math.round(complementRestos)}€)`, val:-complementRestos, c:'var(--amber)'},
-    {label:'➕ Dépenses exceptionnelles', val:-totalExcep, c:'var(--red)'},
-  ].filter(l => l.val !== 0);
-
-  detailEl.innerHTML = lignes.map(l=>`
-    <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:.7rem">
-      <span style="color:var(--muted);flex:1;padding-right:8px">${l.label}</span>
-      <span style="font-family:var(--mono);color:${l.c};flex-shrink:0">${l.val>0?'+':''}${Math.round(l.val).toLocaleString('fr-FR')} €</span>
-    </div>`).join('')
-  + `<div style="display:flex;justify-content:space-between;padding:7px 0;font-size:.73rem;font-weight:700;border-top:1px solid rgba(255,255,255,0.1);margin-top:2px">
-      <span>= Solde projeté</span>
-      <span style="font-family:var(--mono);color:${soldeProj>=0?'var(--green)':'var(--red)'}">${soldeProj>=0?'+':''}${Math.round(soldeProj).toLocaleString('fr-FR')} €</span>
-    </div>
-    <div style="display:flex;justify-content:space-between;align-items:center;background:rgba(167,139,250,0.1);border:1px solid rgba(167,139,250,0.25);border-radius:8px;padding:8px 10px;margin-top:6px">
-      <span style="font-size:.75rem;font-weight:700">💰 Épargne finale estimée</span>
-      <span style="font-family:var(--mono);font-size:.9rem;font-weight:700;color:${epColor}">${fmt(epargneFinale)}</span>
-    </div>`;
-
-  const objList = document.getElementById('simul-obj-list');
-  if(d.objectifs&&d.objectifs.length){
-    objList.innerHTML = d.objectifs.map(o=>{
-      const op=pct(epargneFinale,o.montant), oc=op>=100?'var(--green)':op>=80?'var(--amber)':'var(--red)';
-      const delta=Math.round(epargneFinale-o.montant);
-      return `<div class="simul-obj-row">
-        <span>${delta>=0?'✅':'⚠️'} ${o.label}</span>
-        <div style="text-align:right">
-          <div style="font-family:var(--mono);font-size:.72rem;color:${oc}">${delta>=0?'+':''}${delta.toLocaleString('fr-FR')} €</div>
-          <div style="font-size:.58rem;color:var(--muted)">${op}% · cible ${o.montant.toLocaleString('fr-FR')} €</div>
-        </div>
-      </div>`;
-    }).join('');
+/* ---------- formulaire ---------- */
+function formState(){
+  const k=$('mvKind').value, el=k==='eleves';
+  $('rowN').hidden=!el; $('rowEleves').hidden=!el; $('rowAmount').hidden=el;
+  $('lblText').textContent=el?'Libellé (facultatif)':'Libellé';
+  if(el&&$('mvRep').value==='once')$('mvRep').value='monthly';
+  $('rowUntil').hidden=$('mvRep').value!=='monthly';
+  const p=$('preview');
+  if(el){
+    const n=+$('mvN').value||0, h=+$('mvH').value||0;
+    const net=n*(+$('mvTarif').value||0)*h*(+$('mvSem').value||0)*(1-(+$('mvUrssaf').value||0)/100);
+    p.innerHTML=`Soit <b class="num">${eur(net)}</b> net par mois et <b class="num">${Math.round(n*h*10)/10} h</b> de cours par semaine.`;
+  }else p.textContent='';
+}
+['mvKind','mvRep','mvN','mvTarif','mvH','mvSem','mvUrssaf'].forEach(id=>$(id).addEventListener('input',formState));
+$('form').addEventListener('submit',e=>{
+  e.preventDefault();
+  const kind=$('mvKind').value, date=$('mvDate').value, rep=$('mvRep').value, until=rep==='monthly'?$('mvUntil').value:'';
+  const m={kind,label:$('mvLabel').value.trim(),date,rep,until,on:true};
+  const err=t=>{$('err').textContent=t;$('err').hidden=false};
+  if(!date||date<=START||date>END)return err('Choisis une date entre le 19/10/2026 et le 31/03/2027.');
+  if(until&&until<date.slice(0,7))return err('Le dernier mois doit être après la date de départ.');
+  if(kind==='eleves'){
+    Object.assign(m,{n:+$('mvN').value,tarif:+$('mvTarif').value,heures:+$('mvH').value,sem:+$('mvSem').value,urssaf:+$('mvUrssaf').value});
+    if(!(m.n>0)||!(m.tarif>0)||!(m.heures>0)||!(m.sem>0))return err('Renseigne le nombre d\'élèves, le tarif, les heures et les semaines.');
+  }else{
+    m.amount=+$('mvAmount').value;
+    if(!(m.amount>0))return err('Renseigne un montant supérieur à 0.');
+    if(!m.label)return err('Ajoute un libellé.');
   }
+  $('err').hidden=true;
+  addMv(m);
+  $('mvLabel').value='';$('mvAmount').value='';
+});
 
-  document.getElementById('simul-result-block').scrollIntoView({behavior:'smooth', block:'start'});
+/* ---------- données (API du bot) ---------- */
+function sortMv(){MV.sort((x,y)=>x.date<y.date?-1:x.date>y.date?1:0)}
+const JSONH={'Content-Type':'application/json'};
+async function api(path,opt){const r=await fetch(path,opt);const j=await r.json();if(!j.ok)throw new Error(j.error||'Erreur');return j}
+async function load(){
+  try{
+    const j=await api('/api/sim'); MV=j.ajouts||[]; sortMv();
+    if(j.reglages){S.chomage=+j.reglages.chomage;S.target=+j.reglages.objectif;$('regChomage').value=S.chomage;$('regTarget').value=S.target}
+    $('dbnote').textContent='Tes ajouts sont enregistrés dans le bot et restent là à la prochaine visite.';
+  }catch(e){$('dbnote').textContent='Enregistrement indisponible : '+e.message}
+  render();
 }
+async function addMv(m){
+  try{await api('/api/sim/ajout',{method:'POST',headers:JSONH,body:JSON.stringify(m)});await load()}
+  catch(e){toast('❌ '+e.message,true)}
+}
+$('mvList').addEventListener('click',async e=>{
+  if(!e.target.closest('[data-del]'))return;
+  const id=e.target.closest('.mv').dataset.id;
+  try{await api('/api/sim/ajout/'+id,{method:'DELETE'});await load()}catch(err){toast('❌ '+err.message,true)}
+});
+$('mvList').addEventListener('change',async e=>{
+  if(!e.target.matches('[data-on]'))return;
+  const id=e.target.closest('.mv').dataset.id, on=e.target.checked;
+  try{await api('/api/sim/ajout/'+id,{method:'PATCH',headers:JSONH,body:JSON.stringify({on})});await load()}catch(err){toast('❌ '+err.message,true)}
+});
+let saveTimer=null;
+function saveReg(){
+  S.chomage=+$('regChomage').value||0; S.target=+$('regTarget').value||0; render();
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(()=>api('/api/sim/reglages',{method:'POST',headers:JSONH,body:JSON.stringify({chomage:S.chomage,objectif:S.target})}).catch(()=>{}),600);
+}
+$('regChomage').value=S.chomage;$('regTarget').value=S.target;
+$('regChomage').addEventListener('input',saveReg);$('regTarget').addEventListener('input',saveReg);
 
-function resetSimulateur(){
-  simulDepenses = [];
-  renderSimulateurDepenses();
-  const epInput = document.getElementById('simul-ep-input');
-  if(epInput && simulData){
-    epInput.value = Math.round(simulData.epargne_base||0);
-    epInput._initialized = false;
-  }
-  document.getElementById('simul-result-block').style.display = 'none';
-  toast('↺ Réinitialisé');
-}
+formState(); renderBase(); render(); load();
+let rt; window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{if(cur)drawChart()},80)});
+return {show(){if(cur)drawChart()}};
+
+})();
+function initSimulateur(d){ /* le simulateur se charge seul (API /api/sim) */ }
 
 
 // ── MODAL FICHE ELEVE ──
