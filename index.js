@@ -61,7 +61,7 @@ let PRELEVEMENTS_DATES = [
   { nom: 'Bouygues box',        montant: 24.00,  jour: 30,   suspendu: false },
   { nom: 'Cotisation bancaire', montant: 18.30,  jour: null, suspendu: false, frequence: 'trimestriel' },
   // Impots : uniquement octobre 2026 -> fevrier 2027 (debut/fin au format AAAA-MM, bornes incluses)
-  { nom: 'Impots',              montant: 523.00, jour: null, suspendu: false, debut: '2026-10', fin: '2027-02' },
+  { nom: 'Impots',              montant: 523.00, jour: 25,   suspendu: false, debut: '2026-10', fin: '2027-02' },
 ];
 
 // Cle AAAA-MM (fuseau Paris) du mois courant + moisOffset
@@ -104,7 +104,7 @@ function getTotalChargesFixes(cle = moisCle(0)) {
 }
 
 // Revenus saisis a la main, reconnus par leur libelle
-const estChomage = r => /ch[oô]mage/i.test(r.libelle || '');
+const estChomage = r => /ch[oô]mage|france[\s-]*travail|p[oô]le[\s-]*emploi/i.test(r.libelle || '');
 const estApport  = r => /apport/i.test(r.libelle || '');
 
 const BUDGETS = {
@@ -1149,7 +1149,7 @@ Max 6 lignes sauf si on te demande un detail complet.
 Salaire LGM: ${data.salaire}€
 Beau-frere: ${BEAU_FRERE}€
 Cours: ${data.completude.toFixed(0)}€ / ${OBJECTIF_COMPLETUDE}€
-Chomage: ${data.chomage.toFixed(0)}€
+France Travail: ${data.chomage.toFixed(0)}€
 Apport d'affaires: ${data.apport.toFixed(0)}€
 Revenus supplementaires: ${data.revenusSupp.toFixed(0)}€
 Turo — ma part nette ce mois: ${data.turo.partMoiTotal.toFixed(0)}€ (depenses vehicule: ${data.turo.totalDepenses.toFixed(0)}€)
@@ -1177,7 +1177,7 @@ Total charges fixes actives: ${TOTAL_CHARGES_FIXES.toFixed(0)}€/mois
 ${objectifsInfo}
 
 === COMMANDES DISPONIBLES ===
-/bilan /cours /objectifs /prelevements /config /ajouteleve /suspendre /reactiver /annuler /modifier /revenu /chomage /apport /epargne /fiche /historique /vtc /vtc_bilan /turo_depense /turo_location /turo_bilan`;
+/bilan /cours /objectifs /prelevements /config /ajouteleve /suspendre /reactiver /annuler /modifier /revenu /francetravail /apport /epargne /fiche /historique /vtc /vtc_bilan /turo_depense /turo_location /turo_bilan`;
 
   const result = await model.generateContent(ctx + '\n\nMessage de Nour-Dine: ' + message);
   return result.response.text();
@@ -1805,7 +1805,7 @@ app.post('/webhook', async (req, res) => {
         `/suspendre → mettre un eleve en pause\n` +
         `/reactiver → reactiver un eleve suspendu\n` +
         `/revenu → enregistrer une rentree\n` +
-        `/chomage → enregistrer le chomage recu\n` +
+        `/francetravail → enregistrer l'allocation France Travail recue\n` +
         `/apport → enregistrer un apport d'affaires (contrat signe)\n` +
         `/prelevements → voir ce qui arrive\n` +
         `/config → modifier salaire, charges, prelevements\n` +
@@ -1938,9 +1938,9 @@ app.post('/webhook', async (req, res) => {
       return;
     }
 
-    if (texte === '/chomage' || texte === '/chômage') {
-      sessionsRevenu[chatId] = { type: 'Chômage', etape: 'montant' };
-      await send(chatId, `*Chômage*\n\nMontant recu ? (ex: *1200*)`);
+    if (texte === '/francetravail' || texte === '/france_travail' || texte === '/chomage' || texte === '/chômage') {
+      sessionsRevenu[chatId] = { type: 'France Travail', etape: 'montant' };
+      await send(chatId, `*France Travail*\n\nMontant recu ? (ex: *1200*)`);
       return;
     }
 
@@ -1952,7 +1952,7 @@ app.post('/webhook', async (req, res) => {
 
     if (texte === '/revenu' || texte === '/revenus') {
       await sendBtns(chatId, 'Quel type de rentree d\'argent ?', [
-        [{ t: 'Chômage', d: 'rev_type_Chômage' }, { t: 'Apport d\'affaires', d: 'rev_type_Apport d\'affaires' }],
+        [{ t: 'France Travail', d: 'rev_type_France Travail' }, { t: 'Apport d\'affaires', d: 'rev_type_Apport d\'affaires' }],
         [{ t: 'Vinted / vente', d: 'rev_type_Vente Vinted' }, { t: 'Remboursement', d: 'rev_type_Remboursement' }],
         [{ t: 'Cadeau / don',   d: 'rev_type_Cadeau' },       { t: 'Autre',         d: 'rev_type___autre__' }],
         [{ t: 'Annuler', d: 'annuler' }]
@@ -2296,7 +2296,7 @@ app.post('/webhook', async (req, res) => {
       }
     }
 
-    if (/^\s*ch[oô]mage\b/i.test(texte) && montant && montant > 0) { await saveRevenu(chatId, montant, 'Chômage'); await send(chatId, `Chômage *+${montant}€* enregistre !`); return; }
+    if (/^\s*(ch[oô]mage|france[\s-]*travail)\b/i.test(texte) && montant && montant > 0) { await saveRevenu(chatId, montant, 'France Travail'); await send(chatId, `France Travail *+${montant}€* enregistre !`); return; }
     if (/^\s*apport d['’ ]?affaires?\b/i.test(texte) && montant && montant > 0) { await saveRevenu(chatId, montant, 'Apport d\'affaires'); await send(chatId, `Apport d'affaires *+${montant}€* enregistre !`); return; }
     if (/salaire|lgm|paie/i.test(texte) && montant && montant > 1000) { await saveSalaire(chatId, montant); await send(chatId, `Salaire LGM enregistre: *${montant}€*`); return; }
     if (/epargne|économies|economies|capital|livret|compte epargne/i.test(texte) && montant && montant > 100) { await saveEpargne(chatId, montant); await afficherProgressionEpargne(chatId, montant); return; }
@@ -2475,7 +2475,7 @@ app.delete('/api/revenu/:id', async (req, res) => {
   } catch (err) { res.json({ ok: false, error: err.message }); }
 });
 
-// Ajout d'une rentree (chomage, apport d'affaires, autre) avec date optionnelle (AAAA-MM-JJ)
+// Ajout d'une rentree (France Travail, apport d'affaires, autre) avec date optionnelle (AAAA-MM-JJ)
 app.post('/api/revenu', async (req, res) => {
   try {
     const { libelle, montant, date } = req.body;
