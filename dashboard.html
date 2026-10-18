@@ -606,7 +606,7 @@ input[type=range].lgm-range::-moz-range-thumb{width:16px;height:16px;border:none
   </div>
   <div class="card full" style="margin-bottom:.55rem">
     <div style="display:flex;justify-content:space-between;align-items:center">
-      <div><div class="card-label">Objectif Complétude</div><div class="card-value" id="a-co" style="font-size:1.2rem">—</div><div class="card-sub" id="a-co-s">—</div></div>
+      <div><div class="card-label">Objectif Cours</div><div class="card-value" id="a-co" style="font-size:1.2rem">—</div><div class="card-sub" id="a-co-s">—</div></div>
       <div style="text-align:right"><div id="a-co-pct" style="font-size:1.6rem;font-weight:700;font-family:var(--mono)">—%</div><div style="font-size:.6rem;color:var(--muted)">de l'objectif</div></div>
     </div>
     <div class="bar" style="height:5px;margin:.6rem 0 0"><div class="fill" id="a-co-b" style="width:0%"></div></div>
@@ -1137,7 +1137,7 @@ function renderConfig(d){
   const revenusConfig=[
     {cle:'salaire_lgm',label:'💼 Salaire LGM',val:d.salaire,unit:'€/mois'},
     {cle:'beau_frere',label:'👤 Beau-frère',val:d.beau_frere,unit:'€/mois'},
-    {cle:'objectif_completude',label:'🎯 Objectif Complétude',val:d.objectif_completude,unit:'€/mois'},
+    {cle:'objectif_completude',label:'🎯 Objectif Cours',val:d.objectif_completude,unit:'€/mois'},
   ];
   cfgRev.innerHTML=revenusConfig.map(r=>`<div><div class="row" id="after-cfg-${r.cle}"><div><div style="font-size:.75rem">${r.label}</div><div style="font-size:.6rem;color:var(--muted)">${r.unit}</div></div><div style="display:flex;align-items:center;gap:8px"><span style="font-family:var(--mono);font-size:.82rem">${Math.round(r.val).toLocaleString('fr-FR')} €</span><button class="edit-btn" onclick="showInlineEdit('cfg-${r.cle}','Nouveau montant (${r.unit})',${r.val},(v)=>saveConfig('${r.cle}',v))">✏️</button></div></div></div>`).join('');
   const cfgBud=document.getElementById('cfg-budgets-list');
@@ -2226,10 +2226,12 @@ async function charger(){
     const revSources=[
       {label:'Salaire LGM',val:d.salaire,color:'var(--blue)'},
       {label:'Beau-frère',val:d.beau_frere,color:'var(--purple)'},
-      {label:'Complétude',val:d.completude,color:'var(--amber)'},
+      {label:'Cours',val:d.completude,color:'var(--amber)'},
+      {label:'Chômage',val:d.chomage||0,color:'var(--teal,var(--blue))'},
+      {label:'Apport d\'affaires',val:d.apport_affaires||0,color:'var(--pink,var(--purple))'},
       {label:'Turo (net)',val:d.turo_rentabilite_nette||0,color:'var(--orange)'},
       {label:'VTC (net)',val:d.vtc_net||0,color:'var(--green)'},
-      {label:'Rentrées ponctuelles',val:(d.revenus_supp||[]).reduce((s,r)=>s+r.montant,0),color:'var(--muted)'},
+      {label:'Rentrées ponctuelles',val:d.revenus_autres||0,color:'var(--muted)'},
     ].filter(s=>s.val);
     const totalPos = revSources.reduce((s,x)=>s+Math.max(0,x.val),0)||1;
     document.getElementById('rv-bar').innerHTML = revSources.map(s=>{

@@ -34,6 +34,7 @@ let CHARGES_FIXES = {
   'Salle sport femme': 44, 'Canal+ frere': 13, 'Cours arabe': 31,
   'Claude.ai': 21.60, 'Helloasso': 12.55, 'Stripe asso': 10,
   'Disney+': 6.99, 'Crunchyroll': 8.99, 'Cotisation bancaire': 18.30,
+  'Impots': 523,
 };
 
 // Prelevements avec flag suspendu
@@ -59,13 +60,33 @@ let PRELEVEMENTS_DATES = [
   { nom: 'Claude.ai',           montant: 21.60,  jour: 27,   suspendu: false },
   { nom: 'Bouygues box',        montant: 24.00,  jour: 30,   suspendu: false },
   { nom: 'Cotisation bancaire', montant: 18.30,  jour: null, suspendu: false, frequence: 'trimestriel' },
+  // Impots : uniquement octobre 2026 -> fevrier 2027 (debut/fin au format AAAA-MM, bornes incluses)
+  { nom: 'Impots',              montant: 523.00, jour: null, suspendu: false, debut: '2026-10', fin: '2027-02' },
 ];
 
-function getTotalChargesFixes() {
+// Cle AAAA-MM (fuseau Paris) du mois courant + moisOffset
+function moisCle(moisOffset = 0) {
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
+  const d = new Date(now.getFullYear(), now.getMonth() + moisOffset, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+// Un prelevement peut etre limite dans le temps (debut / fin), sinon il s'applique a tous les mois
+function prelevementActifCeMois(p, cle) {
+  if (p.debut && cle < p.debut) return false;
+  if (p.fin && cle > p.fin) return false;
+  return true;
+}
+
+function getTotalChargesFixes(cle = moisCle(0)) {
   return PRELEVEMENTS_DATES
-    .filter(p => !p.suspendu)
+    .filter(p => !p.suspendu && prelevementActifCeMois(p, cle))
     .reduce((a, p) => a + p.montant, 0);
 }
+
+// Revenus saisis a la main, reconnus par leur libelle
+const estChomage = r => /ch[oô]mage/i.test(r.libelle || '');
+const estApport  = r => /apport/i.test(r.libelle || '');
 
 const BUDGETS = {
   essence:  { label: 'Essence',  max: 300 },
@@ -113,7 +134,7 @@ const EPARGNE_SOURCES = {
   vtc:        { label: 'VTC',        color: '#F26419' },
   turo:       { label: 'Turo',       color: '#4ade80' },
   dyneos:     { label: 'Dyneos',     color: '#a78bfa' },
-  completude: { label: 'Complétude', color: '#60a5fa' },
+  completude: { label: 'Cours', color: '#60a5fa' },
   autre:      { label: 'Autre',      color: '#8892a0' },
 };
 
@@ -858,7 +879,7 @@ async function getData(moisOffset = 0) {
   const epargneBase = d6.data?.length > 0 ? d6.data[0].montant : EPARGNE_DEPART;
   const epargneLedger = calculerEpargneLedger(d7.data || [], debut, fin);
 
-  const TOTAL_CHARGES_FIXES = getTotalChargesFixes();
+  const TOTAL_CHARGES_FIXES = getTotalChargesFixes(moisCle(moisOffset));
 
   const totaux = {};
   Object.keys(BUDGETS).forEach(k => totaux[k] = 0);
@@ -871,7 +892,10 @@ async function getData(moisOffset = 0) {
   const totalDep = Object.values(totaux).reduce((a, b) => a + b, 0);
   const completude = cours.reduce((s, c) => s + c.gain, 0);
   const totalManque = coursManques.reduce((s, c) => s + c.gain_manque, 0);
-  const revenusSupp = revenus.reduce((s, r) => s + r.montant, 0);
+  // Chomage et apport d'affaires sont saisis a la main (libelle) et comptes a part
+  const chomage = revenus.filter(estChomage).reduce((s, r) => s + r.montant, 0);
+  const apport = revenus.filter(r => !estChomage(r) && estApport(r)).reduce((s, r) => s + r.montant, 0);
+  const revenusSupp = revenus.filter(r => !estChomage(r) && !estApport(r)).reduce((s, r) => s + r.montant, 0);
 
   // Turo et VTC — impactent le total revenus / solde global via leur net final
   const turo = await getDataTuro(CHAT_ID, moisOffset);
@@ -879,13 +903,13 @@ async function getData(moisOffset = 0) {
   const turoNet = Number.isFinite(turo?.rentabiliteNette) ? turo.rentabiliteNette : 0;
   const vtcNet = Number.isFinite(vtc?.net) ? vtc.net : 0;
 
-  const totalRevenus = salaire + BEAU_FRERE + completude + revenusSupp + turoNet + vtcNet;
+  const totalRevenus = salaire + BEAU_FRERE + completude + chomage + apport + revenusSupp + turoNet + vtcNet;
   const solde = totalRevenus - TOTAL_CHARGES_FIXES - totalDep;
   const epargneEstimee = epargneBase + solde;
 
   return {
     depenses, cours, coursManques, revenus, totaux, detail, totalDep,
-    completude, totalManque, revenusSupp, totalRevenus, solde,
+    completude, totalManque, revenusSupp, chomage, apport, totalRevenus, solde,
     epargneEstimee, salaire, epargneBase, moisOffset, epargneLedger,
     chargesFixes: TOTAL_CHARGES_FIXES, turo, vtc, turoNet, vtcNet
   };
@@ -1022,7 +1046,7 @@ async function envoyerBilanMensuel(chatId) {
   snapshots.forEach(s => {
     const d = s.donnees;
     msg += `*${s.mois}*\nSolde: *${d.solde >= 0 ? '+' : ''}${d.solde?.toFixed(0)}€*\n`;
-    msg += `Completude: ${d.completude?.toFixed(0)}€ — ${d.nb_cours} cours\n`;
+    msg += `Cours: ${d.completude?.toFixed(0)}€ — ${d.nb_cours} cours\n`;
     msg += `Epargne fin de mois: ${d.epargne_estimee?.toFixed(0)}€\n\n`;
   });
   await send(chatId, msg);
@@ -1099,7 +1123,9 @@ Max 6 lignes sauf si on te demande un detail complet.
 === SITUATION FINANCIERE ===
 Salaire LGM: ${data.salaire}€
 Beau-frere: ${BEAU_FRERE}€
-Completude cours: ${data.completude.toFixed(0)}€ / ${OBJECTIF_COMPLETUDE}€
+Cours: ${data.completude.toFixed(0)}€ / ${OBJECTIF_COMPLETUDE}€
+Chomage: ${data.chomage.toFixed(0)}€
+Apport d'affaires: ${data.apport.toFixed(0)}€
 Revenus supplementaires: ${data.revenusSupp.toFixed(0)}€
 Turo — ma part nette ce mois: ${data.turo.partMoiTotal.toFixed(0)}€ (depenses vehicule: ${data.turo.totalDepenses.toFixed(0)}€)
 Total revenus: ${data.totalRevenus.toFixed(0)}€
@@ -1126,7 +1152,7 @@ Total charges fixes actives: ${TOTAL_CHARGES_FIXES.toFixed(0)}€/mois
 ${objectifsInfo}
 
 === COMMANDES DISPONIBLES ===
-/bilan /completude /objectifs /prelevements /config /ajouteleve /suspendre /reactiver /annuler /modifier /revenu /epargne /fiche /historique /vtc /vtc_bilan /turo_depense /turo_location /turo_bilan`;
+/bilan /cours /objectifs /prelevements /config /ajouteleve /suspendre /reactiver /annuler /modifier /revenu /chomage /apport /epargne /fiche /historique /vtc /vtc_bilan /turo_depense /turo_location /turo_bilan`;
 
   const result = await model.generateContent(ctx + '\n\nMessage de Nour-Dine: ' + message);
   return result.response.text();
@@ -1189,7 +1215,7 @@ async function resumeCompletude(chatId) {
   const manque = Math.max(0, OBJECTIF_COMPLETUDE - data.completude);
   const pct = Math.min(100, Math.round((data.completude / OBJECTIF_COMPLETUDE) * 100));
   await send(chatId,
-    `Completude: *${data.completude.toFixed(0)}€* / ${OBJECTIF_COMPLETUDE}€ (${pct}%)\n` +
+    `Cours: *${data.completude.toFixed(0)}€* / ${OBJECTIF_COMPLETUDE}€ (${pct}%)\n` +
     `${manque > 0 ? `Il manque: *${manque.toFixed(0)}€*` : 'Objectif atteint !'}`
   );
 }
@@ -1575,7 +1601,7 @@ async function traiterCallback(cb) {
 
   if (data === 'cfg_salaire') { sessionsModifConfig[chatId] = { champ: 'salaire' }; await send(chatId, `Salaire LGM actuel : ${SALAIRE_LGM_DEFAULT}€\n\nEnvoie le nouveau montant :`); return; }
   if (data === 'cfg_beaufre') { sessionsModifConfig[chatId] = { champ: 'beaufre' }; await send(chatId, `Beau-frere actuel : ${BEAU_FRERE}€\n\nEnvoie le nouveau montant :`); return; }
-  if (data === 'cfg_objectif') { sessionsModifConfig[chatId] = { champ: 'objectif' }; await send(chatId, `Objectif Completude actuel : ${OBJECTIF_COMPLETUDE}€\n\nEnvoie le nouveau montant mensuel cible :`); return; }
+  if (data === 'cfg_objectif') { sessionsModifConfig[chatId] = { champ: 'objectif' }; await send(chatId, `Objectif Cours actuel : ${OBJECTIF_COMPLETUDE}€\n\nEnvoie le nouveau montant mensuel cible :`); return; }
   if (data === 'cfg_charges') {
     const items = Object.entries(CHARGES_FIXES);
     const rows = [];
@@ -1754,6 +1780,8 @@ app.post('/webhook', async (req, res) => {
         `/suspendre → mettre un eleve en pause\n` +
         `/reactiver → reactiver un eleve suspendu\n` +
         `/revenu → enregistrer une rentree\n` +
+        `/chomage → enregistrer le chomage recu\n` +
+        `/apport → enregistrer un apport d'affaires (contrat signe)\n` +
         `/prelevements → voir ce qui arrive\n` +
         `/config → modifier salaire, charges, prelevements\n` +
         `/historique → bilan des mois precedents\n` +
@@ -1773,7 +1801,7 @@ app.post('/webhook', async (req, res) => {
     if (texte === '/config') {
       await sendBtns(chatId, 'Configuration — Que veux-tu modifier ?', [
         [{ t: 'Salaire LGM', d: 'cfg_salaire' }, { t: 'Beau-frere', d: 'cfg_beaufre' }],
-        [{ t: 'Objectif Completude', d: 'cfg_objectif' }, { t: 'Charges fixes', d: 'cfg_charges' }],
+        [{ t: 'Objectif Cours', d: 'cfg_objectif' }, { t: 'Charges fixes', d: 'cfg_charges' }],
         [{ t: 'Prelevements', d: 'mod_prelevements' }],
         [{ t: 'Annuler', d: 'annuler' }]
       ]);
@@ -1885,8 +1913,21 @@ app.post('/webhook', async (req, res) => {
       return;
     }
 
+    if (texte === '/chomage' || texte === '/chômage') {
+      sessionsRevenu[chatId] = { type: 'Chômage', etape: 'montant' };
+      await send(chatId, `*Chômage*\n\nMontant recu ? (ex: *1200*)`);
+      return;
+    }
+
+    if (texte === '/apport' || texte === '/apport_affaires') {
+      sessionsRevenu[chatId] = { type: 'Apport d\'affaires', etape: 'montant' };
+      await send(chatId, `*Apport d'affaires*\n\nMontant du contrat signe ? (ex: *500*)`);
+      return;
+    }
+
     if (texte === '/revenu' || texte === '/revenus') {
       await sendBtns(chatId, 'Quel type de rentree d\'argent ?', [
+        [{ t: 'Chômage', d: 'rev_type_Chômage' }, { t: 'Apport d\'affaires', d: 'rev_type_Apport d\'affaires' }],
         [{ t: 'Vinted / vente', d: 'rev_type_Vente Vinted' }, { t: 'Remboursement', d: 'rev_type_Remboursement' }],
         [{ t: 'Cadeau / don',   d: 'rev_type_Cadeau' },       { t: 'Autre',         d: 'rev_type___autre__' }],
         [{ t: 'Annuler', d: 'annuler' }]
@@ -1965,7 +2006,7 @@ app.post('/webhook', async (req, res) => {
       let msg = '';
       if (sess.champ === 'salaire') { SALAIRE_LGM_DEFAULT = montant; await sauvegarderConfig('salaire_lgm', montant); msg = `Salaire LGM mis a jour : *${montant}€/mois*\n_Sauvegarde en base ✓_`; }
       else if (sess.champ === 'beaufre') { BEAU_FRERE = montant; await sauvegarderConfig('beau_frere', montant); msg = `Revenu beau-frere mis a jour : *${montant}€/mois*\n_Sauvegarde en base ✓_`; }
-      else if (sess.champ === 'objectif') { OBJECTIF_COMPLETUDE = montant; await sauvegarderConfig('objectif_completude', montant); msg = `Objectif Completude mis a jour : *${montant}€/mois*\n_Sauvegarde en base ✓_`; }
+      else if (sess.champ === 'objectif') { OBJECTIF_COMPLETUDE = montant; await sauvegarderConfig('objectif_completude', montant); msg = `Objectif Cours mis a jour : *${montant}€/mois*\n_Sauvegarde en base ✓_`; }
       else if (sess.champ === 'charge') {
         const nom = sess.nom; const ancien = CHARGES_FIXES[nom];
         CHARGES_FIXES[nom] = montant;
@@ -2173,9 +2214,9 @@ app.post('/webhook', async (req, res) => {
       return;
     }
 
-    if (texte === '/completude') {
+    if (texte === '/completude' || texte === '/cours') {
       const data = await getData();
-      let m = `Completude ${new Date().toLocaleString('fr-FR', { month: 'long', year: 'numeric' })}\n\n`;
+      let m = `Cours ${new Date().toLocaleString('fr-FR', { month: 'long', year: 'numeric' })}\n\n`;
       m += `*${data.completude.toFixed(2)}€* / ${OBJECTIF_COMPLETUDE}€\nCours: ${data.cours.length}\n`;
       if (data.cours.length > 0) { m += `\nDetail:\n`; data.cours.forEach(c => { m += `• ${c.eleve}${c.rattrapage ? ' (rattrapage)' : ''}: +${c.gain.toFixed(2)}€\n`; }); }
       if (data.coursManques.length > 0) { m += `\nManques:\n`; data.coursManques.forEach(c => { m += `• ${c.eleve}${c.libelle === 'deplace' ? ' (deplace)' : ''}: -${c.gain_manque.toFixed(2)}€\n`; }); }
@@ -2226,6 +2267,8 @@ app.post('/webhook', async (req, res) => {
       }
     }
 
+    if (/^\s*ch[oô]mage\b/i.test(texte) && montant && montant > 0) { await saveRevenu(chatId, montant, 'Chômage'); await send(chatId, `Chômage *+${montant}€* enregistre !`); return; }
+    if (/^\s*apport d['’ ]?affaires?\b/i.test(texte) && montant && montant > 0) { await saveRevenu(chatId, montant, 'Apport d\'affaires'); await send(chatId, `Apport d'affaires *+${montant}€* enregistre !`); return; }
     if (/salaire|lgm|paie/i.test(texte) && montant && montant > 1000) { await saveSalaire(chatId, montant); await send(chatId, `Salaire LGM enregistre: *${montant}€*`); return; }
     if (/epargne|économies|economies|capital|livret|compte epargne/i.test(texte) && montant && montant > 100) { await saveEpargne(chatId, montant); await afficherProgressionEpargne(chatId, montant); return; }
     if (/recu|vinted|remboursement|rentree|participation/i.test(texte) && montant) { await saveRevenu(chatId, montant, texte); await send(chatId, `Rentree *+${montant}€* enregistree !`); return; }
@@ -2723,7 +2766,7 @@ app.get('/api/dashboard', async (req, res) => {
     data.epargneEstimee = data.epargneBase + data.solde;
     const aVenir = getPrelEvementsAVenir(7);
     const totalRestant = getTotalPrelevementsRestants();
-    const TOTAL_CF = getTotalChargesFixes();
+    const TOTAL_CF = getTotalChargesFixes(moisCle(moisOffset));
 
     const moisDisponibles = [];
     for (let i = -5; i <= 0; i++) {
@@ -2771,6 +2814,7 @@ app.get('/api/dashboard', async (req, res) => {
       total_manque: data.totalManque, nb_cours: data.cours.length, nb_cours_manques: data.coursManques.length,
       cours: data.cours, cours_manques: data.coursManques, totaux: data.totaux, detail: data.detail,
       budgets: BUDGETS, objectifs: OBJECTIFS, revenus_supp: data.revenus,
+      chomage: data.chomage, apport_affaires: data.apport, revenus_autres: data.revenusSupp,
       prelevements_a_venir: aVenir, total_prelevements_restants: totalRestant,
       prelevements_tous: PRELEVEMENTS_DATES, mois_offset: moisOffset, mois_disponibles: moisDisponibles,
       planning: planningDashboard, potentiel_restant: potentiel.montantRestant,
@@ -2951,6 +2995,8 @@ app.get('/api/simulateur', async (req, res) => {
       salaire:                      data.salaire,
       beau_frere:                   BEAU_FRERE,
       revenus_supp:                 data.revenusSupp,
+      chomage:                      data.chomage,
+      apport_affaires:              data.apport,
       total_revenus:                data.totalRevenus,
       charges_fixes_total:          getTotalChargesFixes(),
       prelevements_restants:        prelevementsRestants,
@@ -2995,7 +3041,7 @@ async function envoyerRappelBiHebdo() {
   const data = await getData();
   const manque = Math.max(0, OBJECTIF_COMPLETUDE - data.completude);
   const pct = Math.min(100, Math.round((data.completude / OBJECTIF_COMPLETUDE) * 100));
-  let msg = `Point bi-hebdo\n\nCompletude: *${data.completude.toFixed(0)}€* / ${OBJECTIF_COMPLETUDE}€ (${pct}%)\n`;
+  let msg = `Point bi-hebdo\n\nCours: *${data.completude.toFixed(0)}€* / ${OBJECTIF_COMPLETUDE}€ (${pct}%)\n`;
   if (manque > 0) msg += `Il manque: *${manque.toFixed(0)}€*\n`;
   msg += `Solde estime: *${data.solde.toFixed(0)}€*\n`;
   msg += `Epargne projetee: *${data.epargneEstimee.toFixed(0)}€*`;
@@ -3006,7 +3052,7 @@ async function envoyerSyntheseMensuelle() {
   const data = await getData();
   let msg = `Synthese de fin de mois\n\n`;
   msg += `Revenus totaux: *${data.totalRevenus.toFixed(0)}€*\n`;
-  msg += `Completude: *${data.completude.toFixed(0)}€* / ${OBJECTIF_COMPLETUDE}€\n`;
+  msg += `Cours: *${data.completude.toFixed(0)}€* / ${OBJECTIF_COMPLETUDE}€\n`;
   msg += `Depenses: *${data.totalDep.toFixed(0)}€*\n`;
   msg += `Solde: *${data.solde >= 0 ? '+' : ''}${data.solde.toFixed(0)}€*\n`;
   msg += `Epargne estimee: *${data.epargneEstimee.toFixed(0)}€*\n\n`;
@@ -3153,7 +3199,7 @@ async function creerPDF(eleve, chapitre, contenu) {
     }
     const pageBottom = doc.page.height - 30;
     doc.rect(0, pageBottom - 10, doc.page.width, 40).fill('#0D1B2A');
-    doc.fillColor('white').fontSize(8).font('Helvetica').text("Genere par L'Agent — Completude", 40, pageBottom, { align: 'center', width: doc.page.width - 80 });
+    doc.fillColor('white').fontSize(8).font('Helvetica').text("Genere par L'Agent — Cours", 40, pageBottom, { align: 'center', width: doc.page.width - 80 });
     doc.end();
     stream.on('finish', () => resolve(tmpPath));
     stream.on('error', reject);
