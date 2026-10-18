@@ -1161,6 +1161,7 @@ function renderConfig(d){
   ];
   cfgRev.innerHTML=revenusConfig.map(r=>`<div><div class="row" id="after-cfg-${r.cle}"><div><div style="font-size:.75rem">${r.label}</div><div style="font-size:.6rem;color:var(--muted)">${r.unit}</div></div><div style="display:flex;align-items:center;gap:8px"><span style="font-family:var(--mono);font-size:.82rem">${Math.round(r.val).toLocaleString('fr-FR')} €</span><button class="edit-btn" onclick="showInlineEdit('cfg-${r.cle}','Nouveau montant (${r.unit})',${r.val},(v)=>saveConfig('${r.cle}',v))">✏️</button></div></div></div>`).join('');
   cfgRev.innerHTML+=`<div><div class="row" id="after-cfg-vtc-suspens"><div><div style="font-size:.75rem">⏸️ VTC en suspens</div><div style="font-size:.6rem;color:var(--muted)">${d.vtc_suspendu_depuis?'depuis '+moisLis(d.vtc_suspendu_depuis)+' · seul le CA généré compte':'non · VTC actif, charges fixes comptées'}</div></div><div style="display:flex;align-items:center;gap:8px"><button class="edit-btn" title="Changer" onclick="editerSuspensionVtc('${d.vtc_suspendu_depuis||''}')">🗓️</button></div></div></div>`;
+  cfgRev.innerHTML+=`<div><div class="row" id="after-cfg-bf-fin"><div><div style="font-size:.75rem">👤 Beau-frère — dernier mois</div><div style="font-size:.6rem;color:var(--muted)">${d.beau_frere_fin?'jusqu\'à '+moisLis(d.beau_frere_fin)+' inclus, puis 0 €':'sans fin'}</div></div><div style="display:flex;align-items:center;gap:8px"><button class="edit-btn" title="Changer" onclick="editerMoisConfig('beau_frere_fin','${d.beau_frere_fin||''}','Beau-frère : dernier mois compté (AAAA-MM). Vide = sans fin.')">🗓️</button></div></div></div>`;
   const cfgBud=document.getElementById('cfg-budgets-list');
   cfgBud.innerHTML=Object.entries(d.budgets||{}).map(([k,b])=>`<div><div class="row" id="after-budg-${k}"><span style="font-size:.75rem">${b.label}</span><div style="display:flex;align-items:center;gap:8px"><span style="font-family:var(--mono);font-size:.82rem">${b.max} €/mois</span><button class="edit-btn" onclick="showInlineEdit('budg-${k}','Nouveau plafond ${b.label}',${b.max},(v)=>saveBudget('${k}',v))">✏️</button></div></div></div>`).join('');
   const cfgPrel=document.getElementById('cfg-prel-list');
@@ -2202,6 +2203,14 @@ async function editerPeriodePrel(nom, debut, fin){
   if(f.trim()!==(fin||'')) await savePrel(nom,'fin',f.trim());
 }
 
+async function editerMoisConfig(cle, actuel, question){
+  const v=prompt(question,actuel||'');
+  if(v===null) return;
+  const t=v.trim();
+  if(t&&!/^\d{4}-(0[1-9]|1[0-2])$/.test(t)){ toast('❌ Format attendu : AAAA-MM',true); return; }
+  const n=t?parseInt(t.replace('-',''),10):0;
+  try{ const r=await fetch('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cle,valeur:n})}); const j=await r.json(); if(j.ok){toast('✅ Sauvegardé');charger();}else toast('❌ '+j.error,true); }catch{toast('❌ Erreur réseau',true);}
+}
 async function editerSuspensionVtc(actuel){
   const v=prompt('VTC en suspens à partir du mois (AAAA-MM). Laisser vide = VTC actif, charges fixes de nouveau comptées.',actuel||'');
   if(v===null) return;

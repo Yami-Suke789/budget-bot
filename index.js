@@ -19,6 +19,7 @@ const MODELE = 'gemini-2.0-flash';
 // ============================================================
 let SALAIRE_LGM_DEFAULT = 2500;
 let BEAU_FRERE = 320;
+let BEAU_FRERE_FIN = '2026-10'; // AAAA-MM : dernier mois compte (inclus). Apres ce mois : 0. null = sans fin
 let OBJECTIF_COMPLETUDE = 1500;
 const EPARGNE_DEPART = 6000;
 
@@ -221,6 +222,7 @@ async function chargerConfig() {
     data.forEach(row => {
       if (row.cle === 'salaire_lgm')          SALAIRE_LGM_DEFAULT  = row.valeur;
       if (row.cle === 'beau_frere')            BEAU_FRERE           = row.valeur;
+      if (row.cle === 'beau_frere_fin')        BEAU_FRERE_FIN       = numVersCle(row.valeur);
       if (row.cle === 'objectif_completude')   OBJECTIF_COMPLETUDE  = row.valeur;
     });
     data.forEach(row => {
@@ -954,7 +956,7 @@ async function getData(moisOffset = 0) {
   const epargneLedger = calculerEpargneLedger(d7.data || [], debut, fin);
 
   const TOTAL_CHARGES_FIXES = fige ? fige.charges_fixes : getTotalChargesFixes(cleMois);
-  const beauFrere = fige ? fige.beau_frere : BEAU_FRERE;
+  const beauFrere = fige ? fige.beau_frere : ((!BEAU_FRERE_FIN || cleMois <= BEAU_FRERE_FIN) ? BEAU_FRERE : 0);
 
   const totaux = {};
   Object.keys(BUDGETS).forEach(k => totaux[k] = 0);
@@ -1200,7 +1202,7 @@ Max 6 lignes sauf si on te demande un detail complet.
 
 === SITUATION FINANCIERE ===
 Salaire LGM: ${data.salaire}€
-Beau-frere: ${BEAU_FRERE}€
+Beau-frere: ${data.beauFrere}€
 Cours: ${data.completude.toFixed(0)}€ / ${OBJECTIF_COMPLETUDE}€
 France Travail: ${data.chomage.toFixed(0)}€
 Apport d'affaires: ${data.apport.toFixed(0)}€
@@ -2941,7 +2943,7 @@ app.get('/api/dashboard', async (req, res) => {
       total_manque: data.totalManque, nb_cours: data.cours.length, nb_cours_manques: data.coursManques.length,
       cours: data.cours, cours_manques: data.coursManques, totaux: data.totaux, detail: data.detail,
       budgets: BUDGETS, objectifs: OBJECTIFS, revenus_supp: data.revenus,
-      vtc_suspendu: !!(data.vtc && data.vtc.suspendu), vtc_suspendu_depuis: VTC_SUSPENDU_DEPUIS,
+      vtc_suspendu: !!(data.vtc && data.vtc.suspendu), vtc_suspendu_depuis: VTC_SUSPENDU_DEPUIS, beau_frere_fin: BEAU_FRERE_FIN,
       chomage: data.chomage, apport_affaires: data.apport, revenus_autres: data.revenusSupp,
       prelevements_a_venir: aVenir, total_prelevements_restants: totalRestant,
       prelevements_tous: PRELEVEMENTS_DATES.map(p => ({ ...p, actif_ce_mois: prelevementActifCeMois(p, moisCle(moisOffset)) })), mois_offset: moisOffset, mois_disponibles: moisDisponibles,
@@ -3038,11 +3040,11 @@ app.post('/api/config', async (req, res) => {
   try {
     const { cle, valeur } = req.body;
     if (!cle || valeur === undefined) return res.json({ ok: false, error: 'Parametres manquants' });
-    if (cle === 'vtc_suspendu_depuis') {
-      // AAAAMM (ex: 202610) ; 0 = VTC de nouveau actif
+    if (cle === 'vtc_suspendu_depuis' || cle === 'beau_frere_fin') {
+      // AAAAMM (ex: 202610) ; 0 = pas de limite (VTC actif / beau-frere sans fin)
       const n = parseInt(valeur, 10);
       if (isNaN(n) || (n !== 0 && !cleValide(numVersCle(n) || ''))) return res.json({ ok: false, error: 'Mois invalide (AAAAMM, ou 0 pour reprendre)' });
-      VTC_SUSPENDU_DEPUIS = numVersCle(n);
+      if (cle === 'vtc_suspendu_depuis') VTC_SUSPENDU_DEPUIS = numVersCle(n); else BEAU_FRERE_FIN = numVersCle(n);
       await sauvegarderConfig(cle, n);
       return res.json({ ok: true });
     }
@@ -3136,7 +3138,7 @@ app.get('/api/simulateur', async (req, res) => {
       completude_actuelle:          data.completude,
       potentiel_cours_restants:     potentiel.montantRestant,
       salaire:                      data.salaire,
-      beau_frere:                   BEAU_FRERE,
+      beau_frere:                   data.beauFrere,
       revenus_supp:                 data.revenusSupp,
       chomage:                      data.chomage,
       apport_affaires:              data.apport,
