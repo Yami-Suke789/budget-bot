@@ -1893,8 +1893,8 @@ const fmtFull=s=>s.split('-').reverse().join('/');
 const MOIS=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
 
 /* ---------- Données de base fixées ---------- */
-let CASH=1400; const ETF=650; // CASH = épargne actuelle du bot − ETF (compté dans les entrées du 19/10)
-const BASE_IN=[['Solde de tout compte','2026-10-19',7676],['ETF','2026-10-19',650],['Caution Clicar','2026-10-31',1000],['Remboursement impôts','2026-10-31',140],['Beau-frère rembourse','2026-11-15',1600],['Récupération de mars','2027-03-15',10500]];
+let CASH=1900; // CASH = épargne actuelle du bot (solde de tout compte et ETF déjà dedans)
+const BASE_IN=[['Caution Clicar','2026-10-31',1000],['Remboursement impôts','2026-10-31',140],['Beau-frère rembourse','2026-11-15',1600],['Récupération de mars','2027-03-15',10500]];
 const BASE_OUT=[['Tontine 2 d\'octobre','2026-10-20',500],['Amende','2026-10-31',300],['Imprévus de novembre (mariage…)','2026-11-20',300]];
 const BASE_MONTHLY=[['Charges du mois (loyer, abonnements…)',1333.31,7,'2026-11',''],['Reste d\'octobre (Canal+, Claude, box)',58.60,27,'2026-10','2026-10'],['Tontine 1',500,1,'2026-11','2027-02'],['Tontine 2',500,15,'2026-11',''],['Impôts',523,25,'2026-10','2027-02']];
 const COURSES=498; // moyenne mai à septembre, répartie par jour
@@ -1995,7 +1995,7 @@ function renderList(){
 
 function renderBase(){
   const li=(l,a,extra='')=>`<li><span>${esc(l)}${extra}</span><span class="num">${a}</span></li>`;
-  $('baseBox').innerHTML=`<h3>Au départ (18/10)</h3><ul>${li('Épargne actuelle (bot) hors ETF',eur(CASH))}</ul>
+  $('baseBox').innerHTML=`<h3>Au départ (18/10)</h3><ul>${li('Épargne actuelle (bot)',eur(CASH))}</ul>
    <h3>Entrées</h3><ul>${BASE_IN.map(([l,d,a])=>li(l,eur(a),` · ${fmtD(d)}`)).join('')}${li('France Travail (réglage en haut)','dès le 25/11')}</ul>
    <h3>Sorties ponctuelles</h3><ul>${BASE_OUT.map(([l,d,a])=>li(l,'−'+eur(a),` · ${fmtD(d)}`)).join('')}</ul>
    <h3>Sorties mensuelles</h3><ul>${BASE_MONTHLY.map(([l,a,j])=>li(l,'−'+eur(a,2),` · le ${j}`)).join('')}${li('Courses (moyenne mai à septembre)','−'+eur(COURSES))}</ul>
@@ -2142,7 +2142,7 @@ $('regChomage').addEventListener('input',saveReg);$('regTarget').addEventListene
 
 formState(); renderBase(); render(); load();
 let rt; window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{if(cur)drawChart()},80)});
-return {show(){if(cur)drawChart()},setEp(v){CASH=Math.round((+v||0)-ETF);renderBase();render()}};
+return {show(){if(cur)drawChart()},setEp(v){CASH=Math.round(+v||0);renderBase();render()}};
 
 })();
 function initSimulateur(d){ /* le simulateur se charge seul (API /api/sim) */ }
