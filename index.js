@@ -40,7 +40,7 @@ let CHARGES_FIXES = {
 // Prelevements avec flag suspendu
 let PRELEVEMENTS_DATES = [
   { nom: 'Loyer',               montant: 804.00, jour: 1,    suspendu: false },
-  { nom: 'Tontine 1',           montant: 500.00, jour: 1,    suspendu: false },
+  { nom: 'Tontine 1',           montant: 500.00, jour: 1,    suspendu: false, fin: '2027-02' }, // dernier paiement : fevrier 2027
   { nom: 'Helloasso',           montant: 12.55,  jour: 1,    suspendu: false },
   { nom: 'Place parking',       montant: 50.00,  jour: 1,    suspendu: false },
   { nom: 'Salle sport femme',   montant: 44.00,  jour: 1,    suspendu: false },
@@ -71,11 +71,30 @@ function moisCle(moisOffset = 0) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
+// Periode stockee en config sous forme numerique AAAAMM (0 = pas de limite)
+function cleVersNum(cle) { return cle ? parseInt(String(cle).replace('-', ''), 10) : 0; }
+function numVersCle(n) {
+  const v = parseInt(n, 10);
+  if (!v) return null;
+  const s = String(v);
+  return `${s.slice(0, 4)}-${s.slice(4, 6)}`;
+}
+function cleValide(c) { return /^\d{4}-(0[1-9]|1[0-2])$/.test(c); }
+
 // Un prelevement peut etre limite dans le temps (debut / fin), sinon il s'applique a tous les mois
 function prelevementActifCeMois(p, cle) {
   if (p.debut && cle < p.debut) return false;
   if (p.fin && cle > p.fin) return false;
   return true;
+}
+
+const MOIS_COURTS = ['janv', 'fev', 'mars', 'avr', 'mai', 'juin', 'juil', 'aout', 'sept', 'oct', 'nov', 'dec'];
+function moisLisible(cle) { const [a, m] = cle.split('-'); return `${MOIS_COURTS[parseInt(m, 10) - 1]} ${a}`; }
+function libellePeriode(p) {
+  if (p.debut && p.fin) return ` (${moisLisible(p.debut)} → ${moisLisible(p.fin)})`;
+  if (p.fin) return ` (jusqu'a ${moisLisible(p.fin)} inclus)`;
+  if (p.debut) return ` (a partir de ${moisLisible(p.debut)})`;
+  return '';
 }
 
 function getTotalChargesFixes(cle = moisCle(0)) {
@@ -213,6 +232,12 @@ async function chargerConfig() {
         const nomPrel = row.cle.replace('prel_suspendu_', '');
         const p = PRELEVEMENTS_DATES.find(p => p.nom === nomPrel);
         if (p) { p.suspendu = row.valeur === 1; }
+      }
+      if (row.cle.startsWith('prel_debut_') || row.cle.startsWith('prel_fin_')) {
+        const estDebut = row.cle.startsWith('prel_debut_');
+        const nomPrel = row.cle.replace(estDebut ? 'prel_debut_' : 'prel_fin_', '');
+        const p = PRELEVEMENTS_DATES.find(p => p.nom === nomPrel);
+        if (p) { const c = numVersCle(row.valeur); if (c) p[estDebut ? 'debut' : 'fin'] = c; else delete p[estDebut ? 'debut' : 'fin']; }
       }
       if (row.cle.startsWith('prel_jour_')) {
         const nomPrel = row.cle.replace('prel_jour_', '');
@@ -1073,7 +1098,7 @@ function getPrelEvementsAVenir(joursAvance = 7) {
   const dernierJour = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   const aVenir = [];
   PRELEVEMENTS_DATES.forEach(p => {
-    if (!p.jour || p.suspendu) return;
+    if (!p.jour || p.suspendu || !prelevementActifCeMois(p, moisCle(0))) return;
     let jourPrelevement = p.jour > dernierJour ? dernierJour : p.jour;
     if (jourPrelevement >= aujourdhui && jourPrelevement <= Math.min(finPeriode, dernierJour)) {
       aVenir.push({ ...p, jourEffectif: jourPrelevement, dansJours: jourPrelevement - aujourdhui });
@@ -1088,7 +1113,7 @@ function getTotalPrelevementsRestants() {
   const dernierJour = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   let total = 0;
   PRELEVEMENTS_DATES.forEach(p => {
-    if (!p.jour || p.suspendu) return;
+    if (!p.jour || p.suspendu || !prelevementActifCeMois(p, moisCle(0))) return;
     let jour = p.jour > dernierJour ? dernierJour : p.jour;
     if (jour >= aujourdhui) total += p.montant;
   });
@@ -1109,8 +1134,8 @@ async function geminiParle(chatId, message, data) {
     const delta = data.epargneBase - o.montant;
     return `${o.label}: ${o.montant.toLocaleString()}€ (${delta >= 0 ? '+' : ''}${delta.toFixed(0)}€)`;
   }).join('\n');
-  const prelevementsInfo = PRELEVEMENTS_DATES.filter(p => p.jour)
-    .map(p => `${p.suspendu ? '[SUSPENDU] ' : ''}${p.nom}: ${p.montant}€ (le ${p.jour})`)
+  const prelevementsInfo = PRELEVEMENTS_DATES.filter(p => prelevementActifCeMois(p, moisCle(0)))
+    .map(p => `${p.suspendu ? '[SUSPENDU] ' : ''}${p.nom}: ${p.montant}€ (${p.jour ? 'le ' + p.jour : 'sans date fixe'})${libellePeriode(p)}`)
     .join('\n');
 
   const ctx = `Tu es L'Agent, assistant personnel intelligent de Nour-Dine.
@@ -1945,6 +1970,10 @@ app.post('/webhook', async (req, res) => {
       msg += `Total charges actives: *${getTotalChargesFixes().toFixed(2)}€/mois*\n`;
       msg += `Restant ce mois: *${totalRestant.toFixed(2)}€*\n`;
       if (suspendus.length > 0) { msg += `\nSuspendus (${suspendus.length}): ${suspendus.map(p => p.nom).join(', ')}\n`; }
+      const sansJour = PRELEVEMENTS_DATES.filter(p => !p.jour && p.frequence !== 'trimestriel' && !p.suspendu && prelevementActifCeMois(p, moisCle(0)));
+      if (sansJour.length > 0) { msg += `\nSans date fixe ce mois:\n${sansJour.map(p => `• ${p.nom}: *${p.montant.toFixed(2)}€*${libellePeriode(p)}`).join('\n')}\n`; }
+      const limites = PRELEVEMENTS_DATES.filter(p => p.jour && p.fin && !p.suspendu);
+      if (limites.length > 0) { msg += `\nSe terminent:\n${limites.map(p => `• ${p.nom}:${libellePeriode(p)}`).join('\n')}\n`; }
       if (aVenir7j.length > 0) {
         msg += `\nDans les 7 prochains jours:\n`;
         aVenir7j.forEach(p => {
@@ -2446,14 +2475,43 @@ app.delete('/api/revenu/:id', async (req, res) => {
   } catch (err) { res.json({ ok: false, error: err.message }); }
 });
 
+// Ajout d'une rentree (chomage, apport d'affaires, autre) avec date optionnelle (AAAA-MM-JJ)
+app.post('/api/revenu', async (req, res) => {
+  try {
+    const { libelle, montant, date } = req.body;
+    const v = parseFloat(montant);
+    if (isNaN(v) || v <= 0) return res.json({ ok: false, error: 'Montant invalide' });
+    const lib = String(libelle || '').trim();
+    if (!lib) return res.json({ ok: false, error: 'Libelle manquant' });
+    const row = { montant: v, libelle: lib, chat_id: String(CHAT_ID) };
+    if (date) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.json({ ok: false, error: 'Date invalide (AAAA-MM-JJ)' });
+      row.created_at = `${date}T12:00:00Z`;
+    }
+    const { error } = await supabase.from('revenus').insert(row);
+    if (error) return res.json({ ok: false, error: error.message });
+    res.json({ ok: true });
+  } catch (err) { res.json({ ok: false, error: err.message }); }
+});
+
 app.patch('/api/revenu/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { montant } = req.body;
+    const { montant, date, libelle } = req.body;
     if (!id) return res.json({ ok: false, error: 'ID manquant' });
-    const v = parseFloat(montant);
-    if (isNaN(v) || v <= 0) return res.json({ ok: false, error: 'Montant invalide' });
-    const { error } = await supabase.from('revenus').update({ montant: v }).eq('id', id);
+    const update = {};
+    if (montant !== undefined) {
+      const v = parseFloat(montant);
+      if (isNaN(v) || v <= 0) return res.json({ ok: false, error: 'Montant invalide' });
+      update.montant = v;
+    }
+    if (date) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.json({ ok: false, error: 'Date invalide (AAAA-MM-JJ)' });
+      update.created_at = `${date}T12:00:00Z`;
+    }
+    if (libelle !== undefined && String(libelle).trim()) update.libelle = String(libelle).trim();
+    if (Object.keys(update).length === 0) return res.json({ ok: false, error: 'Rien a modifier' });
+    const { error } = await supabase.from('revenus').update(update).eq('id', id);
     if (error) return res.json({ ok: false, error: error.message });
     res.json({ ok: true });
   } catch (err) { res.json({ ok: false, error: err.message }); }
@@ -2816,7 +2874,7 @@ app.get('/api/dashboard', async (req, res) => {
       budgets: BUDGETS, objectifs: OBJECTIFS, revenus_supp: data.revenus,
       chomage: data.chomage, apport_affaires: data.apport, revenus_autres: data.revenusSupp,
       prelevements_a_venir: aVenir, total_prelevements_restants: totalRestant,
-      prelevements_tous: PRELEVEMENTS_DATES, mois_offset: moisOffset, mois_disponibles: moisDisponibles,
+      prelevements_tous: PRELEVEMENTS_DATES.map(p => ({ ...p, actif_ce_mois: prelevementActifCeMois(p, moisCle(moisOffset)) })), mois_offset: moisOffset, mois_disponibles: moisDisponibles,
       planning: planningDashboard, potentiel_restant: potentiel.montantRestant,
       jours_restants_count: potentiel.joursRestantsCount, eleves_restants: potentiel.elevesRestants,
       calendrier: potentiel.calendrier, dernier_jour: potentiel.dernierJour,
@@ -2957,6 +3015,12 @@ app.post('/api/prel', async (req, res) => {
       if (p.suspendu) CHARGES_FIXES[nom] = 0;
       else CHARGES_FIXES[nom] = p.montant;
       await sauvegarderConfig(`prel_suspendu_${nom}`, v);
+    } else if (champ === 'debut' || champ === 'fin') {
+      // valeur = 'AAAA-MM' ou vide pour retirer la limite
+      const c = String(valeur || '').trim();
+      if (c && !cleValide(c)) return res.json({ ok: false, error: 'Mois invalide (format AAAA-MM)' });
+      if (c) p[champ] = c; else delete p[champ];
+      await sauvegarderConfig(`prel_${champ}_${nom}`, cleVersNum(c));
     } else { return res.json({ ok: false, error: 'Champ inconnu' }); }
     res.json({ ok: true });
   } catch (err) { res.json({ ok: false, error: err.message }); }
@@ -2973,7 +3037,7 @@ app.get('/api/simulateur', async (req, res) => {
     const dernierJour = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
 
     const prelevementsRestants = PRELEVEMENTS_DATES
-      .filter(p => p.jour && !p.suspendu && p.jour >= aujourdhui)
+      .filter(p => p.jour && !p.suspendu && prelevementActifCeMois(p, moisCle(0)) && p.jour >= aujourdhui)
       .map(p => ({ nom: p.nom, montant: p.montant, jour: p.jour }))
       .sort((a, b) => a.jour - b.jour);
 

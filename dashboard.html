@@ -518,6 +518,26 @@ input[type=range].lgm-range::-moz-range-thumb{width:16px;height:16px;border:none
     </div>
   </div>
 
+  <div class="simul-acc" id="acc-chomage">
+    <div class="simul-acc-head" onclick="toggleAcc('acc-chomage')">
+      <div class="simul-acc-head-left">🏦 Chômage &amp; apports d'affaires</div>
+      <div class="simul-acc-head-right"><span id="a-chom-total" style="font-family:var(--mono);font-size:.75rem;margin-right:6px">—</span><span class="simul-acc-chev">›</span></div>
+    </div>
+    <div class="simul-acc-body">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;padding-top:.5rem;align-items:center">
+        <select id="chom-type" style="flex:1 1 130px;min-width:0;background:var(--navy3);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:7px;font-size:.78rem">
+          <option value="Chômage">Chômage</option>
+          <option value="Apport d'affaires">Apport d'affaires</option>
+        </select>
+        <input id="chom-montant" type="number" step="0.01" min="0" placeholder="Montant €" style="flex:1 1 90px;min-width:0;background:var(--navy3);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:7px;font-size:.78rem">
+        <input id="chom-date" type="date" style="flex:1 1 130px;min-width:0;background:var(--navy3);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:7px;font-size:.78rem">
+        <button class="edit-btn success" onclick="ajouterRentreeType()" style="flex:0 0 auto">➕ Ajouter</button>
+      </div>
+      <div class="card-sub" style="margin:.35rem 0 .2rem">Ce mois : chômage <span id="a-chom-m">0</span> € · apports <span id="a-apport-m">0</span> €</div>
+      <div id="a-chomage-list" style="padding-top:.2rem">—</div>
+    </div>
+  </div>
+
   <div class="simul-acc" id="acc-revenus-supp">
     <div class="simul-acc-head" onclick="toggleAcc('acc-revenus-supp')">
       <div class="simul-acc-head-left">💰 Rentrées ponctuelles</div>
@@ -1146,7 +1166,7 @@ function renderConfig(d){
   const prels=d.prelevements_tous||[];
   cfgPrel.innerHTML=prels.map(p=>{
     const suspLabel=p.suspendu?'<span class="prel-badge prel-susp" style="margin-left:6px">Suspendu</span>':'';
-    return `<div><div class="row" id="after-prel-${encodeId(p.nom)}" style="${p.suspendu?'opacity:.5':''}"><div><div style="font-size:.75rem">${p.nom}${suspLabel}</div><div style="font-size:.6rem;color:var(--muted)">le ${p.jour||'—'} · ${p.montant.toFixed(2)} €</div></div><div style="display:flex;gap:6px;align-items:center"><button class="edit-btn" onclick="showInlineEdit('prel-m-${encodeId(p.nom)}','Nouveau montant ${p.nom}',${p.montant},(v)=>savePrel('${p.nom}','montant',v))">💶</button><button class="edit-btn" onclick="showInlineEdit('prel-j-${encodeId(p.nom)}','Nouveau jour (1-31)',${p.jour||1},(v)=>savePrel('${p.nom}','jour',v))">📅</button><button class="edit-btn ${p.suspendu?'success':'danger'}" onclick="savePrel('${p.nom}','suspendu',${p.suspendu?0:1})">${p.suspendu?'▶️':'⏸️'}</button></div></div></div>`;
+    return `<div><div class="row" id="after-prel-${encodeId(p.nom)}" style="${p.suspendu?'opacity:.5':''}"><div><div style="font-size:.75rem">${p.nom}${suspLabel}</div><div style="font-size:.6rem;color:var(--muted)">le ${p.jour||'—'} · ${p.montant.toFixed(2)} €${periodeLabel(p)?' · 🗓️ '+periodeLabel(p):''}</div></div><div style="display:flex;gap:6px;align-items:center"><button class="edit-btn" title="Période" onclick="editerPeriodePrel('${p.nom}','${p.debut||''}','${p.fin||''}')">🗓️</button><button class="edit-btn" onclick="showInlineEdit('prel-m-${encodeId(p.nom)}','Nouveau montant ${p.nom}',${p.montant},(v)=>savePrel('${p.nom}','montant',v))">💶</button><button class="edit-btn" onclick="showInlineEdit('prel-j-${encodeId(p.nom)}','Nouveau jour (1-31)',${p.jour||1},(v)=>savePrel('${p.nom}','jour',v))">📅</button><button class="edit-btn ${p.suspendu?'success':'danger'}" onclick="savePrel('${p.nom}','suspendu',${p.suspendu?0:1})">${p.suspendu?'▶️':'⏸️'}</button></div></div></div>`;
   }).join('');
 
   // Charges fixes VTC déplacées ici depuis l'onglet VTC
@@ -1766,7 +1786,7 @@ function recalcSimulateur(){
   const soldeActuel = d.solde || 0;
 
   const aujourd = new Date().getDate();
-  const prelsRestants = (d.prelevements_tous||[]).filter(p => p.jour && p.jour > aujourd && !p.suspendu && p.frequence !== 'trimestriel');
+  const prelsRestants = (d.prelevements_tous||[]).filter(p => p.jour && p.jour > aujourd && !p.suspendu && p.frequence !== 'trimestriel' && p.actif_ce_mois !== false);
   const totalPrel = prelsRestants.reduce((s,p) => s+p.montant, 0);
 
   const budgets = d.budgets || {};
@@ -1982,12 +2002,16 @@ function renderPrelevements(d){
     pl.innerHTML+=`<div style="font-size:.65rem;color:var(--muted);padding:5px 0 2px">⏸️ Suspendus</div>`;
     suspendus.forEach(p2=>{ pl.innerHTML+=`<div class="prel-row"><span style="opacity:.55">${p2.nom} · ${p2.montant.toFixed(2)} €</span><button class="edit-btn success" onclick="savePrel('${p2.nom.replace(/'/g,"\\'")}','suspendu',0)">▶️ Réactiver</button></div>`; });
   }
-  if(!isCurrent){ tous.filter(p2=>p2.frequence!=='trimestriel').forEach(p2=>{ pl.innerHTML+=`<div class="prel-row${p2.suspendu?' suspended':''}"><span>${p2.nom}</span><div style="display:flex;gap:8px;align-items:center"><span style="color:var(--muted)">le ${p2.jour||'—'}</span><span style="font-family:var(--mono)">${p2.montant.toFixed(2)} €</span></div></div>`; }); return; }
-  const restants=tous.filter(p2=>p2.jour&&p2.jour>=aujourd&&p2.frequence!=='trimestriel'&&!p2.suspendu);
-  const passes=tous.filter(p2=>p2.jour&&p2.jour<aujourd&&p2.frequence!=='trimestriel'&&!p2.suspendu);
-  const trimest=tous.filter(p2=>p2.frequence==='trimestriel'&&!p2.suspendu);
+  if(!isCurrent){ tous.filter(p2=>p2.frequence!=='trimestriel'&&p2.actif_ce_mois!==false).forEach(p2=>{ pl.innerHTML+=`<div class="prel-row${p2.suspendu?' suspended':''}"><span>${p2.nom}${periodeLabel(p2)?' <span style="color:var(--muted);font-size:.6rem">('+periodeLabel(p2)+')</span>':''}</span><div style="display:flex;gap:8px;align-items:center"><span style="color:var(--muted)">le ${p2.jour||'—'}</span><span style="font-family:var(--mono)">${p2.montant.toFixed(2)} €</span></div></div>`; }); return; }
+  const restants=tous.filter(p2=>p2.jour&&p2.jour>=aujourd&&p2.frequence!=='trimestriel'&&!p2.suspendu&&p2.actif_ce_mois!==false);
+  const passes=tous.filter(p2=>p2.jour&&p2.jour<aujourd&&p2.frequence!=='trimestriel'&&!p2.suspendu&&p2.actif_ce_mois!==false);
+  const trimest=tous.filter(p2=>p2.frequence==='trimestriel'&&!p2.suspendu&&p2.actif_ce_mois!==false);
+  const sansJour=tous.filter(p2=>!p2.jour&&p2.frequence!=='trimestriel'&&!p2.suspendu&&p2.actif_ce_mois!==false);
+  const seTerminent=tous.filter(p2=>p2.jour&&p2.fin&&!p2.suspendu&&p2.actif_ce_mois!==false);
   if(restants.length){ pl.innerHTML+='<div class="section-title">À venir</div>'; restants.forEach(p2=>{ const diff=p2.jour-aujourd; let bc='prel-ok',bt='le '+p2.jour; if(diff===0){bc='prel-urgent';bt="Auj.";}else if(diff<=2){bc='prel-urgent';bt=`Dans ${diff}j`;}else if(diff<=5){bc='prel-soon';bt=`Dans ${diff}j`;} pl.innerHTML+=`<div class="prel-row"><span>${p2.nom}</span><div style="display:flex;gap:8px;align-items:center"><span class="prel-badge ${bc}">${bt}</span><span style="font-family:var(--mono)">${p2.montant.toFixed(2)} €</span></div></div>`; }); }
   if(passes.length){ pl.innerHTML+='<div class="section-title">Déjà passés</div>'; passes.forEach(p2=>pl.innerHTML+=`<div class="prel-row past"><span>${p2.nom}</span><span style="color:var(--muted);font-family:var(--mono)">${p2.montant.toFixed(2)} €</span></div>`); }
+  if(sansJour.length){ pl.innerHTML+='<div class="section-title">Sans date fixe (compris dans les charges)</div>'; sansJour.forEach(p2=>pl.innerHTML+=`<div class="prel-row"><span>${p2.nom}${periodeLabel(p2)?' <span style="color:var(--muted);font-size:.6rem">('+periodeLabel(p2)+')</span>':''}</span><span style="font-family:var(--mono)">${p2.montant.toFixed(2)} €</span></div>`); }
+  if(seTerminent.length){ pl.innerHTML+='<div class="section-title">Se terminent</div>'; seTerminent.forEach(p2=>pl.innerHTML+=`<div class="prel-row"><span>${p2.nom}</span><span style="color:var(--muted);font-size:.65rem">${periodeLabel(p2)}</span></div>`); }
   if(trimest.length){ pl.innerHTML+='<div class="section-title">Trimestriels</div>'; trimest.forEach(p2=>pl.innerHTML+=`<div class="prel-row"><span>${p2.nom}</span><span style="color:var(--muted);font-family:var(--mono)">${p2.montant.toFixed(2)}€/trim</span></div>`); }
 }
 
@@ -2159,6 +2183,55 @@ document.addEventListener('DOMContentLoaded', ()=>{
   document.getElementById('lgm-slider')?.addEventListener('input', updateLgmProjection);
 });
 
+// ── PÉRIODES DES PRÉLÈVEMENTS ──
+const MOIS_C=['janv','fév','mars','avr','mai','juin','juil','août','sept','oct','nov','déc'];
+function moisLis(c){ const [a,m]=String(c).split('-'); return MOIS_C[+m-1]+' '+a; }
+function periodeLabel(p){
+  if(p.debut&&p.fin) return `${moisLis(p.debut)} → ${moisLis(p.fin)}`;
+  if(p.fin) return `jusqu'à ${moisLis(p.fin)} inclus`;
+  if(p.debut) return `à partir de ${moisLis(p.debut)}`;
+  return '';
+}
+async function editerPeriodePrel(nom, debut, fin){
+  const d=prompt(`${nom} — premier mois prélevé (AAAA-MM, vide = aucune limite)`,debut||'');
+  if(d===null) return;
+  const f=prompt(`${nom} — dernier mois prélevé, inclus (AAAA-MM, vide = aucune limite)`,fin||'');
+  if(f===null) return;
+  if(d.trim()!==(debut||'')) await savePrel(nom,'debut',d.trim());
+  if(f.trim()!==(fin||'')) await savePrel(nom,'fin',f.trim());
+}
+
+// ── CHÔMAGE & APPORTS D'AFFAIRES ──
+let _chomList=[];
+function renderChomageApports(d){
+  const list=(d.revenus_supp||[]).filter(r=>/ch[oô]mage|apport/i.test(r.libelle||''));
+  _chomList=list;
+  const ch=d.chomage||0, ap=d.apport_affaires||0;
+  document.getElementById('a-chom-total').textContent=(ch+ap)?'+'+Math.round(ch+ap).toLocaleString('fr-FR')+' €':'—';
+  document.getElementById('a-chom-m').textContent=Math.round(ch).toLocaleString('fr-FR');
+  document.getElementById('a-apport-m').textContent=Math.round(ap).toLocaleString('fr-FR');
+  const di=document.getElementById('chom-date'); if(di&&!di.value) di.value=new Date().toISOString().slice(0,10);
+  const cont=document.getElementById('a-chomage-list');
+  if(!list.length){ cont.innerHTML='<div style="color:var(--muted);font-size:.72rem;padding:6px 0">Rien d\'enregistré ce mois</div>'; return; }
+  cont.innerHTML=list.map((r,i)=>{
+    const date=new Date(r.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
+    return `<div class="row"><div><div style="font-size:.75rem">${r.libelle}</div><div style="font-size:.6rem;color:var(--muted)">${date}</div></div><div style="display:flex;align-items:center;gap:4px"><span style="font-family:var(--mono);color:var(--green);font-size:.75rem">+${r.montant.toFixed(2)} €</span><button class="action-btn edit" onclick="modifierRevenu(_chomList[${i}].id,_chomList[${i}].libelle,_chomList[${i}].montant)" title="Modifier le montant">✏️</button><button class="action-btn edit" onclick="modifierDateRevenu(_chomList[${i}].id,_chomList[${i}].created_at)" title="Changer la date">📅</button><button class="action-btn del" onclick="supprimerRevenu(_chomList[${i}].id,_chomList[${i}].libelle,_chomList[${i}].montant)" title="Supprimer">🗑️</button></div></div>`;
+  }).join('');
+}
+async function ajouterRentreeType(){
+  const libelle=document.getElementById('chom-type').value;
+  const montant=parseFloat(document.getElementById('chom-montant').value);
+  const date=document.getElementById('chom-date').value;
+  if(isNaN(montant)||montant<=0){ toast('❌ Montant invalide',true); return; }
+  try{ const r=await fetch('/api/revenu',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({libelle,montant,date})}); const j=await r.json(); if(j.ok){toast('✅ '+libelle+' ajouté');document.getElementById('chom-montant').value='';charger();}else toast('❌ '+j.error,true); }catch{toast('❌ Erreur réseau',true);}
+}
+async function modifierDateRevenu(id, createdAt){
+  const actuelle=new Date(createdAt).toISOString().slice(0,10);
+  const date=prompt('Nouvelle date (AAAA-MM-JJ)',actuelle);
+  if(!date||date.trim()===actuelle) return;
+  try{ const r=await fetch(`/api/revenu/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({date:date.trim()})}); const j=await r.json(); if(j.ok){toast('✅ Date modifiée');charger();}else toast('❌ '+j.error,true); }catch{toast('❌ Erreur réseau',true);}
+}
+
 function renderRevenusSupp(d){
   const supp=d.revenus_supp||[];
   const cont=document.getElementById('a-revenus-supp-list');
@@ -2258,6 +2331,7 @@ async function charger(){
     renderProchainObjectif(d);
     renderJournal(d);
     renderRevenusSupp(d);
+    renderChomageApports(d);
     renderBudgets(d);
     renderPrelevements(d);
     renderVtcSemaine(d);
