@@ -3145,6 +3145,26 @@ app.post('/api/sim/reglages', async (req, res) => {
       if (b[k] === undefined) return;
       payload[k] = /^\d{4}-\d{2}$/.test(b[k] || '') ? b[k] : '';
     });
+    // dividendes saisis (montants bruts, dates de versement, taux de prelevements)
+    ['d1', 'd2'].forEach(k => {
+      if (b[k] === undefined) return;
+      const v = Number(b[k]);
+      if (!(v >= 0)) return;
+      payload[k] = v;
+    });
+    ['d1d', 'd2d'].forEach(k => {
+      if (b[k] !== undefined && /^\d{4}-\d{2}-\d{2}$/.test(b[k] || '')) payload[k] = b[k];
+    });
+    if (b.dtax !== undefined && Number(b.dtax) >= 0 && Number(b.dtax) <= 100) payload.dtax = Number(b.dtax);
+    // budget du sejour a Medine : cles connues uniquement, nombres >= 0
+    if (b.voyage && typeof b.voyage === 'object') {
+      const voy = { ...(payload.voyage || {}) };
+      ['pers', 'mois', 'vol', 'visa', 'logt', 'nourr', 'transp', 'charges', 'imprev', 'france'].forEach(k => {
+        const v = Number(b.voyage[k]);
+        if (b.voyage[k] !== undefined && v >= 0) voy[k] = v;
+      });
+      payload.voyage = voy;
+    }
     const { error } = ex && ex.length
       ? await supabase.from('simulation').update({ data: payload }).eq('id', ex[0].id)
       : await supabase.from('simulation').insert({ type: 'reglages', data: payload });

@@ -915,7 +915,34 @@ input[type=range].lgm-range::-moz-range-thumb{width:16px;height:16px;border:none
       <label class="f">Dernière cotisation, tontine 1<input id="sm-regT1" type="month"></label>
       <label class="f">Dernière cotisation, tontine 2<input id="sm-regT2" type="month"></label>
     </div>
+    <h2 style="margin-top:14px">Dividendes attendus</h2>
+    <div class="reg-med">
+      <label class="f">Dividende Prof Idéal, brut (€)<input id="sm-regD1" type="number" step="100" min="0" inputmode="decimal" placeholder="0"></label>
+      <label class="f">Versé le<input id="sm-regD1d" type="date"></label>
+      <label class="f">Dividende Dyneos, brut (€)<input id="sm-regD2" type="number" step="100" min="0" inputmode="decimal" placeholder="0"></label>
+      <label class="f">Versé le<input id="sm-regD2d" type="date"></label>
+      <label class="f">Prélèvements sur dividendes (%)<input id="sm-regDTax" type="number" step="0.1" min="0" max="100" inputmode="decimal"></label>
+    </div>
+    <p class="hint" id="sm-divNote" style="margin-top:0"></p>
     <p class="hint" style="margin-top:0">Laisse une tontine vide si elle continue jusqu'au départ. L'argent disponible est le solde à la date de départ. Après mars 2027, la base ne contient plus aucune rentrée (France Travail s'arrête) : ajoute dividendes, élèves ou autres rentrées avec le formulaire.</p>
+  </div>
+
+  <div class="panel pn8">
+    <h2>Budget sur place à Médine</h2>
+    <div class="reg-med">
+      <label class="f">Personnes qui partent<input id="sm-vPers" type="number" step="1" min="1" inputmode="numeric"></label>
+      <label class="f">Durée du séjour (mois)<input id="sm-vMois" type="number" step="1" min="1" inputmode="numeric"></label>
+      <label class="f">Vol aller-retour, par personne (€)<input id="sm-vVol" type="number" step="10" min="0" inputmode="decimal"></label>
+      <label class="f">Visa + assurance, par personne (€)<input id="sm-vVisa" type="number" step="10" min="0" inputmode="decimal"></label>
+      <label class="f">Logement, par mois (€)<input id="sm-vLogt" type="number" step="10" min="0" inputmode="decimal"></label>
+      <label class="f">Nourriture, par personne et par mois (€)<input id="sm-vNourr" type="number" step="10" min="0" inputmode="decimal"></label>
+      <label class="f">Transport local, par personne et par mois (€)<input id="sm-vTransp" type="number" step="5" min="0" inputmode="decimal"></label>
+      <label class="f">Électricité, internet, téléphone, par mois (€)<input id="sm-vCharges" type="number" step="10" min="0" inputmode="decimal"></label>
+      <label class="f">Imprévus et loisirs, par mois (€)<input id="sm-vImprev" type="number" step="10" min="0" inputmode="decimal"></label>
+      <label class="f">Charges qui continuent en France, par mois (€)<input id="sm-vFrance" type="number" step="10" min="0" inputmode="decimal"></label>
+    </div>
+    <div id="sm-voyOut"></div>
+    <p class="hint">Valeurs de départ : estimation pour une personne, d'après des moyennes de coût de la vie à Médine et des prix de vols Paris–Médine relevés sur le web. Corrige chaque ligne avec tes vrais chiffres. Les tontines encore en cours après le départ sont ajoutées automatiquement.</p>
   </div>
 
   <div class="main">
@@ -1923,7 +1950,10 @@ const COURSES=498; // moyenne mai à septembre, répartie par jour
 const CH_START='2026-11-25', CH_DAYS=5, CH_LAST='2027-03';
 
 const T1_DEFAULT='2027-02', T2_DEFAULT='';
-const S={chomage:1800,target:20000,t1:T1_DEFAULT,t2:T2_DEFAULT};
+const VOY_DEF={pers:1,mois:3,vol:520,visa:130,logt:500,nourr:350,transp:50,charges:100,imprev:100,france:1333};
+const VOY_IDS={pers:'vPers',mois:'vMois',vol:'vVol',visa:'vVisa',logt:'vLogt',nourr:'vNourr',transp:'vTransp',charges:'vCharges',imprev:'vImprev',france:'vFrance'};
+const S={chomage:1800,target:20000,t1:T1_DEFAULT,t2:T2_DEFAULT,d1:0,d1d:'2027-09-30',d2:0,d2d:'2027-12-31',dtax:31.4,voy:{...VOY_DEF}};
+const divsPlan=()=>[['Dividende Prof Idéal',S.d1,S.d1d],['Dividende Dyneos',S.d2,S.d2d]];
 let MV=[];
 
 const elevesNet=m=>m.n*m.tarif*m.heures*m.sem*(1-m.urssaf/100);
@@ -1958,6 +1988,7 @@ function sim(o={}){
   const once={};
   BASE_IN.forEach(([l,d,a])=>(once[d]=once[d]||[]).push([l,a]));
   BASE_OUT.forEach(([l,d,a])=>(once[d]=once[d]||[]).push([l,-a]));
+  divsPlan().forEach(([l,a,d])=>{const n=(+a||0)*(1-(+S.dtax||0)/100);if(n>0&&d)(once[d]=once[d]||[]).push([l,n])});
   let bal=CASH; const days=[{date:START,bal,inn:0,out:0,notes:[],mv:false}];
   for(let ms=T(START)+MS;ms<=T(END);ms+=MS){
     const d=ISO(ms), y=+d.slice(0,4), mo=+d.slice(5,7), dn=+d.slice(8), key=d.slice(0,7);
@@ -1986,9 +2017,45 @@ let cur=null, base=null;
 
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 
+/* budget des N mois sur place */
+function voyage(){
+  const v=S.voy, n=Math.max(1,+v.mois||1), p=Math.max(1,+v.pers||1);
+  const nb=x=>+x||0;
+  // tontines encore en cours pendant le séjour (mois du départ et suivants)
+  let tont=0;
+  BASE_MONTHLY.forEach(([l,a,j,deb,fin0,k])=>{
+    if(!k)return; const fin=S[k]!==undefined?S[k]:fin0;
+    for(let i=0;i<n;i++){
+      const y=+DEP.slice(0,4), m=+DEP.slice(5,7)-1+i, key=(y+Math.floor(m/12))+'-'+String(m%12+1).padStart(2,'0');
+      if(!fin||key<=fin)tont+=a;
+    }
+  });
+  const lines=[
+    ['Vols aller-retour',p*nb(v.vol)],
+    ['Visa et assurance',p*nb(v.visa)],
+    ['Logement',n*nb(v.logt)],
+    ['Nourriture',n*p*nb(v.nourr)],
+    ['Transport local',n*p*nb(v.transp)],
+    ['Électricité, internet, téléphone',n*nb(v.charges)],
+    ['Imprévus et loisirs',n*nb(v.imprev)],
+    ['Charges qui continuent en France',n*nb(v.france)],
+    ['Tontines encore en cours',tont]
+  ];
+  return {lines,total:lines.reduce((a,x)=>a+x[1],0),n,p};
+}
+function renderVoy(){
+  const V=voyage(), med=cur.at(DEP), reste=med-V.total;
+  $('voyOut').innerHTML=`<div class="tw"><table style="min-width:320px"><tbody>`+
+   V.lines.map(([l,a])=>`<tr><td>${esc(l)}</td><td>${eur(a)}</td></tr>`).join('')+
+   `<tr><td><b>Total ${V.n} mois à ${V.p>1?V.p+' personnes':'1 personne'}</b></td><td><b>${eur(V.total)}</b></td></tr>
+    <tr><td>Argent dispo au départ</td><td>${eur(med)}</td></tr>
+    <tr><td><b>Reste après le séjour</b></td><td class="${reste<0?'neg':'pos'}"><b>${eur(reste)}</b></td></tr></tbody></table></div>`;
+}
+
 /* dividendes nets versés entre le début de la simulation et le départ (ajouts activés) */
 function divNetTotal(){
   let tot=0;
+  divsPlan().forEach(([l,a,d])=>{if(d&&d>START&&d<=DEP)tot+=(+a||0)*(1-(+S.dtax||0)/100)});
   MV.filter(m=>m.on&&m.kind==='div').forEach(m=>{
     cur.days.slice(1).forEach(x=>{
       if(x.date>DEP)return;
@@ -2007,12 +2074,14 @@ function render(){
   const delta=d=>active?`<div class="n"><b class="${f(d)-bf(d)>=0?'pos':'neg'}">${f(d)-bf(d)>=0?'+':'−'}${eur(Math.abs(f(d)-bf(d)))}</b> ajouts</div>`:'';
   const mars=f(MARS), ok=mars>=S.target, lo=cur.min;
   const pct=Math.max(0,Math.min(100,S.target>0?mars/S.target*100:0));
-  const med=f(DEP), medBase=bf(DEP), medOk=med>=0, dv=divNetTotal();
+  const med=f(DEP), medBase=bf(DEP), medOk=med>=0, dv=divNetTotal(), V=voyage(), reste=med-V.total;
   const lowAfter=cur.days.filter(x=>x.date<=DEP).reduce((a,x)=>x.bal<a.bal?x:a,cur.days[0]);
   $('kpis').innerHTML=`
    <div class="kpi hero med ${medOk?'ok':'ko'}"><div class="l">Argent dispo au départ à Médine · <b>${fmtFull(DEP)}</b></div><div class="v"${medOk?'':' style="color:var(--s-bad)"'}>${eur(med)}</div>
      <div class="n"><span>sans tes ajouts</span><b class="${medBase<0?'neg':''}">${eur(medBase)}</b></div>
      <div class="n"><span>dont dividendes nets</span><b class="${dv>0?'pos':''}">${eur(dv)}</b></div>
+     <div class="n"><span>budget sur place (${V.n} mois)</span><b>${eur(V.total)}</b></div>
+     <div class="n"><span>reste après le séjour</span><b class="${reste<0?'neg':'pos'}">${eur(reste)}</b></div>
      <div class="n"><span>point bas avant le départ</span><b class="${lowAfter.bal<0?'neg':''}">${eur(lowAfter.bal)} · ${fmtD(lowAfter.date)}</b></div></div>
    <div class="kpi hero ${ok?'ok':'ko'}"><div class="l">Solde fin mars</div><div class="v">${eur(mars)}</div>
      <div class="gauge"><i style="width:${pct}%"></i></div>
@@ -2021,7 +2090,7 @@ function render(){
   window.__pj={nov:f(NOV),feb:f(FEB),mars:mars,target:S.target,active:active,med:med,dep:DEP};
   if(window.pjUpdate)window.pjUpdate({nov:f(NOV),feb:f(FEB),mars:mars,target:S.target,active:active,med:med,dep:DEP});
   $('legend').innerHTML=`<span><i style="border-color:var(--s-accent)"></i>${active?'Avec tes ajouts':'Base'}</span>`+(active?`<span><i style="border-color:var(--s-mute);border-top-style:dashed"></i>Base seule</span>`:'')+`<span><i style="border-color:var(--s-amber);border-top-style:dotted"></i>Objectif ${eur(S.target)}</span>`;
-  renderList(); renderTable(); renderStu(); drawChart();
+  renderList(); renderTable(); renderStu(); renderVoy(); drawChart();
 }
 
 function renderTable(){
@@ -2182,7 +2251,14 @@ async function load(){
       if(/^\d{4}-\d{2}-\d{2}$/.test(j.reglages.depart||''))DEP=j.reglages.depart;
       if(j.reglages.t1!==undefined)S.t1=j.reglages.t1;
       if(j.reglages.t2!==undefined)S.t2=j.reglages.t2;
-      $('regDepart').value=DEP;$('regT1').value=S.t1;$('regT2').value=S.t2;
+      const r=j.reglages;
+      if(r.d1!==undefined)S.d1=+r.d1||0;
+      if(r.d2!==undefined)S.d2=+r.d2||0;
+      if(/^\d{4}-\d{2}-\d{2}$/.test(r.d1d||''))S.d1d=r.d1d;
+      if(/^\d{4}-\d{2}-\d{2}$/.test(r.d2d||''))S.d2d=r.d2d;
+      if(r.dtax!==undefined&&r.dtax!==null)S.dtax=+r.dtax;
+      if(r.voyage&&typeof r.voyage==='object')Object.keys(VOY_DEF).forEach(k=>{if(r.voyage[k]!==undefined&&r.voyage[k]!==null&&!isNaN(+r.voyage[k]))S.voy[k]=+r.voyage[k]});
+      fillReg();
     }
     $('dbnote').textContent='Tes ajouts sont enregistrés dans le bot et restent là à la prochaine visite.';
   }catch(e){$('dbnote').textContent='Enregistrement indisponible : '+e.message}
@@ -2203,17 +2279,26 @@ $('mvList').addEventListener('change',async e=>{
   try{await api('/api/sim/ajout/'+id,{method:'PATCH',headers:JSONH,body:JSON.stringify({on})});await load()}catch(err){toast('❌ '+err.message,true)}
 });
 let saveTimer=null;
+function fillReg(){
+  $('regChomage').value=S.chomage;$('regTarget').value=S.target;$('regDepart').value=DEP;$('regT1').value=S.t1;$('regT2').value=S.t2;
+  $('regD1').value=S.d1||'';$('regD1d').value=S.d1d;$('regD2').value=S.d2||'';$('regD2d').value=S.d2d;$('regDTax').value=S.dtax;
+  Object.keys(VOY_IDS).forEach(k=>{$(VOY_IDS[k]).value=S.voy[k]});
+}
 function saveReg(){
   S.chomage=+$('regChomage').value||0; S.target=+$('regTarget').value||0;
   const dep=$('regDepart').value;
   if(/^\d{4}-\d{2}-\d{2}$/.test(dep)&&dep>START)DEP=dep;
   S.t1=$('regT1').value; S.t2=$('regT2').value;
+  S.d1=Math.max(0,+$('regD1').value||0); S.d2=Math.max(0,+$('regD2').value||0);
+  if($('regD1d').value)S.d1d=$('regD1d').value; if($('regD2d').value)S.d2d=$('regD2d').value;
+  S.dtax=$('regDTax').value===''?31.4:Math.min(100,Math.max(0,+$('regDTax').value));
+  Object.keys(VOY_IDS).forEach(k=>{const v=+$(VOY_IDS[k]).value; S.voy[k]=isNaN(v)||v<0?VOY_DEF[k]:v});
   render();
   clearTimeout(saveTimer);
-  saveTimer=setTimeout(()=>api('/api/sim/reglages',{method:'POST',headers:JSONH,body:JSON.stringify({chomage:S.chomage,objectif:S.target,depart:DEP,t1:S.t1,t2:S.t2})}).catch(()=>{}),600);
+  saveTimer=setTimeout(()=>api('/api/sim/reglages',{method:'POST',headers:JSONH,body:JSON.stringify({chomage:S.chomage,objectif:S.target,depart:DEP,t1:S.t1,t2:S.t2,d1:S.d1,d1d:S.d1d,d2:S.d2,d2d:S.d2d,dtax:S.dtax,voyage:S.voy})}).catch(()=>{}),600);
 }
-$('regChomage').value=S.chomage;$('regTarget').value=S.target;$('regDepart').value=DEP;$('regT1').value=S.t1;$('regT2').value=S.t2;
-['regChomage','regTarget','regDepart','regT1','regT2'].forEach(id=>$(id).addEventListener('input',saveReg));
+fillReg();
+['regChomage','regTarget','regDepart','regT1','regT2','regD1','regD1d','regD2','regD2d','regDTax',...Object.values(VOY_IDS)].forEach(id=>$(id).addEventListener('input',saveReg));
 
 formState(); renderBase(); render(); load();
 let rt; window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{if(cur)drawChart()},80)});
