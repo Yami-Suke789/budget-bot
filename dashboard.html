@@ -454,6 +454,8 @@ input[type=range].lgm-range::-moz-range-thumb{width:16px;height:16px;border:none
 .smw .sm-tile.med{grid-column:1/-1;border-color:rgba(74,222,128,.3)}
 @media (min-width:981px){.smw .sm-tiles{grid-template-columns:repeat(5,minmax(0,1fr))}.smw .sm-tile.med{grid-column:auto}}
 .smw .kpi.hero.med .l b{color:var(--s-ink)}
+.smw .cs-row{display:grid;grid-template-columns:minmax(0,1fr) 96px;gap:8px;align-items:center;padding:4px 0;border-top:1px solid var(--s-line)}
+.smw .cs-row label{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--s-ink)}
 .smw .reg-med{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:0 0 12px}
 </style>
 </head>
@@ -939,9 +941,11 @@ input[type=range].lgm-range::-moz-range-thumb{width:16px;height:16px;border:none
       <label class="f">Transport local, par personne et par mois (€)<input id="sm-vTransp" type="number" step="5" min="0" inputmode="decimal"></label>
       <label class="f">Électricité, internet, téléphone, par mois (€)<input id="sm-vCharges" type="number" step="10" min="0" inputmode="decimal"></label>
       <label class="f">Imprévus et loisirs, par mois (€)<input id="sm-vImprev" type="number" step="10" min="0" inputmode="decimal"></label>
-      <label class="f">Charges qui continuent en France, par mois (€)<input id="sm-vFrance" type="number" step="10" min="0" inputmode="decimal"></label>
     </div>
-    <div id="sm-voyOut"></div>
+    <h2 style="margin-top:14px">Charges fixes pendant le séjour</h2>
+    <p class="hint" style="margin-top:0">Coche ce qui continue d'être prélevé pendant que vous êtes à Médine. Les montants se modifient (par exemple le loyer).</p>
+    <div id="sm-csList"></div>
+    <div id="sm-voyOut" style="margin-top:12px"></div>
     <p class="hint">Valeurs de départ : estimation pour une personne, d'après des moyennes de coût de la vie à Médine et des prix de vols Paris–Médine relevés sur le web. Corrige chaque ligne avec tes vrais chiffres. Les tontines encore en cours après le départ sont ajoutées automatiquement.</p>
   </div>
 
@@ -1950,9 +1954,13 @@ const COURSES=498; // moyenne mai à septembre, répartie par jour
 const CH_START='2026-11-25', CH_DAYS=5, CH_LAST='2027-03';
 
 const T1_DEFAULT='2027-02', T2_DEFAULT='';
-const VOY_DEF={pers:1,mois:3,vol:520,visa:130,logt:500,nourr:350,transp:50,charges:100,imprev:100,france:1333};
-const VOY_IDS={pers:'vPers',mois:'vMois',vol:'vVol',visa:'vVisa',logt:'vLogt',nourr:'vNourr',transp:'vTransp',charges:'vCharges',imprev:'vImprev',france:'vFrance'};
-const S={chomage:1800,target:20000,t1:T1_DEFAULT,t2:T2_DEFAULT,d1:0,d1d:'2027-09-30',d2:0,d2d:'2027-12-31',dtax:31.4,voy:{...VOY_DEF}};
+const VOY_DEF={pers:2,mois:3,vol:520,visa:130,logt:500,nourr:350,transp:50,charges:100,imprev:100};
+/* charges fixes du bot : [id, libellé, €/mois, continue pendant le séjour] — la voiture reste (parking gardé), assurance auto et abonnements coupés */
+const CS_DEF=[['loyer','Loyer',804,1],['mere','Virement mère',150,1],['parking','Place de parking',50,1],['mutuelle','Mutuelle Malakoff',57.03,1],['eni','ENI énergie',39.40,1],['habit','Assurance habitation',8.46,1],['banque','Cotisation bancaire (18,30 € par trimestre)',6.10,1],['claude','Claude.ai',21.60,1],['arabe','Cours d\'arabe',31,1],['hello','Helloasso',12.55,1],['stripe','Stripe asso',10,1],
+ ['bymob','Bouygues mobile',17.99,0],['bybox','Bouygues box',24,0],['basic','Basic Fit',22.99,0],['sportf','Salle de sport (femme)',44,0],['canal','Canal+ (frère)',13,0],['crunchy','Crunchyroll',8.99,0],['disney','Disney+',6.99,0],['auto','Assurance auto',64.24,0]];
+const csFresh=()=>Object.fromEntries(CS_DEF.map(([k,l,a,on])=>[k,{a,on:!!on}]));
+const VOY_IDS={pers:'vPers',mois:'vMois',vol:'vVol',visa:'vVisa',logt:'vLogt',nourr:'vNourr',transp:'vTransp',charges:'vCharges',imprev:'vImprev'};
+const S={chomage:1800,target:20000,t1:T1_DEFAULT,t2:T2_DEFAULT,d1:0,d1d:'2027-09-30',d2:0,d2d:'2027-12-31',dtax:31.4,voy:{...VOY_DEF},cs:csFresh()};
 const divsPlan=()=>[['Dividende Prof Idéal',S.d1,S.d1d],['Dividende Dyneos',S.d2,S.d2d]];
 let MV=[];
 
@@ -2038,7 +2046,7 @@ function voyage(){
     ['Transport local',n*p*nb(v.transp)],
     ['Électricité, internet, téléphone',n*nb(v.charges)],
     ['Imprévus et loisirs',n*nb(v.imprev)],
-    ['Charges qui continuent en France',n*nb(v.france)],
+    ['Charges fixes qui continuent en France',n*CS_DEF.reduce((t,[k])=>t+(S.cs[k].on?nb(S.cs[k].a):0),0)],
     ['Tontines encore en cours',tont]
   ];
   return {lines,total:lines.reduce((a,x)=>a+x[1],0),n,p};
@@ -2257,7 +2265,10 @@ async function load(){
       if(/^\d{4}-\d{2}-\d{2}$/.test(r.d1d||''))S.d1d=r.d1d;
       if(/^\d{4}-\d{2}-\d{2}$/.test(r.d2d||''))S.d2d=r.d2d;
       if(r.dtax!==undefined&&r.dtax!==null)S.dtax=+r.dtax;
-      if(r.voyage&&typeof r.voyage==='object')Object.keys(VOY_DEF).forEach(k=>{if(r.voyage[k]!==undefined&&r.voyage[k]!==null&&!isNaN(+r.voyage[k]))S.voy[k]=+r.voyage[k]});
+      if(r.voyage&&typeof r.voyage==='object'){
+        Object.keys(VOY_DEF).forEach(k=>{if(r.voyage[k]!==undefined&&r.voyage[k]!==null&&!isNaN(+r.voyage[k]))S.voy[k]=+r.voyage[k]});
+        if(r.voyage.cs&&typeof r.voyage.cs==='object')CS_DEF.forEach(([k])=>{const c=r.voyage.cs[k];if(c&&!isNaN(+c.a))S.cs[k]={a:+c.a,on:!!c.on}});
+      }
       fillReg();
     }
     $('dbnote').textContent='Tes ajouts sont enregistrés dans le bot et restent là à la prochaine visite.';
@@ -2283,6 +2294,7 @@ function fillReg(){
   $('regChomage').value=S.chomage;$('regTarget').value=S.target;$('regDepart').value=DEP;$('regT1').value=S.t1;$('regT2').value=S.t2;
   $('regD1').value=S.d1||'';$('regD1d').value=S.d1d;$('regD2').value=S.d2||'';$('regD2d').value=S.d2d;$('regDTax').value=S.dtax;
   Object.keys(VOY_IDS).forEach(k=>{$(VOY_IDS[k]).value=S.voy[k]});
+  $('csList').innerHTML=CS_DEF.map(([k,l])=>`<div class="cs-row"><label><input type="checkbox" data-cs="${k}"${S.cs[k].on?' checked':''}> ${esc(l)}</label><input type="number" step="0.01" min="0" data-csa="${k}" value="${S.cs[k].a}" aria-label="Montant mensuel ${esc(l)}"></div>`).join('');
 }
 function saveReg(){
   S.chomage=+$('regChomage').value||0; S.target=+$('regTarget').value||0;
@@ -2293,11 +2305,14 @@ function saveReg(){
   if($('regD1d').value)S.d1d=$('regD1d').value; if($('regD2d').value)S.d2d=$('regD2d').value;
   S.dtax=$('regDTax').value===''?31.4:Math.min(100,Math.max(0,+$('regDTax').value));
   Object.keys(VOY_IDS).forEach(k=>{const v=+$(VOY_IDS[k]).value; S.voy[k]=isNaN(v)||v<0?VOY_DEF[k]:v});
+  CS_DEF.forEach(([k])=>{const c=document.querySelector('#sm-csList [data-cs="'+k+'"]'), a=document.querySelector('#sm-csList [data-csa="'+k+'"]');
+    if(c&&a){const v=+a.value; S.cs[k]={a:isNaN(v)||v<0?S.cs[k].a:v,on:c.checked}}});
   render();
   clearTimeout(saveTimer);
-  saveTimer=setTimeout(()=>api('/api/sim/reglages',{method:'POST',headers:JSONH,body:JSON.stringify({chomage:S.chomage,objectif:S.target,depart:DEP,t1:S.t1,t2:S.t2,d1:S.d1,d1d:S.d1d,d2:S.d2,d2d:S.d2d,dtax:S.dtax,voyage:S.voy})}).catch(()=>{}),600);
+  saveTimer=setTimeout(()=>api('/api/sim/reglages',{method:'POST',headers:JSONH,body:JSON.stringify({chomage:S.chomage,objectif:S.target,depart:DEP,t1:S.t1,t2:S.t2,d1:S.d1,d1d:S.d1d,d2:S.d2,d2d:S.d2d,dtax:S.dtax,voyage:{...S.voy,cs:S.cs}})}).catch(()=>{}),600);
 }
 fillReg();
+$('csList').addEventListener('input',saveReg);$('csList').addEventListener('change',saveReg);
 ['regChomage','regTarget','regDepart','regT1','regT2','regD1','regD1d','regD2','regD2d','regDTax',...Object.values(VOY_IDS)].forEach(id=>$(id).addEventListener('input',saveReg));
 
 formState(); renderBase(); render(); load();

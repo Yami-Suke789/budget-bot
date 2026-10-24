@@ -3159,10 +3159,20 @@ app.post('/api/sim/reglages', async (req, res) => {
     // budget du sejour a Medine : cles connues uniquement, nombres >= 0
     if (b.voyage && typeof b.voyage === 'object') {
       const voy = { ...(payload.voyage || {}) };
-      ['pers', 'mois', 'vol', 'visa', 'logt', 'nourr', 'transp', 'charges', 'imprev', 'france'].forEach(k => {
+      ['pers', 'mois', 'vol', 'visa', 'logt', 'nourr', 'transp', 'charges', 'imprev'].forEach(k => {
         const v = Number(b.voyage[k]);
         if (b.voyage[k] !== undefined && v >= 0) voy[k] = v;
       });
+      // charges fixes pendant le sejour : { id: { a: montant mensuel, on: continue ou non } }
+      if (b.voyage.cs && typeof b.voyage.cs === 'object') {
+        const cs = { ...(voy.cs || {}) };
+        ['loyer', 'mere', 'parking', 'mutuelle', 'eni', 'habit', 'banque', 'claude', 'arabe', 'hello', 'stripe',
+         'bymob', 'bybox', 'basic', 'sportf', 'canal', 'crunchy', 'disney', 'auto'].forEach(k => {
+          const c = b.voyage.cs[k];
+          if (c && Number(c.a) >= 0) cs[k] = { a: Number(c.a), on: !!c.on };
+        });
+        voy.cs = cs;
+      }
       payload.voyage = voy;
     }
     const { error } = ex && ex.length
