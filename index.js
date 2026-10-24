@@ -3064,16 +3064,22 @@ app.post('/api/config', async (req, res) => {
 // ── SIMULATEUR DE TRESORERIE (onglet Simulation du dashboard) ──
 // Table `simulation` : type 'ajout' (entree, paiement ou eleves) ou 'reglages' (chomage, objectif).
 function nettoyerAjoutSim(b) {
-  const kind = ['in', 'out', 'eleves'].includes(b.kind) ? b.kind : null;
+  const kind = ['in', 'out', 'eleves', 'div'].includes(b.kind) ? b.kind : null;
   if (!kind) return { error: 'Type invalide' };
   const date = /^\d{4}-\d{2}-\d{2}$/.test(b.date || '') ? b.date : null;
   if (!date) return { error: 'Date invalide' };
-  const rep = b.rep === 'monthly' ? 'monthly' : 'once';
+  const rep = ['monthly', 'quarterly'].includes(b.rep) ? b.rep : 'once';
   const until = /^\d{4}-\d{2}$/.test(b.until || '') ? b.until : '';
   const a = { kind, date, rep, until, label: String(b.label || '').slice(0, 120), on: b.on !== false };
   if (kind === 'eleves') {
     ['n', 'tarif', 'heures', 'sem', 'urssaf'].forEach(k => { a[k] = Number(b[k]); });
     if (!(a.n > 0) || !(a.tarif > 0) || !(a.heures > 0) || !(a.sem > 0) || !(a.urssaf >= 0)) return { error: 'Parametres eleves invalides' };
+  } else if (kind === 'div') {
+    // dividende : montant brut + taux de prelevements (net = brut x (1 - taux/100))
+    a.amount = Number(b.amount);
+    a.tax = b.tax === undefined || b.tax === null || b.tax === '' ? 31.4 : Number(b.tax);
+    if (!(a.amount > 0)) return { error: 'Montant invalide' };
+    if (!(a.tax >= 0 && a.tax <= 100)) return { error: 'Taux de prelevements invalide' };
   } else {
     a.amount = Number(b.amount);
     if (!(a.amount > 0)) return { error: 'Montant invalide' };
@@ -3127,8 +3133,18 @@ app.post('/api/sim/reglages', async (req, res) => {
   try {
     const chomage = Number(req.body && req.body.chomage), objectif = Number(req.body && req.body.objectif);
     if (!(chomage >= 0) || !(objectif >= 0)) return res.json({ ok: false, error: 'Valeurs invalides' });
-    const { data: ex } = await supabase.from('simulation').select('id').eq('type', 'reglages').limit(1);
-    const payload = { chomage, objectif };
+    const { data: ex } = await supabase.from('simulation').select('id, data').eq('type', 'reglages').limit(1);
+    const b = req.body || {};
+    const payload = { ...((ex && ex[0] && ex[0].data) || {}), chomage, objectif };
+    // reglages "Depart a Medine" : facultatifs (anciens clients sans ces champs)
+    if (b.depart !== undefined) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(b.depart || '')) return res.json({ ok: false, error: 'Date de depart invalide' });
+      payload.depart = b.depart;
+    }
+    ['t1', 't2'].forEach(k => {
+      if (b[k] === undefined) return;
+      payload[k] = /^\d{4}-\d{2}$/.test(b[k] || '') ? b[k] : '';
+    });
     const { error } = ex && ex.length
       ? await supabase.from('simulation').update({ data: payload }).eq('id', ex[0].id)
       : await supabase.from('simulation').insert({ type: 'reglages', data: payload });

@@ -451,7 +451,10 @@ input[type=range].lgm-range::-moz-range-thumb{width:16px;height:16px;border:none
 .smw .sm-tile:first-child{border-color:rgba(242,100,25,.3)}
 .smw .sm-tile .l{font-size:.64rem;color:var(--s-ink2)}
 .smw .sm-tile .v{font-family:var(--mono);font-size:1.2rem;font-weight:500;margin-top:4px;white-space:nowrap}
-@media (min-width:981px){.smw .sm-tiles{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.smw .sm-tile.med{grid-column:1/-1;border-color:rgba(74,222,128,.3)}
+@media (min-width:981px){.smw .sm-tiles{grid-template-columns:repeat(5,minmax(0,1fr))}.smw .sm-tile.med{grid-column:auto}}
+.smw .kpi.hero.med .l b{color:var(--s-ink)}
+.smw .reg-med{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:0 0 12px}
 </style>
 </head>
 <body>
@@ -898,11 +901,21 @@ input[type=range].lgm-range::-moz-range-thumb{width:16px;height:16px;border:none
     <div class="sm-tile"><div class="l">Fin novembre</div><div class="v" id="sm-t-nov">–</div></div>
     <div class="sm-tile"><div class="l">Fin février</div><div class="v" id="sm-t-feb">–</div></div>
     <div class="sm-tile" id="sm-t-marsbox"><div class="l">Fin mars</div><div class="v" id="sm-t-mars">–</div></div>
+    <div class="sm-tile med" id="sm-t-medbox"><div class="l" id="sm-t-medl">Argent dispo au départ à Médine</div><div class="v" id="sm-t-med">–</div></div>
   </div>
   <div class="kpis" id="sm-kpis"></div>
   <div class="reg" style="margin:0 0 12px">
     <input id="sm-regChomage" type="hidden">
     <label class="f">Objectif fin mars (€)<input id="sm-regTarget" type="number" step="500"></label>
+  </div>
+  <div class="panel pn0">
+    <h2>Départ à Médine</h2>
+    <div class="reg-med">
+      <label class="f">Date de départ<input id="sm-regDepart" type="date"></label>
+      <label class="f">Dernière cotisation, tontine 1<input id="sm-regT1" type="month"></label>
+      <label class="f">Dernière cotisation, tontine 2<input id="sm-regT2" type="month"></label>
+    </div>
+    <p class="hint" style="margin-top:0">Laisse une tontine vide si elle continue jusqu'au départ. L'argent disponible est le solde à la date de départ. Après mars 2027, la base ne contient plus aucune rentrée (France Travail s'arrête) : ajoute dividendes, élèves ou autres rentrées avec le formulaire.</p>
   </div>
 
   <div class="main">
@@ -910,7 +923,7 @@ input[type=range].lgm-range::-moz-range-thumb{width:16px;height:16px;border:none
       <div class="panel pn1">
         <h2>Évolution du solde</h2>
         <div class="legend" id="sm-legend"></div>
-        <div class="chartbox" id="sm-chartbox"><svg id="sm-chart" role="img" aria-label="Évolution du solde du compte entre octobre 2026 et mars 2027"></svg><div id="sm-tip"></div></div>
+        <div class="chartbox" id="sm-chartbox"><svg id="sm-chart" role="img" aria-label="Évolution du solde du compte entre octobre 2026 et le départ à Médine"></svg><div id="sm-tip"></div></div>
       </div>
       <div class="panel pn4">
         <h2>Simulation par élève</h2>
@@ -938,21 +951,24 @@ input[type=range].lgm-range::-moz-range-thumb{width:16px;height:16px;border:none
           <div class="span2">
             <div class="seg" id="sm-seg" role="group" aria-label="Type d'ajout">
               <button type="button" data-k="in" class="on">Entrée d'argent</button>
+              <button type="button" data-k="div">Dividende</button>
               <button type="button" data-k="out">Paiement</button>
               <button type="button" data-k="eleves">Élèves</button>
             </div>
             <select id="sm-mvKind" hidden>
               <option value="in">Entrée d'argent</option>
+              <option value="div">Dividende</option>
               <option value="out">Paiement obligatoire</option>
               <option value="eleves">Nouveaux élèves</option>
             </select>
           </div>
           <label class="f span2" id="sm-rowLabel"><span id="sm-lblText">Libellé</span><input id="sm-mvLabel" type="text" placeholder="Ex. remboursement, facture, mariage…"></label>
-          <label class="f" id="sm-rowAmount">Montant (€)<input id="sm-mvAmount" type="number" step="10" min="0" inputmode="decimal"></label>
+          <label class="f" id="sm-rowAmount"><span id="sm-amtText">Montant (€)</span><input id="sm-mvAmount" type="number" step="10" min="0" inputmode="decimal"></label>
+          <label class="f" id="sm-rowTax" hidden>Prélèvements sur le dividende (%)<input id="sm-mvTax" type="number" value="31.4" step="0.1" min="0" max="100" inputmode="decimal"></label>
           <label class="f" id="sm-rowN" hidden>Nombre d'élèves<input id="sm-mvN" type="number" step="1" min="1" value="5"></label>
           <label class="f">Date (1er versement)<input id="sm-mvDate" type="date" value="2026-10-28"></label>
           <label class="f">Fréquence
-            <select id="sm-mvRep"><option value="once">Une seule fois</option><option value="monthly">Chaque mois</option></select></label>
+            <select id="sm-mvRep"><option value="once">Une seule fois</option><option value="monthly">Chaque mois</option><option value="quarterly">Chaque trimestre</option></select></label>
           <label class="f" id="sm-rowUntil" hidden>Jusqu'au mois de (facultatif)<input id="sm-mvUntil" type="month"></label>
           <div class="grid2 span2" id="sm-rowEleves" hidden>
             <label class="f">Tarif de l'heure (€)<input id="sm-mvTarif" type="number" value="40" step="1"></label>
@@ -1879,10 +1895,16 @@ window.pjUpdate=function(o){
   if(!q)return;
   const set=(id,v,t)=>{const e=g(id);e.textContent=eur(v);e.style.color=t==null?(v<0?'var(--red)':''):(v>=t?'var(--green)':'var(--red)')};
   set('sm-t-nov',q.nov); set('sm-t-feb',q.feb); set('sm-t-mars',q.mars,q.target);
+  if(q.med!=null&&g('sm-t-med')){
+    set('sm-t-med',q.med);
+    g('sm-t-medl').textContent='Argent dispo au départ à Médine'+(q.dep?' ('+q.dep.split('-').reverse().join('/')+')':'');
+  }
 };
 const SM=window.SM_=(function(){
 
-const START='2026-10-18', END='2027-03-31', NOV='2026-11-30', FEB='2027-02-28';
+const START='2026-10-18', MARS='2027-03-31', NOV='2026-11-30', FEB='2027-02-28';
+let DEP='2028-01-01';          // date de départ à Médine (réglable)
+let END=DEP>MARS?DEP:MARS;     // fin de la simulation : le départ ou fin mars si le départ est plus tôt
 const MS=86400000;
 const T=s=>Date.parse(s+'T00:00:00Z');
 const ISO=ms=>new Date(ms).toISOString().slice(0,10);
@@ -1896,19 +1918,28 @@ const MOIS=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.',
 let CASH=1900; // CASH = épargne actuelle du bot (solde de tout compte et ETF déjà dedans)
 const BASE_IN=[['Caution Clicar','2026-10-31',1000],['Remboursement impôts','2026-10-31',140],['Beau-frère rembourse','2026-11-15',1600],['Récupération de mars','2027-03-15',10500]];
 const BASE_OUT=[['Tontine 2 d\'octobre','2026-10-20',500],['Amende','2026-10-31',300],['Imprévus de novembre (mariage…)','2026-11-20',300]];
-const BASE_MONTHLY=[['Charges du mois (loyer, abonnements…)',1333.31,7,'2026-11',''],['Reste d\'octobre (Canal+, Claude, box)',58.60,27,'2026-10','2026-10'],['Tontine 1',500,1,'2026-11','2027-02'],['Tontine 2',500,15,'2026-11',''],['Impôts',523,25,'2026-10','2027-02']];
+const BASE_MONTHLY=[['Charges du mois (loyer, abonnements…)',1333.31,7,'2026-11',''],['Reste d\'octobre (Canal+, Claude, box)',58.60,27,'2026-10','2026-10'],['Tontine 1',500,1,'2026-11','2027-02','t1'],['Tontine 2',500,15,'2026-11','','t2'],['Impôts',523,25,'2026-10','2027-02']];
 const COURSES=498; // moyenne mai à septembre, répartie par jour
 const CH_START='2026-11-25', CH_DAYS=5, CH_LAST='2027-03';
 
-const S={chomage:1800,target:20000};
+const T1_DEFAULT='2027-02', T2_DEFAULT='';
+const S={chomage:1800,target:20000,t1:T1_DEFAULT,t2:T2_DEFAULT};
 let MV=[];
 
 const elevesNet=m=>m.n*m.tarif*m.heures*m.sem*(1-m.urssaf/100);
-const mvAmount=m=>m.kind==='eleves'?elevesNet(m):(m.kind==='in'?1:-1)*m.amount;
-const mvLabel=m=>m.kind==='eleves'?(m.label||('Cours : '+m.n+' élèves')):m.label;
+const divNet=m=>m.amount*(1-(m.tax==null?31.4:m.tax)/100);
+const mvAmount=m=>m.kind==='eleves'?elevesNet(m):m.kind==='div'?divNet(m):(m.kind==='in'?1:-1)*m.amount;
+const mvLabel=m=>m.kind==='eleves'?(m.label||('Cours : '+m.n+' élèves')):m.kind==='div'?(m.label||'Dividende'):m.label;
+const repWord=m=>m.rep==='monthly'?'chaque mois':'chaque trimestre';
 
 function mvHits(m,d,key,dn,y,mo){
   if(m.rep==='once')return d===m.date;
+  if(m.rep==='quarterly'){
+    const diff=(y*12+mo)-(+m.date.slice(0,4)*12+ +m.date.slice(5,7));
+    if(diff<0||diff%3!==0)return false;
+    if(m.until&&key>m.until)return false;
+    return dn===Math.min(+m.date.slice(8),DIM(y,mo));
+  }
   if(key<m.date.slice(0,7))return false;
   if(m.until&&key>m.until)return false;
   return dn===Math.min(+m.date.slice(8),DIM(y,mo));
@@ -1934,7 +1965,8 @@ function sim(o={}){
     const add=(l,a,isMv)=>{if(a>=0)inn+=a;else out-=a;notes.push([l,a,!!isMv]);if(isMv)mv=true};
     (once[d]||[]).forEach(([l,a])=>add(l,a));
     if(ch[d])add('France Travail',ch[d]);
-    BASE_MONTHLY.forEach(([l,a,j,deb,fin])=>{
+    BASE_MONTHLY.forEach(([l,a,j,deb,fin0,k])=>{
+      const fin=k&&S[k]!==undefined?S[k]:fin0;
       if(deb&&key<deb)return; if(fin&&key>fin)return;
       if(dn===Math.min(j,DIM(y,mo)))add(l,-a);
     });
@@ -1954,20 +1986,40 @@ let cur=null, base=null;
 
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 
+/* dividendes nets versés entre le début de la simulation et le départ (ajouts activés) */
+function divNetTotal(){
+  let tot=0;
+  MV.filter(m=>m.on&&m.kind==='div').forEach(m=>{
+    cur.days.slice(1).forEach(x=>{
+      if(x.date>DEP)return;
+      const y=+x.date.slice(0,4), mo=+x.date.slice(5,7), dn=+x.date.slice(8);
+      if(mvHits(m,x.date,x.date.slice(0,7),dn,y,mo))tot+=divNet(m);
+    });
+  });
+  return tot;
+}
+
 function render(){
+  END=DEP>MARS?DEP:MARS;
   cur=sim(); base=sim({noMv:true});
   const active=MV.filter(m=>m.on).length;
   const f=d=>cur.at(d), bf=d=>base.at(d);
   const delta=d=>active?`<div class="n"><b class="${f(d)-bf(d)>=0?'pos':'neg'}">${f(d)-bf(d)>=0?'+':'−'}${eur(Math.abs(f(d)-bf(d)))}</b> ajouts</div>`:'';
-  const mars=f(END), ok=mars>=S.target, lo=cur.min;
+  const mars=f(MARS), ok=mars>=S.target, lo=cur.min;
   const pct=Math.max(0,Math.min(100,S.target>0?mars/S.target*100:0));
+  const med=f(DEP), medBase=bf(DEP), medOk=med>=0, dv=divNetTotal();
+  const lowAfter=cur.days.filter(x=>x.date<=DEP).reduce((a,x)=>x.bal<a.bal?x:a,cur.days[0]);
   $('kpis').innerHTML=`
+   <div class="kpi hero med ${medOk?'ok':'ko'}"><div class="l">Argent dispo au départ à Médine · <b>${fmtFull(DEP)}</b></div><div class="v"${medOk?'':' style="color:var(--s-bad)"'}>${eur(med)}</div>
+     <div class="n"><span>sans tes ajouts</span><b class="${medBase<0?'neg':''}">${eur(medBase)}</b></div>
+     <div class="n"><span>dont dividendes nets</span><b class="${dv>0?'pos':''}">${eur(dv)}</b></div>
+     <div class="n"><span>point bas avant le départ</span><b class="${lowAfter.bal<0?'neg':''}">${eur(lowAfter.bal)} · ${fmtD(lowAfter.date)}</b></div></div>
    <div class="kpi hero ${ok?'ok':'ko'}"><div class="l">Solde fin mars</div><div class="v">${eur(mars)}</div>
      <div class="gauge"><i style="width:${pct}%"></i></div>
      <div class="n"><span>objectif ${eur(S.target)}</span><b class="${ok?'pos':'neg'}">${ok?'+':'−'}${eur(Math.abs(mars-S.target))}</b></div>
      <div class="n"><span>point bas</span><b class="${lo.bal<0?'neg':''}">${eur(lo.bal)} · ${fmtD(lo.date)}</b></div></div>`;
-  window.__pj={nov:f(NOV),feb:f(FEB),mars:mars,target:S.target,active:active};
-  if(window.pjUpdate)window.pjUpdate({nov:f(NOV),feb:f(FEB),mars:mars,target:S.target,active:active});
+  window.__pj={nov:f(NOV),feb:f(FEB),mars:mars,target:S.target,active:active,med:med,dep:DEP};
+  if(window.pjUpdate)window.pjUpdate({nov:f(NOV),feb:f(FEB),mars:mars,target:S.target,active:active,med:med,dep:DEP});
   $('legend').innerHTML=`<span><i style="border-color:var(--s-accent)"></i>${active?'Avec tes ajouts':'Base'}</span>`+(active?`<span><i style="border-color:var(--s-mute);border-top-style:dashed"></i>Base seule</span>`:'')+`<span><i style="border-color:var(--s-amber);border-top-style:dotted"></i>Objectif ${eur(S.target)}</span>`;
   renderList(); renderTable(); renderStu(); drawChart();
 }
@@ -1980,16 +2032,19 @@ function renderTable(){
 }
 
 function renderList(){
-  if(!MV.length){$('mvList').innerHTML=`<p class="hint" style="margin:0">Aucun ajout pour l'instant : la courbe montre la base seule. Ajoute une entrée, un paiement ou des élèves avec le formulaire.</p>`;return}
+  if(!MV.length){$('mvList').innerHTML=`<p class="hint" style="margin:0">Aucun ajout pour l'instant : la courbe montre la base seule. Ajoute une entrée, un dividende, un paiement ou des élèves avec le formulaire.</p>`;return}
   $('mvList').innerHTML=MV.map(m=>{
     const a=mvAmount(m);
-    const w=sim({skipId:m.id}), impact=cur.at(END)-w.at(END);
-    const freq=m.rep==='monthly'?`chaque mois dès le ${fmtFull(m.date)}${m.until?', jusqu\'à '+m.until.slice(5)+'/'+m.until.slice(0,4):''}`:`le ${fmtFull(m.date)}`;
-    const kind=m.kind==='eleves'?`${m.n} élèves · ${m.heures} h par semaine chacun · ${m.tarif} €/h · URSSAF ${m.urssaf} %`:'';
+    const w=sim({skipId:m.id}), impact=cur.at(MARS)-w.at(MARS);
+    const freq=m.rep!=='once'?`${repWord(m)} dès le ${fmtFull(m.date)}${m.until?', jusqu\'à '+m.until.slice(5)+'/'+m.until.slice(0,4):''}`:`le ${fmtFull(m.date)}`;
+    const kind=m.kind==='eleves'?`${m.n} élèves · ${m.heures} h par semaine chacun · ${m.tarif} €/h · URSSAF ${m.urssaf} %`
+      :m.kind==='div'?`brut ${eur(m.amount)} · prélèvements ${(m.tax==null?31.4:m.tax)} %`:'';
+    const suffix=m.rep==='monthly'?' /mois':m.rep==='quarterly'?' /trim.':'';
+    const wd=m.on?cur.at(DEP)-w.at(DEP):0;
     return `<div class="mv" data-id="${esc(m.id)}"><input type="checkbox" data-on aria-label="Inclure dans la simulation" ${m.on?'checked':''}>
       <div><div class="t">${esc(mvLabel(m))}</div><div class="d">${freq}${kind?'<br>'+kind:''}</div></div>
-      <div class="a ${a<0?'neg':'pos'}">${a<0?'−':'+'}${eur(Math.abs(a))}${m.rep==='monthly'?' /mois':''}</div>
-      <div class="imp">${m.on?`Effet sur le solde de fin mars : <b class="num ${impact<0?'neg':'pos'}">${impact<0?'−':'+'}${eur(Math.abs(impact))}</b>`:'Désactivé'} · <button class="sm-del" data-del>Supprimer</button></div></div>`;
+      <div class="a ${a<0?'neg':'pos'}">${a<0?'−':'+'}${eur(Math.abs(a))}${suffix}</div>
+      <div class="imp">${m.on?`Effet sur l'argent dispo au départ : <b class="num ${wd<0?'neg':'pos'}">${wd<0?'−':'+'}${eur(Math.abs(wd))}</b><br>Effet sur le solde de fin mars : <b class="num ${impact<0?'neg':'pos'}">${impact<0?'−':'+'}${eur(Math.abs(impact))}</b>`:'Désactivé'} · <button class="sm-del" data-del>Supprimer</button></div></div>`;
   }).join('');
 }
 
@@ -1998,8 +2053,8 @@ function renderBase(){
   $('baseBox').innerHTML=`<h3>Au départ (18/10)</h3><ul>${li('Épargne actuelle (bot)',eur(CASH))}</ul>
    <h3>Entrées</h3><ul>${BASE_IN.map(([l,d,a])=>li(l,eur(a),` · ${fmtD(d)}`)).join('')}${li('France Travail (réglage en haut)','dès le 25/11')}</ul>
    <h3>Sorties ponctuelles</h3><ul>${BASE_OUT.map(([l,d,a])=>li(l,'−'+eur(a),` · ${fmtD(d)}`)).join('')}</ul>
-   <h3>Sorties mensuelles</h3><ul>${BASE_MONTHLY.map(([l,a,j])=>li(l,'−'+eur(a,2),` · le ${j}`)).join('')}${li('Courses (moyenne mai à septembre)','−'+eur(COURSES))}</ul>
-   <p class="hint">France Travail : 5 jours en novembre, puis des mois complets. Assurance auto et Disney+ sont suspendus, donc exclus. Les 10 500 € de mars sont comptés dans la base.</p>`;
+   <h3>Sorties mensuelles</h3><ul>${BASE_MONTHLY.map(([l,a,j,deb,fin0,k])=>{const fin=k&&S[k]!==undefined?S[k]:fin0;return li(l,'−'+eur(a,2),` · le ${j}${fin?' · jusqu\'en '+fin.slice(5)+'/'+fin.slice(0,4):''}`)}).join('')}${li('Courses (moyenne mai à septembre)','−'+eur(COURSES))}</ul>
+   <p class="hint">France Travail : 5 jours en novembre, puis des mois complets. Assurance auto et Disney+ sont suspendus, donc exclus. Les 10 500 € de mars sont comptés dans la base, que tu arrêtes ou non les tontines avant. Après mars 2027, la base ne compte plus aucune rentrée.</p>`;
 }
 
 function drawChart(){
@@ -2014,21 +2069,22 @@ function drawChart(){
   let s='<defs><linearGradient id="sm-grad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--s-accent);stop-opacity:.34"/><stop offset="1" style="stop-color:var(--s-accent);stop-opacity:0"/></linearGradient></defs>';
   for(let v=y0;v<=y1+1e-6;v+=step)s+=`<line x1="${m.l}" x2="${W-m.r}" y1="${y(v)}" y2="${y(v)}" stroke="var(--s-grid)"/><text x="${m.l-6}" y="${y(v)+4}" text-anchor="end">${new Intl.NumberFormat('fr-FR').format(v).replace(/ | /g,' ')}</text>`;
   if(0>=y0&&0<=y1)s+=`<line x1="${m.l}" x2="${W-m.r}" y1="${y(0)}" y2="${y(0)}" stroke="var(--s-bad)" stroke-width="1.2" opacity=".7"/>`;
-  for(let yy=2026,mo=11;;){const d=yy+'-'+String(mo).padStart(2,'0')+'-01'; if(d>END)break; const xx=x(T(d)); s+=`<line x1="${xx}" x2="${xx}" y1="${m.t}" y2="${H-m.b}" stroke="var(--s-grid)"/><text x="${xx+3}" y="${H-8}">${MOIS[mo-1]}</text>`; mo++; if(mo>12){mo=1;yy++}}
+  const every=W<520?3:W<760?2:1; let mi=0;
+  for(let yy=2026,mo=11;;mi++){const d=yy+'-'+String(mo).padStart(2,'0')+'-01'; if(d>END)break; const xx=x(T(d)); s+=`<line x1="${xx}" x2="${xx}" y1="${m.t}" y2="${H-m.b}" stroke="var(--s-grid)"/>`+(mi%every===0?`<text x="${xx+3}" y="${H-8}">${MOIS[mo-1]}${mo===1?' '+String(yy).slice(2):''}</text>`:''); mo++; if(mo>12){mo=1;yy++}}
   s+=`<line x1="${m.l}" x2="${W-m.r}" y1="${y(S.target)}" y2="${y(S.target)}" stroke="var(--s-amber)" stroke-width="1.6" stroke-dasharray="2 4"/>`;
   const path=ser=>ser.days.map((d,i)=>(i?'L':'M')+x(T(d.date)).toFixed(1)+' '+y(d.bal).toFixed(1)).join('');
   if(MV.some(q=>q.on))s+=`<path d="${path(base)}" fill="none" stroke="var(--s-mute)" stroke-width="1.8" stroke-dasharray="6 4" stroke-linejoin="round"/>`;
   s+=`<path d="${path(cur)} L${x(T(END))} ${y(y0)} L${x(T(START))} ${y(y0)}Z" fill="url(#sm-grad)"/>`;
   s+=`<path d="${path(cur)}" fill="none" stroke="var(--s-accent)" stroke-width="2.5" stroke-linejoin="round"/>`;
   cur.days.forEach(d=>{if(d.mv)s+=`<circle cx="${x(T(d.date))}" cy="${y(d.bal)}" r="3.5" fill="var(--s-amber)" stroke="var(--s-panel)" stroke-width="2"/>`});
-  [[NOV,'fin nov.'],[FEB,'fin fév.']].forEach(([dt,lb])=>{
+  [[NOV,'fin nov.'],[FEB,'fin fév.'],[MARS,'fin mars']].forEach(([dt,lb])=>{
     const mx=x(T(dt)), my=y(cur.at(dt));
     s+=`<line x1="${mx}" x2="${mx}" y1="${my}" y2="${H-m.b}" stroke="var(--s-line)" stroke-dasharray="3 3"/><circle cx="${mx}" cy="${my}" r="4" fill="var(--s-panel)" stroke="var(--s-accent)" stroke-width="2"/><text x="${Math.min(mx,W-m.r-40)}" y="${my-10}" text-anchor="middle" style="fill:var(--s-ink);paint-order:stroke;stroke:#0b1522;stroke-width:4px;font-weight:500">${lb} ${eur(cur.at(dt))}</text>`;
   });
-  s+=`<text x="${m.l+6}" y="${y(S.target)-6}" style="fill:var(--s-amber)">objectif ${eur(S.target)}</text>`;
+  s+=`<text x="${m.l+6}" y="${y(S.target)-6}" style="fill:var(--s-amber)">objectif fin mars ${eur(S.target)}</text>`;
   const l2=cur.min; s+=`<circle cx="${x(T(l2.date))}" cy="${y(l2.bal)}" r="5" fill="${l2.bal<0?'var(--s-bad)':'var(--s-accent)'}" stroke="var(--s-panel)" stroke-width="2"/>`;
-  const ex=x(T(END)), ey=y(cur.at(END)), good=cur.at(END)>=S.target;
-  s+=`<text x="${ex-8}" y="${ey-10}" text-anchor="end" style="fill:${good?'var(--s-good)':'var(--s-bad)'};font-weight:500">${eur(cur.at(END))}</text><circle cx="${ex}" cy="${ey}" r="4" fill="${good?'var(--s-good)':'var(--s-bad)'}" stroke="var(--s-panel)" stroke-width="2"/>`;
+  const dx=x(T(DEP)), dy=y(cur.at(DEP)), good=cur.at(DEP)>=0;
+  s+=`<line x1="${dx}" x2="${dx}" y1="${m.t}" y2="${H-m.b}" stroke="var(--s-good)" stroke-dasharray="4 3" opacity=".6"/><text x="${dx-8}" y="${dy-10}" text-anchor="end" style="fill:${good?'var(--s-good)':'var(--s-bad)'};font-weight:500">Médine ${eur(cur.at(DEP))}</text><circle cx="${dx}" cy="${dy}" r="4" fill="${good?'var(--s-good)':'var(--s-bad)'}" stroke="var(--s-panel)" stroke-width="2"/>`;
   s+=`<line id="sm-cross" y1="${m.t}" y2="${H-m.b}" stroke="var(--s-ink2)" visibility="hidden"/><rect id="sm-hit" x="${m.l}" y="${m.t}" width="${W-m.l-m.r}" height="${H-m.t-m.b}" fill="transparent"/>`;
   svg.innerHTML=s;
   const hit=$('hit'), cross=$('cross'), tip=$('tip');
@@ -2052,7 +2108,7 @@ function stuParams(n){return {id:'sim',kind:'eleves',label:'',date:$('sFrom').va
 function renderStu(){
   const one=elevesNet(stuParams(1));
   const rows=[0,3,4,5,6,7,8,9,10].map(n=>{
-    const r=n?sim({stu:stuParams(n)}):cur, e=r.at(END), p=stuParams(n), hs=n*p.heures;
+    const r=n?sim({stu:stuParams(n)}):cur, e=r.at(MARS), p=stuParams(n), hs=n*p.heures;
     return `<tr><td>${n===0?'Sans élève supplémentaire':n+' élèves'}</td><td>${fh(hs)}</td><td>${fh(hs*p.sem)}</td><td>${eur(elevesNet(p))}</td><td>${eur(r.at(NOV))}</td><td class="${e>=S.target?'pos':'neg'}"><b>${eur(e)}</b></td><td>${n?`<button type="button" data-addstu="${n}">Ajouter</button>`:''}</td></tr>`;
   }).join('');
   $('stuOut').innerHTML=`<p style="margin:0 0 8px;color:var(--s-ink2)">Par élève : <b class="num">${fh(+$('sH').value||0)}</b> par semaine, <b class="num">${fh((+$('sH').value||0)*(+$('sSem').value||0))}</b> par mois, <b class="num">${eur(one)}</b> net par mois.</p>
@@ -2066,19 +2122,23 @@ $('stuOut').addEventListener('click',e=>{
 
 /* ---------- formulaire ---------- */
 function formState(){
-  const k=$('mvKind').value, el=k==='eleves';
-  $('rowN').hidden=!el; $('rowEleves').hidden=!el; $('rowAmount').hidden=el;
-  $('lblText').textContent=el?'Libellé (facultatif)':'Libellé';
+  const k=$('mvKind').value, el=k==='eleves', dv=k==='div';
+  $('rowN').hidden=!el; $('rowEleves').hidden=!el; $('rowAmount').hidden=el; $('rowTax').hidden=!dv;
+  $('lblText').textContent=(el||dv)?'Libellé (facultatif)':'Libellé';
+  $('amtText').textContent=dv?'Montant brut du dividende (€)':'Montant (€)';
   if(el&&$('mvRep').value==='once')$('mvRep').value='monthly';
-  $('rowUntil').hidden=$('mvRep').value!=='monthly';
+  $('rowUntil').hidden=$('mvRep').value==='once';
   const p=$('preview');
   if(el){
     const n=+$('mvN').value||0, h=+$('mvH').value||0;
     const net=n*(+$('mvTarif').value||0)*h*(+$('mvSem').value||0)*(1-(+$('mvUrssaf').value||0)/100);
     p.innerHTML=`Soit <b class="num">${eur(net)}</b> net par mois et <b class="num">${Math.round(n*h*10)/10} h</b> de cours par semaine.`;
+  }else if(dv){
+    const g=+$('mvAmount').value||0, t=$('mvTax').value===''?31.4:+$('mvTax').value;
+    p.innerHTML=g>0?`Soit <b class="num">${eur(g*(1-t/100))}</b> net sur ton compte (${eur(g*t/100)} de prélèvements).`:'';
   }else p.textContent='';
 }
-['mvKind','mvRep','mvN','mvTarif','mvH','mvSem','mvUrssaf'].forEach(id=>$(id).addEventListener('input',formState));
+['mvKind','mvRep','mvN','mvTarif','mvH','mvSem','mvUrssaf','mvAmount','mvTax'].forEach(id=>$(id).addEventListener('input',formState));
 $('seg').addEventListener('click',e=>{
   const b=e.target.closest('button[data-k]'); if(!b)return;
   $('mvKind').value=b.dataset.k;
@@ -2087,14 +2147,19 @@ $('seg').addEventListener('click',e=>{
 });
 $('form').addEventListener('submit',e=>{
   e.preventDefault();
-  const kind=$('mvKind').value, date=$('mvDate').value, rep=$('mvRep').value, until=rep==='monthly'?$('mvUntil').value:'';
+  const kind=$('mvKind').value, date=$('mvDate').value, rep=$('mvRep').value, until=rep!=='once'?$('mvUntil').value:'';
   const m={kind,label:$('mvLabel').value.trim(),date,rep,until,on:true};
   const err=t=>{$('err').textContent=t;$('err').hidden=false};
-  if(!date||date<=START||date>END)return err('Choisis une date entre le 19/10/2026 et le 31/03/2027.');
+  if(!date||date<=START||date>END)return err('Choisis une date entre le 19/10/2026 et le '+fmtFull(END)+'.');
   if(until&&until<date.slice(0,7))return err('Le dernier mois doit être après la date de départ.');
   if(kind==='eleves'){
     Object.assign(m,{n:+$('mvN').value,tarif:+$('mvTarif').value,heures:+$('mvH').value,sem:+$('mvSem').value,urssaf:+$('mvUrssaf').value});
     if(!(m.n>0)||!(m.tarif>0)||!(m.heures>0)||!(m.sem>0))return err('Renseigne le nombre d\'élèves, le tarif, les heures et les semaines.');
+  }else if(kind==='div'){
+    m.amount=+$('mvAmount').value;
+    m.tax=$('mvTax').value===''?31.4:+$('mvTax').value;
+    if(!(m.amount>0))return err('Renseigne le montant brut du dividende.');
+    if(!(m.tax>=0&&m.tax<=100))return err('Les prélèvements doivent être entre 0 et 100 %.');
   }else{
     m.amount=+$('mvAmount').value;
     if(!(m.amount>0))return err('Renseigne un montant supérieur à 0.');
@@ -2112,7 +2177,13 @@ async function api(path,opt){const r=await fetch(path,opt);const j=await r.json(
 async function load(){
   try{
     const j=await api('/api/sim'); MV=j.ajouts||[]; sortMv();
-    if(j.reglages){S.chomage=+j.reglages.chomage;S.target=+j.reglages.objectif;$('regChomage').value=S.chomage;$('regTarget').value=S.target}
+    if(j.reglages){
+      S.chomage=+j.reglages.chomage;S.target=+j.reglages.objectif;$('regChomage').value=S.chomage;$('regTarget').value=S.target;
+      if(/^\d{4}-\d{2}-\d{2}$/.test(j.reglages.depart||''))DEP=j.reglages.depart;
+      if(j.reglages.t1!==undefined)S.t1=j.reglages.t1;
+      if(j.reglages.t2!==undefined)S.t2=j.reglages.t2;
+      $('regDepart').value=DEP;$('regT1').value=S.t1;$('regT2').value=S.t2;
+    }
     $('dbnote').textContent='Tes ajouts sont enregistrés dans le bot et restent là à la prochaine visite.';
   }catch(e){$('dbnote').textContent='Enregistrement indisponible : '+e.message}
   render();
@@ -2133,12 +2204,16 @@ $('mvList').addEventListener('change',async e=>{
 });
 let saveTimer=null;
 function saveReg(){
-  S.chomage=+$('regChomage').value||0; S.target=+$('regTarget').value||0; render();
+  S.chomage=+$('regChomage').value||0; S.target=+$('regTarget').value||0;
+  const dep=$('regDepart').value;
+  if(/^\d{4}-\d{2}-\d{2}$/.test(dep)&&dep>START)DEP=dep;
+  S.t1=$('regT1').value; S.t2=$('regT2').value;
+  render();
   clearTimeout(saveTimer);
-  saveTimer=setTimeout(()=>api('/api/sim/reglages',{method:'POST',headers:JSONH,body:JSON.stringify({chomage:S.chomage,objectif:S.target})}).catch(()=>{}),600);
+  saveTimer=setTimeout(()=>api('/api/sim/reglages',{method:'POST',headers:JSONH,body:JSON.stringify({chomage:S.chomage,objectif:S.target,depart:DEP,t1:S.t1,t2:S.t2})}).catch(()=>{}),600);
 }
-$('regChomage').value=S.chomage;$('regTarget').value=S.target;
-$('regChomage').addEventListener('input',saveReg);$('regTarget').addEventListener('input',saveReg);
+$('regChomage').value=S.chomage;$('regTarget').value=S.target;$('regDepart').value=DEP;$('regT1').value=S.t1;$('regT2').value=S.t2;
+['regChomage','regTarget','regDepart','regT1','regT2'].forEach(id=>$(id).addEventListener('input',saveReg));
 
 formState(); renderBase(); render(); load();
 let rt; window.addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{if(cur)drawChart()},80)});
