@@ -3141,6 +3141,7 @@ app.post('/api/sim/reglages', async (req, res) => {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(b.depart || '')) return res.json({ ok: false, error: 'Date de depart invalide' });
       payload.depart = b.depart;
     }
+    if (b.chfin !== undefined && /^\d{4}-\d{2}$/.test(b.chfin || '')) payload.chfin = b.chfin;
     ['t1', 't2'].forEach(k => {
       if (b[k] === undefined) return;
       payload[k] = /^\d{4}-\d{2}$/.test(b[k] || '') ? b[k] : '';
