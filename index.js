@@ -61,6 +61,7 @@ let PRELEVEMENTS_DATES = [
   { nom: 'Claude.ai',           montant: 21.60,  jour: 27,   suspendu: false },
   { nom: 'Bouygues box',        montant: 24.00,  jour: 30,   suspendu: false },
   { nom: 'Cotisation bancaire', montant: 18.30,  jour: null, suspendu: false, frequence: 'trimestriel' },
+  { nom: 'Serveur VM',          montant: 10.00,  jour: null, suspendu: false },
   // Impots : uniquement octobre 2026 -> fevrier 2027 (debut/fin au format AAAA-MM, bornes incluses)
   { nom: 'Impots',              montant: 523.00, jour: 25,   suspendu: false, debut: '2026-10', fin: '2027-02' },
 ];
