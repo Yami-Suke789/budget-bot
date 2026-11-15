@@ -3305,6 +3305,7 @@ app.get('/api/formations', async (req, res) => {
   } catch (err) { res.json({ ok: false, error: err.message }); }
 });
 
+app.use('/assets', express.static(path.join(__dirname, 'assets'), { maxAge: '7d' }));
 app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'dashboard.html')); });
 app.get('/api/vtc/historique-semaines', async (req, res) => {
   try {
