@@ -924,6 +924,9 @@ function cleMoisDeDate(v) {
 function moisEstFige(v) { return !!v && cleMoisDeDate(v) < moisCle(0); }
 const MSG_MOIS_FIGE = 'Mois fige : modification possible uniquement via Supabase';
 
+// Formations dispensees (maintenance, incendie...) — voir formations.js / formations.sql
+const formations = require('./formations')({ supabase, send, genAI, modele: MODELE, moisEstFige, MSG_MOIS_FIGE });
+
 // Refuse la modification d'une ligne appartenant a un mois passe. Renvoie true si refusee.
 async function refuserSiMoisFige(res, table, id, champ = 'created_at') {
   const { data } = await supabase.from(table).select(`id, ${champ}`).eq('id', id).maybeSingle();
@@ -1863,6 +1866,10 @@ app.post('/webhook', async (req, res) => {
         `/revenu → enregistrer une rentree\n` +
         `/francetravail → enregistrer l'allocation France Travail recue\n` +
         `/apport → enregistrer un apport d'affaires (contrat signe)\n` +
+        `/session → enregistrer une formation dispensee\n` +
+        `/facturee, /paye → suivre la facture d'une session\n` +
+        `/factures → factures en attente\n` +
+        `/formations → bilan par theme\n` +
         `/prelevements → voir ce qui arrive\n` +
         `/config → modifier salaire, charges, prelevements\n` +
         `/historique → bilan des mois precedents\n` +
@@ -1872,6 +1879,7 @@ app.post('/webhook', async (req, res) => {
     }
 
     if (texte === '/reset') { delete sessions[chatId]; await send(chatId, 'Conversation reinitialisee !'); return; }
+    if (texte.startsWith('/') && await formations.handle(texte, chatId)) return;
     if (texte === '/fiche') { await demarrerFiche(chatId); return; }
 
     if (texte === '/ajouteleve' || texte === '/ajouter' || /ajouter?\s+[ée]l[eè]ve/i.test(texte)) {
@@ -3288,6 +3296,13 @@ app.get('/api/simulateur', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+app.get('/api/formations', async (req, res) => {
+  try {
+    const mois = /^\d{4}-\d{2}$/.test(req.query.mois || '') ? req.query.mois : moisCle(0);
+    res.json({ ok: true, ...(await formations.donneesDashboard(mois)) });
+  } catch (err) { res.json({ ok: false, error: err.message }); }
 });
 
 app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'dashboard.html')); });
