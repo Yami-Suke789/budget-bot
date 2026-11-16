@@ -831,6 +831,39 @@ html[data-theme="light"] .hero,html[data-theme="light"] .smw .kpi.hero{backgroun
 .ev-bar.cur{background:#0F2A5C}
 .ev-col span{font-size:var(--fs-xs);color:var(--muted)}
 #ep-bar{background:var(--orange);height:100%;border-radius:99px}
+
+/* ═══════════════ MAQUETTE v5 — bandeau marine + carte blanche ═══════════════ */
+html[data-theme="light"] body::before{content:"";position:absolute;top:0;left:0;right:0;height:420px;background:linear-gradient(180deg,#0B2250 0%,#0F2A5C 55%,rgba(15,42,92,0) 100%);z-index:0;pointer-events:none}
+html[data-theme="light"] .header,html[data-theme="light"] .section{position:relative;z-index:1}
+html[data-theme="light"] .hdr-title{color:#fff}
+html[data-theme="light"] .hdr-hello{color:#C7D3EA}
+html[data-theme="light"] .icon-btn{color:#fff!important}
+html[data-theme="light"] .hero{background:#fff!important;box-shadow:0 8px 24px rgba(15,42,92,.18)!important}
+html[data-theme="light"] .hero-lbl{color:var(--muted)!important}
+html[data-theme="light"] .hero-amt{color:var(--text)!important}
+html[data-theme="light"] .hero .mois-nav{background:var(--card2)!important}
+html[data-theme="light"] .hero .mois-btn,html[data-theme="light"] .hero .mois-label{color:var(--text)!important}
+html[data-theme="light"] .hero .mois-badge{color:var(--orange)!important}
+html[data-theme="light"] .hero-stats{border-top-color:var(--line)}
+html[data-theme="light"] .hero-stats div+div{border-left-color:var(--line)}
+html[data-theme="light"] .hero-stats span{color:var(--muted)}
+html[data-theme="light"] .hero-stats b{color:var(--text)}
+.hero-stats{grid-template-columns:repeat(3,1fr)!important}
+.hero-stats div+div{padding-left:.7rem!important}
+html[data-theme="light"] .hero-stats div:last-child b{color:var(--green)}
+.duo{display:grid;grid-template-columns:1.25fr 1fr;gap:12px;align-items:stretch;margin-bottom:var(--s2)}
+.duo>.card{margin-bottom:0!important}
+.duo #blk-repartition .rep-bar,.duo #blk-repartition .rep-sub,.duo #blk-repartition .rep-row b,.duo #blk-repartition .rep-title svg,.duo #blk-repartition .rep-head .rep-total{display:none}
+.duo #blk-epargne .rep-total{font-size:var(--fs-2xl)!important;font-weight:700}
+.duo .rep-head{flex-direction:column;align-items:flex-start;gap:4px}
+.duo .rep-total{font-size:var(--fs-xl)!important}
+.donut-wrap{display:none}
+.duo .donut-wrap{display:flex;justify-content:center;margin:.4rem 0}
+.donut{width:96px;height:96px;border-radius:50%;display:flex;align-items:center;justify-content:center;position:relative}
+.donut::after{content:"";position:absolute;inset:16px;background:var(--card);border-radius:50%}
+.donut b{position:relative;z-index:1;font-size:var(--fs-sm)}
+.duo .rep-row{font-size:var(--fs-sm)}
+@media(max-width:360px){.duo{grid-template-columns:1fr}}
 </style>
 </head>
 <body class="is-home">
@@ -956,7 +989,7 @@ html[data-theme="light"] .hero,html[data-theme="light"] .smw .kpi.hero{backgroun
       <div class="mois-mid"><div class="mois-label" id="mois-label">—</div><div class="mois-badge" id="mois-badge"></div></div>
       <button class="mois-btn" id="btn-next" onclick="changerMois(1)" aria-label="Mois suivant"><i class=ic-chev-right></i></button>
     </div>
-    <div class="hero-stats"><div><span>Revenus</span><b id="h-rev">—</b></div><div><span>Charges</span><b id="h-chg">—</b></div></div>
+    <div class="hero-stats"><div><span>Revenus</span><b id="h-rev">—</b></div><div><span>Charges</span><b id="h-chg">—</b></div><div><span>Marge</span><b id="h-mrg">—</b></div></div>
   </div>
 
   <div class="sec-head"><h2>Trésorerie &amp; échéances</h2></div>
@@ -981,17 +1014,19 @@ html[data-theme="light"] .hero,html[data-theme="light"] .smw .kpi.hero{backgroun
     </div>
   </div>
 
+  <div class="duo">
   <div class="card orb-card" id="blk-repartition">
     <div class="rep-head">
-      <div class="rep-title"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none"/><path d="M12 4a8 8 0 0 1 8 8" /></svg>Analyse des dépenses</div>
+      <div class="rep-title"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none"/><path d="M12 4a8 8 0 0 1 8 8" /></svg>Dépenses</div>
       <div class="rep-total" id="ct-total">—</div>
     </div>
+    <div class="donut-wrap"><div class="donut" id="rep-donut"><b id="rep-donut-v"></b></div></div>
     <div class="rep-bar">
       <div id="ct-bar-f" class="charge-bar-seg"></div>
       <div id="ct-bar-d" class="charge-bar-seg"></div>
     </div>
     <div class="rep-row"><span><i class="dot" style="background:var(--orange)"></i>Charges fixes</span><span><b id="ct-fixes">—</b><span class="pc" id="ct-pf">—</span></span></div>
-    <div class="rep-row"><span><i class="dot" style="background:rgba(var(--accent-rgb),.38)"></i>Dépenses variables</span><span><b id="ct-dep">—</b><span class="pc" id="ct-pd">—</span></span></div>
+    <div class="rep-row"><span><i class="dot" style="background:rgba(var(--accent-rgb),.38)"></i>Variables</span><span><b id="ct-dep">—</b><span class="pc" id="ct-pd">—</span></span></div>
     <div class="rep-sub">sur <span id="ct-rev">—</span> de revenus</div>
   </div>
 
@@ -999,6 +1034,7 @@ html[data-theme="light"] .hero,html[data-theme="light"] .smw .kpi.hero{backgroun
     <div class="rep-head"><div class="rep-title">Épargne</div><div class="rep-total" id="ep-taux">—</div></div>
     <div class="rep-bar"><div id="ep-bar" class="charge-bar-seg" style="width:0"></div></div>
     <div class="rep-sub">Patrimoine <b id="ep-pat">—</b></div>
+  </div>
   </div>
   <div class="card orb-card" id="blk-evol">
     <div class="rep-head"><div class="rep-title">Évolution du résultat</div><div class="rep-sub" style="margin:0">6 derniers mois</div></div>
@@ -1637,6 +1673,8 @@ async function renderOrbital(d){
   document.getElementById('k-pat').textContent=tx+' %';
   document.getElementById('h-rev').textContent=eur0(d.total_revenus);
   document.getElementById('h-chg').textContent=eur0(fixes+dep);
+  document.getElementById('h-mrg').textContent=(d.total_revenus>0?(Math.round((d.total_revenus-fixes-dep)/d.total_revenus*1000)/10).toString().replace('.',','):'0')+' %';
+  {const tt=fixes+dep, pf=tt>0?Math.round(fixes/tt*100):0; const dn=document.getElementById('rep-donut'); if(dn){dn.style.background='conic-gradient(var(--orange) 0 '+pf+'%, #C5D3EA '+pf+'% 100%)'; document.getElementById('rep-donut-v').textContent=eur0(tt);}}
   document.getElementById('ep-taux').textContent=tx+' %';
   document.getElementById('ep-bar').style.width=Math.max(0,Math.min(100,tx))+'%';
   document.getElementById('ep-pat').textContent=eur0((d.epargne_base||0)+(d.total_investi_actuel||0));
@@ -3000,7 +3038,7 @@ function renderBudgets(d){
   const isCurrent=d.mois_offset===0;
   const totalDep=d.total_dep||0,totalMax=Object.values(d.budgets).reduce((s,b)=>s+b.max,0);
   const totalPct=pct(totalDep,totalMax),totalCol=col(totalPct);
-  bl.innerHTML=`<div class="card-label" style="margin-bottom:.6rem">Dépenses variables${isCurrent?'':' <span class="badge-hist">Archivé</span>'}</div>`;
+  bl.innerHTML=`<div class="card-label" style="margin-bottom:.6rem">Variables${isCurrent?'':' <span class="badge-hist">Archivé</span>'}</div>`;
   Object.entries(d.totaux).forEach(([k,v])=>{
     const b=d.budgets[k],p2=pct(v,b.max),c=col(p2);
     const items=(d.detail||{})[k]||[],hasItems=items.length>0;
