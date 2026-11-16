@@ -800,6 +800,24 @@ body{padding-bottom:6.5rem}
 .vtc-hero,.turo-hero,.simul-result,.fm-hero{background:var(--card)!important;background-image:none!important;color:var(--text)!important;border:1px solid var(--line)!important;box-shadow:none!important;border-radius:var(--r-lg)!important}
 .vtc-hero .vtc-hero-label,.turo-hero .turo-hero-label,.fm-hero .lbl,.simul-result .simul-result-label,.vtc-hero .vtc-hero-sub,.turo-hero .turo-hero-sub,.simul-result .simul-result-sub,.fm-hero .sub,.vtc-hero .vtc-stat-lbl,.turo-hero .turo-split-lbl,.fm-hero .fm-stat span{color:var(--muted)!important}
 .vtc-hero-main,.turo-hero-main,.simul-result-main,.fm-hero .big,.fm-hero .fm-stat b,.fm-hero b{color:var(--text)!important}
+
+/* ═══════════════ MAQUETTE v4 — marine & blanc ═══════════════ */
+html[data-theme="light"]{--bg:#F5F7FB;--card:#FFFFFF;--card2:#EEF2F8;--line:#E6EBF3;--text:#0B1F3F;--muted:#5F6F86}
+html[data-theme="light"] .hero,html[data-theme="light"] .smw .kpi.hero{background:#0F2A5C!important;border:0!important;color:#fff!important}
+.hero{background:#0F2A5C!important;border:0!important;border-radius:22px!important}
+.hero-lbl{color:#C7D3EA!important}
+.hero-amt{color:#fff!important}
+.hero .mois-nav{background:rgba(255,255,255,.12)!important}
+.hero .mois-btn,.hero .mois-label{color:#fff!important}
+.hero .mois-badge{color:#9DB8F0!important}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin:.2rem 0 1rem}
+.kpis .kpi{background:transparent!important;border:0!important;border-radius:0!important;padding:.3rem .5rem!important;margin:0!important;border-right:1px solid var(--line)!important}
+.kpis .kpi:last-child{border-right:0!important}
+.kpis .kpi-val{font-size:var(--fs-lg)!important;font-weight:700!important}
+.kpis .kpi:last-child .kpi-val{color:var(--orange)!important}
+.card,.kpi:not(.kpis .kpi),.blk,.act{box-shadow:0 1px 3px rgba(15,42,92,.06),0 6px 16px rgba(15,42,92,.05)!important;border:0!important}
+.bnav-in{border-top:1px solid var(--line)!important}
+.nav-item.active{box-shadow:inset 0 -3px 0 var(--orange)!important;border-radius:0!important}
 </style>
 </head>
 <body class="is-home">
@@ -918,7 +936,7 @@ body{padding-bottom:6.5rem}
 <div class="section active" id="tab-apercu">
 
   <div class="hero" id="hero">
-    <div class="hero-top"><span class="hero-ico"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h13v4"/><path d="M3 7v11a2 2 0 0 0 2 2h14a1 1 0 0 0 1-1v-3"/><path d="M21 9v7h-5a3.5 3.5 0 0 1 0-7z"/></svg></span><span class="hero-lbl">Solde du mois</span></div>
+    <div class="hero-top"><span class="hero-ico" style="display:none"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h13v4"/><path d="M3 7v11a2 2 0 0 0 2 2h14a1 1 0 0 0 1-1v-3"/><path d="M21 9v7h-5a3.5 3.5 0 0 1 0-7z"/></svg></span><span class="hero-lbl">Solde du mois</span></div>
     <div class="hero-amt" id="h-solde">—</div>
     <div class="mois-nav">
       <button class="mois-btn" onclick="changerMois(-1)" aria-label="Mois précédent"><i class=ic-chev-left></i></button>
@@ -928,9 +946,9 @@ body{padding-bottom:6.5rem}
   </div>
 
   <div class="kpis">
-    <div class="kpi"><div class="kpi-ico up"><svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></div><div class="kpi-lbl">Revenus</div><div class="kpi-val" id="k-rev">—</div></div>
-    <div class="kpi"><div class="kpi-ico down"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7"/></svg></div><div class="kpi-lbl">Dépenses</div><div class="kpi-val" id="k-dep">—</div></div>
-    <div class="kpi"><div class="kpi-ico pat"><svg viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg></div><div class="kpi-lbl">Patrimoine</div><div class="kpi-val" id="k-pat">—</div></div>
+    <div class="kpi"><div class="kpi-lbl">Revenus</div><div class="kpi-val" id="k-rev">—</div></div>
+    <div class="kpi"><div class="kpi-lbl">Dépenses</div><div class="kpi-val" id="k-dep">—</div></div>
+    <div class="kpi"><div class="kpi-lbl">Taux d'épargne</div><div class="kpi-val" id="k-pat">—</div></div>
   </div>
 
   <div class="card orb-card" id="blk-repartition">
@@ -1521,11 +1539,11 @@ function toast(msg, isError=false){
 
 /* ── PRÉFÉRENCES (localStorage) ── */
 const PREFS_KEY='cb_prefs';
-const PREFS_DEF={v:3,theme:'light',accent:'#2563EB',masque:false,nom:'Nour-Dine Mhadjou',role:'Entrepreneur & Ingénieur',show:{repartition:false,activites:true,details:false}};
-const ACCENTS=['#2563EB','#7C5CFF','#14B8A6','#F59E0B','#EC4899','#22C55E'];
+const PREFS_DEF={v:4,theme:'light',accent:'#0F3A8A',masque:false,nom:'Nour-Dine Mhadjou',role:'Entrepreneur & Ingénieur',show:{repartition:false,activites:true,details:false}};
+const ACCENTS=['#0F3A8A','#2563EB','#7C5CFF','#14B8A6','#F59E0B','#EC4899','#22C55E'];
 function lirePrefs(){
   let p={};try{p=JSON.parse(localStorage.getItem(PREFS_KEY)||'{}')}catch(e){}
-  if(p.v!==3){p.theme='light';p.v=3;if(!p.accent||p.accent==='#168BFF')p.accent='#2563EB';}
+  if(p.v!==4){p.theme='light';p.v=4;p.accent='#0F3A8A';}
   return Object.assign({},PREFS_DEF,p,{show:Object.assign({},PREFS_DEF.show,p.show||{})});
 }
 let PREFS=lirePrefs();
@@ -1585,8 +1603,8 @@ async function renderOrbital(d){
   const fixes=d.charges_fixes||0, dep=d.total_dep||0;
   document.getElementById('k-rev').textContent=eur0(d.total_revenus);
   document.getElementById('k-dep').textContent=eur0(fixes+dep);
-  const pat=(d.epargne_base||0)+(d.total_investi_actuel||0);
-  document.getElementById('k-pat').textContent=eur0(pat);
+  const tx=(d.total_revenus||0)>0?Math.round(((d.total_revenus-fixes-dep)/d.total_revenus)*100):0;
+  document.getElementById('k-pat').textContent=tx+' %';
   const nbV=(d.vtc_sessions||[]).length, nbT=(d.turo_locations||[]).length;
   setAct('act-co',d.completude||0,(d.nb_cours||0)+' cours'+((d.nb_cours||0)>1?'':''),d.completude||0);
   setAct('act-vtc',d.vtc_net||0,nbV+' session'+(nbV>1?'s':'')+(d.vtc_suspendu?' · en suspens':''),d.vtc_net||0);
