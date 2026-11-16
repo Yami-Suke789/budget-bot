@@ -888,6 +888,22 @@ html[data-theme="light"] .hero-stats div:last-child b{color:var(--green)}
 .nav-item.active svg{transform:translateY(-2px) scale(1.12)}
 .sheet-bg.open .sheet-box{animation:sheetUp .3s cubic-bezier(.2,.8,.2,1)}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+
+/* ═══════════════ ALIGNEMENT & FINITIONS ═══════════════ */
+.sec-head{margin:1.25rem .25rem .6rem!important}
+.section.active>.card,.section.active>.kpis,.section.active>.hero{margin-left:0;margin-right:0}
+.vtc-frise-legend{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 14px;text-align:center}
+.vtc-hero,.vtc-hero *{text-align:center}
+.pf-row:has(.swatches){flex-direction:column;align-items:stretch;gap:6px}
+.swatches{flex-wrap:nowrap!important;justify-content:space-between!important}
+.sw{width:40px;height:40px}.sw i{width:24px;height:24px}
+.tgl{background:#D5DCE8;border-color:transparent}
+.tgl::after{background:#fff;box-shadow:0 1px 3px rgba(15,42,92,.3)}
+.tgl.on{background:var(--orange);border-color:transparent}
+.tgl.on::after{background:#fff}
+html:not([data-theme="light"]) .tgl{background:#3A4250}
+.card-label,.card-title{text-align:left}
+.pf-row .pf-lbl{font-weight:600}
 </style>
 </head>
 <body class="is-home">
@@ -3443,7 +3459,7 @@ async function charger(){
 
     document.getElementById('c-nb').textContent=d.nb_cours;
     document.getElementById('c-mn').textContent=d.nb_cours_manques;
-    document.getElementById('c-mv').textContent='-'+fmt(d.total_manque)+' manqués';
+    document.getElementById('c-mv').textContent='-'+fmt(d.total_manque||0)+' manqués';
 
     renderCalendrier(d);
     renderProchainObjectif(d);
