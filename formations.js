@@ -5,7 +5,7 @@
 const THEMES = ['maintenance', 'incendie', 'autre'];
 const DEFAUTS = { taux_cotisations_formation: 0.256, taux_cfp_formation: 0.002, plafond_micro_bnc: 83600 };
 
-module.exports = function creerFormations({ supabase, send, genAI, modele, moisEstFige, MSG_MOIS_FIGE }) {
+module.exports = function creerFormations({ supabase, send, sendBtns, genAI, modele, moisEstFige, MSG_MOIS_FIGE }) {
 
   async function lireTaux() {
     const cles = Object.keys(DEFAUTS);
@@ -17,6 +17,142 @@ module.exports = function creerFormations({ supabase, send, genAI, modele, moisE
 
   const aujourdhui = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' });
   const eur = n => `${Number(n).toLocaleString('fr-FR', { maximumFractionDigits: 2 })}€`;
+
+
+  // ---- Saisie guidée (/session sans argument) : état par chat ----
+  const flux = {};
+  const LABEL_THEME = { maintenance: 'Maintenance', incendie: 'Incendie', autre: 'Autre' };
+
+  function boutonsSession(id) {
+    return [[{ t: 'Payée', d: `frm_pay_${id}` }, { t: 'Supprimer', d: `frm_del_${id}` }]];
+  }
+
+  async function enregistrer(chatId, s) {
+    const { data, error } = await supabase.from('sessions_formation')
+      .insert({ ...s, chat_id: String(chatId) }).select().single();
+    if (error) throw new Error(error.message);
+    await sendBtns(chatId,
+      `Session *#${data.id}* enregistree\n${data.intitule} — *${eur(data.montant)}*` +
+      `${data.client ? ' — ' + data.client : ''}${data.nb_heures ? ' — ' + data.nb_heures + 'h' : ''}` +
+      `${data.entite === 'dyneos' ? ' (Dyneos)' : ''}\n` +
+      `Statut : a facturer\n\nQuand c'est paye, appuie sur *Payée*.`,
+      boutonsSession(data.id));
+    return data;
+  }
+
+  // Encaissement : revenu dashboard + statut payée + provision URSSAF
+  async function encaisser(chatId, id, date) {
+    date = date || aujourdhui();
+    if (moisEstFige(date)) { await send(chatId, MSG_MOIS_FIGE); return; }
+    const { data: s } = await supabase.from('sessions_formation').select('*').eq('id', id).maybeSingle();
+    if (!s) { await send(chatId, 'Session introuvable.'); return; }
+    if (s.statut === 'payee') { await send(chatId, 'Cette session est deja encaissee.'); return; }
+
+    const libelle = `Formation — ${s.intitule}${s.client ? ' (' + s.client + ')' : ''}`;
+    const { data: rev, error: e1 } = await supabase.from('revenus')
+      .insert({ montant: s.montant, libelle, chat_id: String(chatId), created_at: `${date}T12:00:00Z` })
+      .select('id').single();
+    if (e1) { await send(chatId, `Echec de l'enregistrement du revenu : ${e1.message}`); return; }
+
+    const { error: e2 } = await supabase.from('sessions_formation')
+      .update({ statut: 'payee', date_paiement: date, revenu_id: rev.id }).eq('id', id);
+    if (e2) {
+      await supabase.from('revenus').delete().eq('id', rev.id);
+      await send(chatId, `Echec de la mise a jour : ${e2.message}`);
+      return;
+    }
+    const t = await lireTaux();
+    const prov = Number(s.montant) * (t.taux_cotisations_formation + t.taux_cfp_formation);
+    await send(chatId,
+      `Session *#${id}* encaissee le ${date} : *+${eur(s.montant)}*\n` +
+      `A mettre de cote (URSSAF) : *${eur(prov)}*\nRevenu ajoute au dashboard.`);
+  }
+
+  async function demarrerFlux(chatId) {
+    flux[chatId] = { etape: 'entite' };
+    await sendBtns(chatId, '*Nouvelle session de formation*\n\nPour quelle entite ?',
+      [[{ t: 'Perso', d: 'frm_ent_perso' }, { t: 'Dyneos', d: 'frm_ent_dyneos' }], [{ t: 'Annuler', d: 'frm_annuler' }]]);
+  }
+
+  // Texte libre pendant la saisie guidée — true si traité
+  async function handleTexte(texte, chatId) {
+    const f = flux[chatId];
+    if (!f) return false;
+    const t = texte.trim();
+    if (f.etape === 'client') {
+      if (t.length < 2) { await send(chatId, 'Nom trop court. Quel client ?'); return true; }
+      f.client = t; f.etape = 'theme';
+      await sendBtns(chatId, `*${t}*\n\nTheme de la formation ?`,
+        [[{ t: 'Maintenance', d: 'frm_th_maintenance' }, { t: 'Incendie', d: 'frm_th_incendie' }, { t: 'Autre', d: 'frm_th_autre' }]]);
+      return true;
+    }
+    if (f.etape === 'montant') {
+      const m = t.match(/(\d+(?:[.,]\d{1,2})?)/);
+      const montant = m ? parseFloat(m[1].replace(',', '.')) : NaN;
+      if (!Number.isFinite(montant) || montant <= 0) { await send(chatId, 'Envoie un montant valide, ex: *600*'); return true; }
+      f.montant = montant; f.etape = 'details';
+      await sendBtns(chatId, `*${eur(montant)}*\n\nDetails (optionnel) : heures, stagiaires, date.\n_Ex: 7h 8 stagiaires_`,
+        [[{ t: 'Passer', d: 'frm_skip' }]]);
+      return true;
+    }
+    if (f.etape === 'details') {
+      const h = t.match(/(\d+(?:[.,]\d+)?)\s*h/i);
+      const n = t.match(/(\d+)\s*stagiaires?/i);
+      const d = t.match(/(\d{4}-\d{2}-\d{2})/);
+      if (h) f.nb_heures = parseFloat(h[1].replace(',', '.'));
+      if (n) f.nb_stagiaires = parseInt(n[1], 10);
+      if (d) f.date_session = d[1];
+      await finaliserFlux(chatId);
+      return true;
+    }
+    return true; // étape attend un bouton : on ignore le texte
+  }
+
+  async function finaliserFlux(chatId) {
+    const f = flux[chatId];
+    delete flux[chatId];
+    if (!f) return;
+    try {
+      await enregistrer(chatId, {
+        entite: f.entite, client: f.client, theme: f.theme,
+        intitule: `Formation ${LABEL_THEME[f.theme].toLowerCase()}`,
+        montant: f.montant, nb_heures: f.nb_heures ?? null,
+        nb_stagiaires: f.nb_stagiaires ?? null, date_session: f.date_session || aujourdhui(),
+      });
+    } catch (e) { await send(chatId, `Non enregistre : ${e.message}`); }
+  }
+
+  // Boutons frm_* — true si traité
+  async function handleCallback(data, chatId) {
+    if (!data.startsWith('frm_')) return false;
+    if (data === 'frm_annuler') { delete flux[chatId]; await send(chatId, 'Saisie annulee.'); return true; }
+
+    let m;
+    if ((m = data.match(/^frm_pay_(\d+)$/))) { await encaisser(chatId, Number(m[1])); return true; }
+    if ((m = data.match(/^frm_del_(\d+)$/))) {
+      const id = Number(m[1]);
+      const { data: s } = await supabase.from('sessions_formation').select('revenu_id').eq('id', id).maybeSingle();
+      if (s?.revenu_id) await supabase.from('revenus').delete().eq('id', s.revenu_id);
+      const { error } = await supabase.from('sessions_formation').delete().eq('id', id);
+      await send(chatId, error ? `Echec : ${error.message}` : `Session #${id} supprimee.`);
+      return true;
+    }
+
+    const f = flux[chatId];
+    if (!f) { await send(chatId, 'Saisie expiree. Relance /session.'); return true; }
+    if ((m = data.match(/^frm_ent_(perso|dyneos)$/))) {
+      f.entite = m[1]; f.etape = 'client';
+      await send(chatId, 'Quel client ? (ex: AFORP, entreprise Dupont)');
+      return true;
+    }
+    if ((m = data.match(/^frm_th_(maintenance|incendie|autre)$/))) {
+      f.theme = m[1]; f.etape = 'montant';
+      await send(chatId, `${LABEL_THEME[f.theme]} — *${f.client}*\n\nMontant total facture (€) ?`);
+      return true;
+    }
+    if (data === 'frm_skip') { await finaliserFlux(chatId); return true; }
+    return true;
+  }
 
   async function extraire(texte) {
     const model = genAI.getGenerativeModel({ model: modele, generationConfig: { responseMimeType: 'application/json' } });
@@ -41,20 +177,16 @@ date_session (AAAA-MM-JJ, ${aujourdhui()} si aucune date).`;
   async function handle(texte, chatId) {
     let m;
 
+    if (/^\//.test(texte) && flux[chatId] && !/^\/session/i.test(texte)) delete flux[chatId];
+
     if ((m = texte.match(/^\/session(?:@\w+)?(?:\s+([\s\S]+))?$/i))) {
       if (!m[1]) {
-        await send(chatId, `*Nouvelle session de formation*\n\nEnvoie par ex :\n/session maintenance 600 AFORP 7h\n/session incendie 450 entreprise Dupont 4h 8 stagiaires`);
+        await demarrerFlux(chatId);
         return true;
       }
       try {
         const s = await extraire(m[1]);
-        const { data, error } = await supabase.from('sessions_formation')
-          .insert({ ...s, chat_id: String(chatId) }).select().single();
-        if (error) throw new Error(error.message);
-        await send(chatId,
-          `Session *#${data.id}* enregistree\n${data.intitule} — *${eur(data.montant)}*` +
-          `${data.client ? ' — ' + data.client : ''}${data.nb_heures ? ' — ' + data.nb_heures + 'h' : ''}\n` +
-          `Statut : a facturer\n\n/facturee ${data.id} NUMERO_FACTURE\n/paye ${data.id}`);
+        await enregistrer(chatId, s);
       } catch (e) {
         await send(chatId, `Non enregistre : ${e.message}`);
       }
@@ -72,33 +204,7 @@ date_session (AAAA-MM-JJ, ${aujourdhui()} si aucune date).`;
     }
 
     if ((m = texte.match(/^\/paye\s+(\d+)(?:\s+(\d{4}-\d{2}-\d{2}))?$/i))) {
-      const id = Number(m[1]);
-      const date = m[2] || aujourdhui();
-      if (moisEstFige(date)) { await send(chatId, MSG_MOIS_FIGE); return true; }
-      const { data: s } = await supabase.from('sessions_formation').select('*').eq('id', id).maybeSingle();
-      if (!s) { await send(chatId, 'Session introuvable.'); return true; }
-      if (s.statut === 'payee') { await send(chatId, 'Cette session est deja encaissee.'); return true; }
-
-      // 1) revenu dans le dashboard principal (créé à la date d'encaissement)
-      const libelle = `Formation — ${s.intitule}${s.client ? ' (' + s.client + ')' : ''}`;
-      const { data: rev, error: e1 } = await supabase.from('revenus')
-        .insert({ montant: s.montant, libelle, chat_id: String(chatId), created_at: `${date}T12:00:00Z` })
-        .select('id').single();
-      if (e1) { await send(chatId, `Echec de l'enregistrement du revenu : ${e1.message}`); return true; }
-
-      // 2) statut de la session ; si ça échoue on annule le revenu pour ne pas dupliquer
-      const { error: e2 } = await supabase.from('sessions_formation')
-        .update({ statut: 'payee', date_paiement: date, revenu_id: rev.id }).eq('id', id);
-      if (e2) {
-        await supabase.from('revenus').delete().eq('id', rev.id);
-        await send(chatId, `Echec de la mise a jour : ${e2.message}`);
-        return true;
-      }
-      const t = await lireTaux();
-      const prov = Number(s.montant) * (t.taux_cotisations_formation + t.taux_cfp_formation);
-      await send(chatId,
-        `Session *#${id}* encaissee le ${date} : *+${eur(s.montant)}*\n` +
-        `A mettre de cote (URSSAF) : *${eur(prov)}*\nRevenu ajoute au dashboard.`);
+      await encaisser(chatId, Number(m[1]), m[2]);
       return true;
     }
 
@@ -178,5 +284,5 @@ date_session (AAAA-MM-JJ, ${aujourdhui()} si aucune date).`;
     };
   }
 
-  return { handle, donneesDashboard };
+  return { handle, handleTexte, handleCallback, donneesDashboard };
 };

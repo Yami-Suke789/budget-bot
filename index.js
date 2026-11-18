@@ -925,7 +925,7 @@ function moisEstFige(v) { return !!v && cleMoisDeDate(v) < moisCle(0); }
 const MSG_MOIS_FIGE = 'Mois fige : modification possible uniquement via Supabase';
 
 // Formations dispensees (maintenance, incendie...) — voir formations.js / formations.sql
-const formations = require('./formations')({ supabase, send, genAI, modele: MODELE, moisEstFige, MSG_MOIS_FIGE });
+const formations = require('./formations')({ supabase, send, sendBtns, genAI, modele: MODELE, moisEstFige, MSG_MOIS_FIGE });
 
 // Refuse la modification d'une ligne appartenant a un mois passe. Renvoie true si refusee.
 async function refuserSiMoisFige(res, table, id, champ = 'created_at') {
@@ -1368,6 +1368,7 @@ async function traiterCallback(cb) {
 
   await answerCB(cb.id);
   await removeBtns(chatId, msgId);
+  if (data.startsWith('frm_') && await formations.handleCallback(data, chatId)) return;
 
   const session = sessions[chatId] || {};
 
@@ -1880,6 +1881,7 @@ app.post('/webhook', async (req, res) => {
 
     if (texte === '/reset') { delete sessions[chatId]; await send(chatId, 'Conversation reinitialisee !'); return; }
     if (texte.startsWith('/') && await formations.handle(texte, chatId)) return;
+    if (!texte.startsWith('/') && await formations.handleTexte(texte, chatId)) return;
     if (texte === '/fiche') { await demarrerFiche(chatId); return; }
 
     if (texte === '/ajouteleve' || texte === '/ajouter' || /ajouter?\s+[ée]l[eè]ve/i.test(texte)) {
