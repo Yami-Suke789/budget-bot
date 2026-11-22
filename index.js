@@ -8,6 +8,88 @@ const path = require('path');
 const app = express();
 app.use(express.json());
 
+// ============================================================
+// AUTHENTIFICATION DU DASHBOARD (mot de passe unique)
+// Variable d'environnement requise : DASHBOARD_PASSWORD
+// ============================================================
+const crypto = require('crypto');
+app.set('trust proxy', 1);
+app.use(express.urlencoded({ extended: false }));
+
+const AUTH_COOKIE = 'dash_session';
+const AUTH_DUREE_MS = 30 * 24 * 3600 * 1000; // 30 jours
+const authSecret = () => crypto.createHash('sha256')
+  .update('dash|' + (process.env.DASHBOARD_PASSWORD || '') + '|' + (process.env.SUPABASE_KEY || '')).digest();
+const signer = (payload) => crypto.createHmac('sha256', authSecret()).update(payload).digest('hex');
+const egal = (a, b) => {
+  const ha = crypto.createHash('sha256').update(String(a)).digest();
+  const hb = crypto.createHash('sha256').update(String(b)).digest();
+  return crypto.timingSafeEqual(ha, hb);
+};
+function lireCookie(req, nom) {
+  const m = (req.headers.cookie || '').split(';').map(s => s.trim()).find(s => s.startsWith(nom + '='));
+  return m ? decodeURIComponent(m.slice(nom.length + 1)) : '';
+}
+function estAuthentifie(req) {
+  if (!process.env.DASHBOARD_PASSWORD) return false;
+  const [exp, sig] = lireCookie(req, AUTH_COOKIE).split('.');
+  if (!exp || !sig || !/^\d+$/.test(exp) || Number(exp) < Date.now()) return false;
+  return egal(sig, signer(exp));
+}
+function poserSession(res) {
+  const exp = String(Date.now() + AUTH_DUREE_MS);
+  res.setHeader('Set-Cookie', `${AUTH_COOKIE}=${exp}.${signer(exp)}; Max-Age=${AUTH_DUREE_MS / 1000}; Path=/; HttpOnly; Secure; SameSite=Lax`);
+}
+function requireAuth(req, res, next) {
+  if (estAuthentifie(req)) return next();
+  res.status(401).json({ ok: false, error: 'Non authentifié' });
+}
+// Anti brute-force : 5 échecs par IP => blocage 15 min
+const tentatives = new Map();
+function pageLogin(erreur) {
+  return `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
+<title>Comptable — Connexion</title>
+<style>
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0f172a;font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#e2e8f0}
+form{width:min(340px,90vw);background:#1e293b;padding:28px;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+h1{margin:0 0 18px;font-size:20px;text-align:center}
+input{width:100%;padding:14px;border-radius:10px;border:1px solid #334155;background:#0f172a;color:#fff;font-size:16px}
+button{width:100%;margin-top:14px;padding:14px;border:0;border-radius:10px;background:#3b82f6;color:#fff;font-size:16px;font-weight:600}
+.err{margin:0 0 12px;color:#f87171;font-size:14px;text-align:center}
+</style></head><body>
+<form method="POST" action="/login"><h1>Comptable</h1>
+${erreur ? `<p class="err">${erreur}</p>` : ''}
+<input type="password" name="password" placeholder="Mot de passe" autocomplete="current-password" autofocus required>
+<button type="submit">Se connecter</button></form></body></html>`;
+}
+app.get('/health', (req, res) => res.send('ok'));
+app.post('/login', (req, res) => {
+  if (!process.env.DASHBOARD_PASSWORD) return res.status(503).send(pageLogin('Mot de passe non configuré sur le serveur.'));
+  const ip = req.ip;
+  const t = tentatives.get(ip) || { n: 0, until: 0 };
+  if (t.until > Date.now()) return res.status(429).send(pageLogin('Trop de tentatives. Réessaie dans quelques minutes.'));
+  if (egal(req.body.password || '', process.env.DASHBOARD_PASSWORD)) {
+    tentatives.delete(ip);
+    poserSession(res);
+    return res.redirect('/');
+  }
+  t.n += 1;
+  if (t.n >= 5) { t.n = 0; t.until = Date.now() + 15 * 60 * 1000; }
+  tentatives.set(ip, t);
+  res.status(401).send(pageLogin('Mot de passe incorrect.'));
+});
+app.post('/logout', (req, res) => {
+  res.setHeader('Set-Cookie', `${AUTH_COOKIE}=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax`);
+  res.redirect('/');
+});
+app.use('/api', requireAuth);
+app.use('/depense', requireAuth);
+const servirDashboard = (req, res) => {
+  if (!estAuthentifie(req)) return res.status(401).send(pageLogin(''));
+  res.sendFile(path.join(__dirname, 'dashboard.html'));
+};
+
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_KEY);
 const TOKEN = process.env.TELEGRAM_TOKEN;
@@ -3308,7 +3390,7 @@ app.get('/api/formations', async (req, res) => {
 });
 
 app.use('/assets', express.static(path.join(__dirname, 'assets'), { maxAge: '7d' }));
-app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'dashboard.html')); });
+app.get('/', servirDashboard);
 app.get('/api/vtc/historique-semaines', async (req, res) => {
   try {
     const nb = parseInt(req.query.nb || '12');
@@ -3319,7 +3401,7 @@ app.get('/api/vtc/historique-semaines', async (req, res) => {
   }
 });
 
-app.get('/dashboard', (req, res) => { res.sendFile(path.join(__dirname, 'dashboard.html')); });
+app.get('/dashboard', servirDashboard);
 
 // ============================================================
 // MESSAGES AUTOMATIQUES
