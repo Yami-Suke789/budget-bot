@@ -60,7 +60,7 @@ button{width:100%;margin-top:14px;padding:14px;border:0;border-radius:10px;backg
 </style></head><body>
 <form method="POST" action="/login"><h1>Comptable</h1>
 ${erreur ? `<p class="err">${erreur}</p>` : ''}
-<input type="password" name="password" placeholder="Mot de passe" autocomplete="current-password" autofocus required>
+<input type="password" name="password" placeholder="Mot de passe" autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false" autofocus required>
 <button type="submit">Se connecter</button></form></body></html>`;
 }
 app.get('/health', (req, res) => res.send('ok'));
@@ -69,7 +69,7 @@ app.post('/login', (req, res) => {
   const ip = req.ip;
   const t = tentatives.get(ip) || { n: 0, until: 0 };
   if (t.until > Date.now()) return res.status(429).send(pageLogin('Trop de tentatives. Réessaie dans quelques minutes.'));
-  if (egal(req.body.password || '', process.env.DASHBOARD_PASSWORD)) {
+  if (egal(String(req.body.password || '').trim(), String(process.env.DASHBOARD_PASSWORD).trim())) {
     tentatives.delete(ip);
     poserSession(res);
     return res.redirect('/');
