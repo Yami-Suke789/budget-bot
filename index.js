@@ -49,23 +49,31 @@ const tentatives = new Map();
 function pageLogin(erreur) {
   return `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
-<meta name="theme-color" content="#070D17">
 <title>Comptable — Connexion</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+(function(){try{var p=JSON.parse(localStorage.getItem('cb_prefs')||'{}');var r=document.documentElement;
+if(p.theme!=='dark'||p.v!==3)r.setAttribute('data-theme','light');
+if(p.accent&&/^#[0-9a-f]{6}$/i.test(p.accent)){var h=p.accent;r.style.setProperty('--orange',h);
+r.style.setProperty('--accent-rgb',parseInt(h.slice(1,3),16)+','+parseInt(h.slice(3,5),16)+','+parseInt(h.slice(5,7),16));}
+}catch(e){}})();
+</script>
 <style>
+:root{color-scheme:dark;--bg:#070D17;--card:#101B2B;--card2:#16253B;--line:rgba(148,163,184,.14);--orange:#168BFF;--accent-rgb:22,139,255;--red:#F87171;--text:#F5F7FA;--muted:#94A3B8;--shadow:0 8px 24px rgba(0,0,0,.28)}
+html[data-theme="light"]{color-scheme:light;--bg:#F2F5FA;--card:#FFFFFF;--card2:#EDF1F7;--line:rgba(15,27,45,.09);--red:#D92D45;--text:#0F1B2D;--muted:#5B6B82;--shadow:0 6px 18px rgba(15,27,45,.08)}
 *{box-sizing:border-box}
-body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem;font-family:'Inter',system-ui,-apple-system,sans-serif;color:#F5F7FA;-webkit-font-smoothing:antialiased;
-background:radial-gradient(120% 90% at 100% 100%,#1B4F9E 0%,#0B1B36 45%,#070D17 100%);background-color:#070D17}
-form{width:min(360px,100%);background:#101B2B;border:1px solid rgba(22,139,255,.28);padding:28px 24px;border-radius:24px;box-shadow:0 8px 24px rgba(0,0,0,.28)}
-.logo{width:46px;height:46px;margin:0 auto 14px;border-radius:14px;background:linear-gradient(145deg,#168BFF,rgba(22,139,255,.55));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;color:#fff}
-h1{margin:0 0 4px;font-size:20px;font-weight:700;text-align:center}
-.sub{margin:0 0 20px;text-align:center;font-size:13px;color:#94A3B8}
-input{width:100%;padding:14px;border-radius:14px;border:1px solid rgba(148,163,184,.16);background:#16253B;color:#F5F7FA;font-size:16px;font-family:inherit;outline:none}
-input:focus{border-color:#168BFF}
-input::placeholder{color:#94A3B8}
-button{width:100%;margin-top:14px;padding:14px;border:0;border-radius:14px;background:#168BFF;color:#fff;font-size:16px;font-weight:600;font-family:inherit}
+html{font-size:106%}
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem;font-family:'Inter',system-ui,-apple-system,sans-serif;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased}
+form{width:min(360px,100%);background:var(--card);border:1px solid var(--line);padding:28px 24px;border-radius:20px;box-shadow:var(--shadow)}
+.logo{width:46px;height:46px;margin:0 auto 14px;border-radius:14px;background:linear-gradient(145deg,var(--orange),rgba(var(--accent-rgb),.55));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;color:#fff}
+h1{margin:0 0 4px;font-size:1.2rem;font-weight:700;text-align:center}
+.sub{margin:0 0 20px;text-align:center;font-size:.85rem;color:var(--muted)}
+input{width:100%;padding:14px;border-radius:14px;border:1px solid var(--line);background:var(--card2);color:var(--text);font-size:16px;font-family:inherit;outline:none}
+input:focus{border-color:var(--orange)}
+input::placeholder{color:var(--muted)}
+button{width:100%;margin-top:14px;padding:14px;border:0;border-radius:14px;background:var(--orange);color:#fff;font-size:16px;font-weight:600;font-family:inherit}
 button:active{transform:scale(.98)}
-.err{margin:0 0 12px;color:#F87171;font-size:14px;text-align:center}
+.err{margin:0 0 12px;color:var(--red);font-size:.9rem;text-align:center}
 </style></head><body>
 <form method="POST" action="/login"><div class="logo">C</div><h1>Comptable</h1><p class="sub">Connexion</p>
 ${erreur ? `<p class="err">${erreur}</p>` : ''}
